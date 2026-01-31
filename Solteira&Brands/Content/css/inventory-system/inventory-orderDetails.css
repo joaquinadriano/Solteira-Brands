@@ -1,0 +1,91 @@
+﻿.orderDetails-main-content {
+    position: relative;
+    margin-left: 7.5vw;
+    padding-top: 4.5rem;
+}
+
+.orderDetails-container {
+    padding: 0 2rem;
+    min-height: auto;
+    background-color: #f8f9fa;
+}
+
+
+/*----------Back Button----------*/
+.orderDetails-button {
+    position: relative;
+    overflow: hidden;
+    background: white;
+    color: black;
+    border: 0.13vw solid black;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: color .35s ease;
+    border-radius:0.2vw;
+}
+.orderDetails-button span,
+.orderDetails-button img {
+    position: relative;
+    z-index: 2;
+}
+
+.orderDetails-button::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: #87AE73; 
+    transition: width .35s ease;
+    z-index: 1;
+}
+.orderDetails-button:hover {
+    color: #FFFBE8;
+}
+
+.orderDetails-button:hover::after {
+    width: 100%;
+}
+
+.orderDetails-back-icon {
+    transition: transform .35s ease;
+}
+
+.orderDetails-button:hover .orderDetails-back-icon {
+    transform: translateX(-4px);
+}
+
+
+.orderDetails-accent {
+    color: #87AE73 !important;
+}
+
+/* ----------status---------- */
+.orderDetails-badgeNew {
+    background-color: #d4f8de;
+    color: #468e40;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 0.4vw;
+}
+
+/* -----------Info---------- */
+.orderDetails-infoLabel {
+    font-size: 0.75rem;
+    color: #9aa0a6;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.orderDetails-infoValue {
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 0;
+}
+
+.orderDetails-icon, .orderDetails-total {
+    color: #87AE73;
+}
+

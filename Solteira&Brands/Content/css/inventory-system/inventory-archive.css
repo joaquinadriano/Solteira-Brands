@@ -1,0 +1,56 @@
+﻿html, body {
+    overflow-x: hidden;
+}
+
+
+.inventory-title {
+    font-family: 'Inter';
+}
+
+.ordersArchive-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 4.6vw;
+    font-family: 'Inter';
+}
+
+
+
+
+/*----------table------------*/
+#orderArchiveTable.dataTable thead {
+    font-weight: bold;
+}
+
+#orderArchiveTable.dataTable #delivery-orderID {
+    text-decoration: underline;
+    cursor: pointer;
+}
+#orderArchiveTable.dataTable #restore-col {
+    max-width: 2vw;
+}
+
+
+/*modal for restore button*/
+.archive-restore {
+    background-color: #ffffff !important;
+    border: 0.13vw solid #87AE73 !important;
+    color: black !important;
+    border-radius: 0.4vw !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+}
+
+    .archive-restore i {
+        font-size: 1.2rem;
+    }
+
+    .archive-restore:hover {
+        background-color: #f8f9fa !important;
+        border-color: #87ae73 !important;
+        transform: translateY(-1px);
+    }

@@ -1,0 +1,139 @@
+﻿@{
+    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+}
+
+<div class="orderDetails-main-content">
+    <div class="container-fluid orderDetails-container py-0 px-lg-5 p-5 ">
+
+        <div class="p-5">
+            @*Back Button & Page Title*@
+            <div class="row mb-4">
+                <div class="col-12">
+                    <button class="orderDetails-button d-inline-flex align-items-center mb-4 px-3 py-1"
+                            ng-click="inventoryOrders()">
+                        <img src="~/Content/img/icons/back.svg" class="orderDetails-back-icon me-4" />
+                        <span>BACK</span>
+                    </button>
+                    <h2 class="fw-bold mb-2">Order Details</h2>
+                </div>
+            </div>
+            <div class="row g-4">
+
+                @*Left Column*@
+                <div class="col-lg-4 mt-0">
+                    @*Order ID*@
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h4 class="fw-bold mb-0">Order ID #001</h4>
+                                <span class="orderDetails-badgeNew">Fully Paid</span>
+                            </div>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-calendar me-1"></i>
+                                Placed on 17 Nov 2024 · 08:37 PM
+                            </p>
+
+                        </div>
+                    </div>
+                    @*customer information*@
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">
+                                <i class="bi bi-person-circle me-2 orderDetails-icon"></i>
+                                Customer Information
+                            </h5>
+                            <div class="row row-cols-2 row-cols-md-4 mb-0">
+                                <div class="col-auto">
+                                    <label class="orderDetails-infoLabel">Name</label>
+                                    <p class="orderDetails-infoValue">Kim Namjuan</p>
+                                </div>
+                                <div class="col-auto">
+                                    <label class="orderDetails-infoLabel">Email</label>
+                                    <p class="orderDetails-infoValue">kimnamjuan@gmail.com</p>
+                                </div>
+                                <div class="col-auto">
+                                    <label class="orderDetails-infoLabel">Contact No</label>
+                                    <p class="orderDetails-infoValue">0912 345 6789</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @*delivery card*@
+                    <div class="card border-0 shadow-sm rounded-4 mb-2">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-2">
+                                <i class="bi bi-geo-alt me-2 orderDetails-icon"></i>
+                                Delivery Address
+                            </h5>
+                                <p class="fw-bold mb-1">Kim Namjuan</p>
+                                <p class="mb-1">
+                                    1C Brgy Santol, Espana, Manila
+                                </p>
+                                <p class="mb-0">Contact: 0912 345 6789</p>
+                        </div>
+                    </div>
+                </div>
+
+                @*right column*@
+                <div class="col-lg-8 mt-0">
+                    @*order summary*@
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">
+                                <i class="bi bi-bag-check me-2 orderDetails-icon"></i>
+                                Order Items
+                            </h5>
+                            <table class="table table-borderless align-middle mb-3">
+                                <thead class="border-bottom">
+                                    <tr class="text-muted small text-uppercase">
+                                        <th>Item</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-center">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-bottom">
+                                        <td class="fw-bold ">Many Shape Tennis Bracelet</td>
+                                        <td class="py-3 text-center">1</td>
+                                        <td class="py-3 text-center">P 55, 790.00</td>
+                                    </tr>
+                                    <tr class="border-bottom">
+                                        <td class="fw-bold ">Tiara Ring - White Gold</td>
+                                        <td class="py-3 text-center">1</td>
+                                        <td class="py-3 text-center">P 34, 478.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">
+                                <i class="bi bi-credit-card me-2 orderDetails-icon"></i>
+                                Payment Summary
+                            </h5>
+                            @*payment summary*@
+                            <div class="row">
+                                <div class="col">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Payment Method</span>
+                                        <span>Full Payment</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Sub Total</span>
+                                        <span>P6.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
+                                        <span>Total</span>
+                                        <span class="orderDetails-total">P6.39</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

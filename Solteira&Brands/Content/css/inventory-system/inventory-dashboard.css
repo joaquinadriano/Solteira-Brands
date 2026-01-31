@@ -1,0 +1,121 @@
+﻿html, body {
+    overflow-x: hidden;
+}
+
+
+.inventory-title {
+    font-family: 'Inter';
+
+}
+
+.dashboard-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 4.6vw;
+}
+
+/*background-color: #FFFBE8;
+color: #87AE73;*/
+
+
+/*---------Card----------------*/
+
+/*first card*/
+.vl-right {
+    border-right: 0.1vw solid;
+    border-color: lightgray;
+    height: 6.9vw;
+}
+.vl-left {
+    border-left: 0.1vw solid;
+    border-color: lightgray;
+    height: 6.9vw;
+}
+
+.dashboard-card-container {
+    background-color: #FFFBE8;
+    border: solid 0.1vw #87AE73;
+    border-radius: 0.3vw;
+    margin: 1vw;
+    padding: 0.7vw;
+    box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3),
+        -3px 3px 5px rgba(36, 54, 66, 0.3);
+}
+    .dashboard-card-container:hover {
+        transform: scale(1.050);
+        box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3),
+        -3px 3px 5px rgba(36, 54, 66, 0.3); 
+    }
+
+.dashboard-card-content, .dashboard-card-content-2 {
+    padding: 0.9vw;
+}
+
+    .dashboard-card-content p:first-child {
+        font-family: 'Inter';
+        font-weight: 700;
+        font-size: 1.4vw;
+        text-align: center;
+        margin-bottom: 0;
+
+    }
+
+    .dashboard-card-content p:nth-child(2) {
+        font-family: 'Inter';
+        font-weight: 400;
+        font-size: 1.9vw;
+        text-align: center;
+        margin-bottom: 0.2vw;
+    }
+
+
+/*second card*/
+.dashboard-card2-title {
+    font-family: 'Inter' !important;
+    font-weight: 700 !important;
+    font-size: 1.4vw !important;
+}
+
+    .dashboard-card-content-2 p:first-child {
+        font-family: 'Inter';
+        font-weight: 400;
+        font-size: 1.9vw;
+        text-align: center;
+        margin-bottom: 0.2vw;
+    }
+
+    .dashboard-card-content-2 p:nth-child(2) {
+        font-family: 'Inter';
+        font-weight: 400;
+        font-size: 1.4vw;
+        text-align: center;
+        margin-bottom: 0;
+    }
+/*---------Card end----------------*/
+
+
+/*---------Table----------------*/
+#userTable.dataTable, #usersTable.dataTable {
+    border: 0.19vw solid #87AE73;
+    border-radius: 0.3vw;
+    border-collapse: separate;
+    overflow: hidden;
+}
+
+    #userTable.dataTable thead th, #usersTable.dataTable thead th {
+        background-color: #FFFBE8;
+        border-bottom: none;
+    }
+
+    #userTable.dataTable tbody tr, #usersTable.dataTable tbody tr {
+        background-color: #FFFBE8 !important;
+    }
+
+        #userTable.dataTable tbody tr:hover, #userTables.dataTable tbody tr:hover {
+            background-color: #FFFBE8 !important;
+        }
+
+    #userTable.dataTable tbody td, #usersTable.dataTable tbody td {
+        background-color: #FFFBE8 !important;
+    }
+/*---------Table end----------------*/

@@ -1,0 +1,67 @@
+﻿@{
+    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+}
+<div class="main-content">
+    <div class="container-fluid ordersArchive-container px-1">
+        <div class="row px-4 pb-0 mb-0">
+            <div class="col">
+                <p class="h1 fw-bold inventory-title ps-0 ms-0">Orders Archive</p>
+            </div>
+        </div>
+        <div class="row  px-4 pt-1">
+            <div class="col">
+                <table class="table table-striped table-responsive text-center" id="orderArchiveTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Order Date</th>
+                            <th>No. of Items</th>
+                            <th>Address</th>
+                            <th>Total Price</th>
+                            <th>Order Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="table-group-divider">
+                        <tr class="text-start" ng-init="orderStatus=''">
+                            <td>ORD-001</td>
+                            <td>12/25/2025</td>
+                            <td>2 items</td>
+                            <td>Dapitan St, Sampaloc, Manila</td>
+                            <td>P 90, 468.00</td>
+                            @*status dropdown*@
+                            <td>
+                                <div class="dropdown">
+                                    <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
+                                        {{ orderStatus || 'Status' }}
+                                    </a>
+
+                                    <ul class="dropdown-menu order-dropdown-menu py-0">
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Pending';statusChange()">Pending</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Approved'; statusChange()">Approved</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Rejected'; statusChange()">Rejected</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Fully Paid'; statusChange()">Fully Paid</a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                            @*restore button*@
+                            <td id="restore-col">
+                                <button type="button" class="btn archive-restore px-3 py-1" ng-click="restoreAlert()">
+                                    <i class="bi bi-arrow-counterclockwise fw-bold me-2"></i>
+                                    Restore
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        @*----------Table end----------*@
+
+
+    </div>
+</div>
+

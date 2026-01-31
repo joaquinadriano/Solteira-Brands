@@ -1,0 +1,79 @@
+﻿/*--------FONTS--------------------------------------------------------------------------------------------------------------------------------------------------*/
+.login-title {
+    font-family: 'KaiseiTokumin-Regular';
+    color: #87AE73;
+    font-weight: bold;
+    font-size: 2.3vw;
+}
+
+.login-subtitle {
+    font-family: 'Inter';
+    font-size: 1.4vw;
+}
+
+.form-label-adminLogin {
+    font-family: 'Nunito';
+    color: black;
+    font-size: 1.3vw;
+}
+
+.admin-login-button {
+    font-family: 'KaiseiTokumin-Regular';
+    font-size: 1.3vw;
+}
+
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+body {
+    min-height: 100vh;
+    margin: 0;
+}
+
+
+.container-login {
+    min-height: 100vh;
+}
+
+.login-row {
+    width: 100%;
+    max-width: 70vw; 
+    /*max-width: 75vw para maging equal yung spacing around*/
+    min-height: 80vh;
+}
+
+.login-left {
+    background-color: #87AE73;
+}
+
+.login-right {
+    border: 0.2vw solid #87AE73;
+    padding: 5vw 4vw !important;
+}
+
+.login-logo-img {
+    width: 25vw;
+}
+.border-input {
+    margin-top: 0.5vw;
+    border-color: #87AE73;
+    border-radius: 0vw;
+    padding: 0.86vw;
+    border-width: 0.15vw;
+}
+
+.admin-login-button {
+    background-color: #87AE73;
+    width: 8.3vw;
+    height: 3.2vw;
+    color: #FFFBE8;
+}
+
+    .admin-login-button:hover {
+        background-color: white;
+        font-weight: bolder;
+        font-family: 'KaiseiTokumin-ExtraBold';
+        color: #87AE73;
+        border: solid;
+        border-color: #87AE73;
+        border-width: 0.2vw;
+    }
