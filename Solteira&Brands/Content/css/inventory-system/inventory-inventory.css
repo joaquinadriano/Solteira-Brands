@@ -2,67 +2,15 @@ html, body {
     overflow-x: hidden;
 }
 
-.inventory-title {
-    font-family: 'Inter';
-}
-
-.inventory-container {
-    width: 100%;
-    max-width: 100%;
-    margin-top: 4.6vw;
-    font-family: 'Inter';
-}
-
-/* Inventory table */
-#inventoryTable.dataTable {
-    border: 0.19vw solid #87AE73;
-    border-radius: 0.3vw;
-    border-collapse: separate;
-    overflow: hidden;
-}
-
-    #inventoryTable.dataTable thead th {
-        background-color: #FFFBE8;
-        border-bottom: none;
-        font-weight: 700;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-
-    #inventoryTable.dataTable tbody tr {
-        background-color: #FFFBE8 !important;
-    }
-
 .inventory-product-photo {
     width: 5rem;
     height: auto;
     object-fit: cover;
-    border-radius: 0.4vw;
 }
 
-.inventory-row td {
-    vertical-align: middle;
+.inventory-view-link {
     font-size: 0.9rem;
-}
-
-.inventory-action-icon {
-    display: inline-block;
-    text-decoration: none;
+    color: #87AE73;
+    text-decoration: underline;
     cursor: pointer;
-    border-radius: 0.5vw;
-    background-color: #FFFBE8;
-    padding: 0.3vw;
-    border: solid black 2px;
 }
-
-    .inventory-action-icon:hover {
-        text-decoration: none;
-        transform: scale(1.10);
-        cursor: pointer;
-        box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3), -3px 3px 5px rgba(36, 54, 66, 0.3);
-        background-color: white;
-        padding: 0.3vw;
-        border: solid #87AE73 2px;
-    }
-
-

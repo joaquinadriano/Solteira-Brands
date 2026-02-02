@@ -99,6 +99,44 @@
         });
     }
 
+    //for when an item is added in the INVENTORY Page
+    $scope.inventoryAddStatus = function () {
+        Swal.fire({
+            title: 'Inventory item added!',
+            icon: 'success',
+            iconColor: '#FFFBE8',
+            background: '#8eb078',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#FFFBE8',
+            buttonsStyling: true,
+            customClass: {
+                title: 'status-title',
+                confirmButton: 'status-button'
+            }
+        }).then(() => {
+            $('#inventoryAddItemModal').modal('hide');
+        });
+    }
+
+    //for when an item is edited in the INVENTORY Page
+    $scope.inventoryEditStatus = function () {
+        Swal.fire({
+            title: 'Inventory item updated!',
+            icon: 'success',
+            iconColor: '#FFFBE8',
+            background: '#8eb078',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#FFFBE8',
+            buttonsStyling: true,
+            customClass: {
+                title: 'status-title',
+                confirmButton: 'status-button'
+            }
+        }).then(() => {
+            $('#inventoryEditItemModal').modal('hide');
+        });
+    }
+
     //for when status is changed in the DELIVERY SHIPMENTS Page
     $scope.shipmentsStatus = function () {
         Swal.fire({
@@ -296,6 +334,37 @@
             customClass: {
                 title: 'status-title',
                 confirmButton: 'status-button'
+            }
+        });
+    }
+
+    //for when archive is clicked in INVENTORY Page
+    $scope.inventoryArchiveAlert = function () {
+        Swal.fire({
+            title: 'Archive Confirmation',
+            text: 'Please confirm you wish to archive this inventory item',
+            icon: 'info',
+            iconColor: '#8eb078',
+            showCancelButton: true,
+            confirmButtonText: 'Archive',
+            confirmButtonColor: '#8eb078',
+            cancelButtonText: 'Cancel',
+            background: '#FFFBE8',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Inventory item archived successfully!',
+                    icon: 'success',
+                    iconColor: '#FFFBE8',
+                    background: '#8eb078',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#FFFBE8',
+                    buttonsStyling: true,
+                    customClass: {
+                        title: 'status-title',
+                        confirmButton: 'status-button'
+                    }
+                });
             }
         });
     }

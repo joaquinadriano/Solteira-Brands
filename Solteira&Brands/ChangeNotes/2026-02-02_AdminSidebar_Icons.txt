@@ -27,7 +27,7 @@ Where to edit sidebar icons:
 Change B: Inventory tab UI + DataTables + search/add item
 
 - Inventory page implemented:
-  - File: Views/SolteiraAndBrands/AdminInventoryPage.cshtml (L1–L243)
+  - File: Views/SolteiraAndBrands/AdminInventoryPage.cshtml (L1–L242)
   - Uses same layout and typography as other inventory pages.
 
 - Header controls (updated to match Delivery Shipments pattern):
@@ -37,9 +37,9 @@ Change B: Inventory tab UI + DataTables + search/add item
 
 - Inventory table:
   - New table with id="inventoryTable" styled like Orders/Archive tables:
-    - HTML: AdminInventoryPage.cshtml (L107–L238)
+    - HTML: AdminInventoryPage.cshtml (L107–L239)
     - Columns: Photo, Product ID, Category, Product Name, Product Description, Selling Price, Stock Left, Date Added, Date Updated, Action.
-  - Temporary static rows mirroring the Figma/sample screenshot for front-end only.
+  - Temporary static rows matching the Inventory design reference image.
 
 - Icons and action buttons:
   - Reused existing icons for consistency:
@@ -61,9 +61,16 @@ Change B: Inventory tab UI + DataTables + search/add item
    - Inventory DataTable init (no custom search wiring):
      - Views/Shared/_SABInventoryDashboardLayout.cshtml (L213–L216)
 
- - Assets:
-   - Product photo placeholders updated to use existing image:
-     - ~/Content/img/solteira-logo.png (AdminInventoryPage.cshtml L130, L158, L185, L213)
+- Notifications:
+  - SweetAlert notification when an Inventory item is added via the modal:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryAddStatus)
+    - Triggered by Add Item button: AdminInventoryPage.cshtml (L94–L97)
+  - SweetAlert notification when an Inventory item is edited via the Edit modal:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryEditStatus)
+    - Triggered by Save Changes button: AdminInventoryPage.cshtml (L185–L206)
+  - SweetAlert confirmation + success popup when an Inventory item is archived:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryArchiveAlert)
+    - Triggered by Archive icons in the Action column: AdminInventoryPage.cshtml (L135–L140, L153–L158, L171–L176, L189–L194)
 
  - Project file:
    - Added Inventory CSS to project includes:
