@@ -54,5 +54,25 @@ namespace Solteira_Brands.Controllers
         {
             return View();
         }
+
+        public ActionResult AdminInventoryPage()
+        {
+            return View();
+        }
+
+        public ActionResult AdminReportsPage()
+        {
+            return View();
+        }
+
+        public ActionResult AdminLogsPage()
+        {
+            return View();
+        }
+
+        public ActionResult AdminUsersPage()
+        {
+            return View();
+        }
     }
 }

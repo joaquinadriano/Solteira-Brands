@@ -1042,6 +1042,7 @@
     <Content Include="Views\SolteiraAndBrands\AdminPasswordChangePage.cshtml" />
     <Content Include="Views\Shared\_SABInventoryDashboardLayout.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminDashboardPage.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\AdminInventoryPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminOrdersPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminPasswordChangePage1.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminDeliveryShipmentsPage.cshtml" />
@@ -1049,9 +1050,14 @@
     <Content Include="Views\SolteiraAndBrands\AdminPaymentPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminDeliveryMeetupPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminOrdersArchivePage.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\AdminReportsPage.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\AdminLogsPage.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\AdminUsersPage.cshtml" />
+    <Content Include="ChangeNotes\2026-02-02_AdminSidebar_Icons.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
+    <Folder Include="ChangeNotes\" />
     <Folder Include="Content\css\ordering-system\" />
     <Folder Include="Models\" />
   </ItemGroup>

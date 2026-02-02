@@ -10,6 +10,11 @@
         window.location.href = "/SolteiraAndBrands/AdminDashboardPage";
     }
 
+    //to inventory page
+    $scope.inventoryInventory = function () {
+        window.location.href = "/SolteiraAndBrands/AdminInventoryPage";
+    }
+
     //to inventory orders page
     $scope.inventoryOrders = function () {
         window.location.href = "/SolteiraAndBrands/AdminOrdersPage";
@@ -31,6 +36,21 @@
     //to orders archive
     $scope.orderArchive = function () {
         window.location.href = "/SolteiraAndBrands/AdminOrdersArchivePage";
+    }
+
+    //to reports page
+    $scope.inventoryReports = function () {
+        window.location.href = "/SolteiraAndBrands/AdminReportsPage";
+    }
+
+    //to logs page
+    $scope.inventoryLogs = function () {
+        window.location.href = "/SolteiraAndBrands/AdminLogsPage";
+    }
+
+    //to users page
+    $scope.inventoryUsers = function () {
+        window.location.href = "/SolteiraAndBrands/AdminUsersPage";
     }
 
 
