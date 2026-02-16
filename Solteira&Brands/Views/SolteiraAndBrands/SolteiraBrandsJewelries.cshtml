@@ -4,7 +4,7 @@
 
 <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/JewelriesStyle.css" />
 
-<div ng-controller="SolteiraAndBrandsController">
+<div ng-controller="SolteiraBrandsController">
 
     <div class="nav-jewelry" ng-show="viewMode === 'list'">
         <div class="filter-container">
@@ -56,14 +56,14 @@
                     <div class="product-info">
                         <div class="name-price-row">
                             <span class="product-name">{{item.name}}</span>
-                            <span class="product-price">₱ {{item.price | number:2}}</span>
+                            <span class="product-price">&#8369; {{item.price | number:2}}</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="product-detail-container" ng-show="viewMode === 'detail'">
+        <div class="product-detail-container" ng-if="viewMode === 'detail' && selectedProduct">
             <div class="top-nav">
                 <button class="back-btn" ng-click="goBack()">
                     <i class="bi bi-arrow-left"></i> BACK
@@ -77,7 +77,7 @@
 
                 <div class="product-info-column">
                     <h1 class="detail-name">{{selectedProduct.name}}</h1>
-                    <p class="detail-price">₱ {{selectedProduct.price | number:2}}</p>
+                    <p class="detail-price">&#8369; {{selectedProduct.price | number:2}}</p>
 
                     <div class="details-section">
                         <span class="label">Product Details:</span>

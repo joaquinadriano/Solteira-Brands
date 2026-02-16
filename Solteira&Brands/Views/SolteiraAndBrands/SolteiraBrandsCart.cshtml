@@ -4,7 +4,7 @@
 
 <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/CartStyle.css" />
 
-<div ng-controller="SolteiraAndBrandsController">
+<div ng-controller="SolteiraBrandsController">
     <div class="shopping-cart-text">
         <span>Shopping Cart ({{cart.length}})</span>
     </div>
@@ -50,7 +50,7 @@
 
                     <div class="product-details">
                         <span class="product-name">{{item.name}}</span>
-                        <div class="product-price">₱ {{item.price | number:2}}</div>
+                        <div class="product-price">&#8369; {{item.price | number:2}}</div>
 
                         <div class="quantity-adjuster" style="margin-top: 10px;">
                             <button class="btn-qty" ng-click="item.qty = (item.qty > 1 ? item.qty - 1 : 1)">-</button>
@@ -72,7 +72,7 @@
     <div class="cart-summary-footer" ng-if="cart.length > 0">
         <div class="total-display">
             <span class="total-label">TOTAL:</span>
-            <span class="total-amount">₱ {{getCartTotal() | number:2}}</span>
+            <span class="total-amount">&#8369; {{getCartTotal() | number:2}}</span>
         </div>
         <button ng-click="proceedToCheckout()"
                 class="checkout-btn"
