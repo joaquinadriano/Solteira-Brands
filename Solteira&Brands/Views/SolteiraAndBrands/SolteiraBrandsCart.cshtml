@@ -1,10 +1,10 @@
-﻿@{
+@{
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
 }
 
 <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/CartStyle.css" />
 
-<div ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController">
+<div ng-app="SolteiraBrandsApplication" ng-controller="SolteiraAndBrandsController">
     <div class="shopping-cart-text">
         <span>Shopping Cart ({{cart.length}})</span>
     </div>
@@ -14,7 +14,7 @@
     <div class="empty-cart-message" ng-if="cart.length === 0" style="text-align: center; margin-top: 50px;">
         <i class="bi bi-cart-x" style="font-size: 3rem; color: #ccc;"></i>
         <p style="margin-top: 15px; font-size: 1.2rem; color: #666;">Your jewelry box is currently empty.</p>
-        <a href="/SolteiraBrands/SolteiraBrandsJewelries" class="btn btn-dark" style="margin-top: 10px;">
+        <a href="/SolteiraAndBrands/SolteiraBrandsJewelries" class="btn btn-dark" style="margin-top: 10px;">
             CONTINUE SHOPPING
         </a>
     </div>

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -21,7 +21,7 @@
     <header class="navbar-wrapper">
         <nav class="navbar header-logo p-0">
             <div class="container-fluid justify-content-center">
-                <a href="@Url.Action("SolteiraBrandsHome", "SolteiraBrands")" class="navbar-brand">
+                <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="navbar-brand">
                     <img src="~/Content/SolteiraBrandsImages/SBSharedImages/Solteira&BrandsMainLogo.png" class="sblogo" alt="Logo" />
                 </a>
             </div>
@@ -33,21 +33,21 @@
 
                 <ul class="navbar-nav flex-row gap-3 gap-lg-5">
                     <li class="nav-item">
-                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsHome" ? "active" : "")" href="@Url.Action("SolteiraBrandsHome", "SolteiraBrands")">HOME</a>
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsHome" ? "active" : "")" href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")">HOME</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsJewelries" ? "active" : "")" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraBrands")">JEWELRIES</a>
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsJewelries" ? "active" : "")" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">JEWELRIES</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsAbout" ? "active" : "")" href="@Url.Action("SolteiraBrandsAbout", "SolteiraBrands")">ABOUT</a>
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsAbout" ? "active" : "")" href="@Url.Action("SolteiraBrandsAbout", "SolteiraAndBrands")">ABOUT</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsFaq" ? "active" : "")" href="@Url.Action("SolteiraBrandsFaq", "SolteiraBrands")">FAQs</a>
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsFaq" ? "active" : "")" href="@Url.Action("SolteiraBrandsFaq", "SolteiraAndBrands")">FAQs</a>
                     </li>
                 </ul>
 
                 <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
-                    <a href="@Url.Action("SolteiraBrandsCart","SolteiraBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
+                    <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
 
                     @if (!isLoggedIn)
                     {
@@ -82,9 +82,9 @@
 
                                 <li><hr class="dropdown-divider fw-bold"></li>
 
-                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraBrands")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
 
-                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraBrands")">My Orders</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
 
                                 <li><hr class="dropdown-divider"></li>
 
@@ -113,7 +113,7 @@
 
             <ul class="nav align-items-center list-unstyled d-flex mb-0">
                 <li class="ms-3"><a class="text-dark fs-4" href="#"><i class="bi bi-instagram"></i></a></li>
-                <li class="ms-3"><a class="btn btn-outline-dark fw-bold" href="#">Shop Now</a></li>
+                <li class="ms-3"><a class="btn btn-outline-dark fw-bold" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">Shop Now</a></li>
             </ul>
 
         </div>
