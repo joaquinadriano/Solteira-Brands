@@ -1,21 +1,121 @@
 @{
     Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
 }
+
 <div class="main-content">
-    <div class="container-fluid px-1">
-        <div class="row px-4 pb-0 mb-0">
+    <div class="container-fluid orders-container px-1">
+
+        <div class="row px-4 pb-0 mb-0 align-items-center">
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Users</p>
             </div>
         </div>
+
         <div class="row px-4 pt-3">
             <div class="col">
-                <div class="alert alert-warning rounded-0" role="alert">
-                    This is a placeholder page for Users. You can replace this content once user management is implemented.
+                <div class="card border-0 shadow-sm p-3 rounded-4">
+
+                    <table class="table table-hover table-striped text-center align-middle" id="usersTable" style="width:100%">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-start ps-3">Full Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Account Status</th>
+                                <th>Email Verified</th>
+                                <th>Joined Date</th>
+                                <th>Orders Count</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-group-divider">
+
+                            <tr>
+                                <td class="text-start ps-3 fw-bold text-secondary">Admin Test</td>
+                                <td class="text-muted">admin@test.local</td>
+                                <td><span class="badge bg-danger">ADMIN</span></td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td class="text-muted">Yes</td>
+                                <td class="text-muted">Feb 16, 2026</td>
+                                <td class="text-muted">—</td>
+                                <td>
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
+                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
+                                            <img src="~/Content/img/icons/view.svg" alt="View" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3 fw-bold text-secondary">Manager User</td>
+                                <td class="text-muted">manager@test.local</td>
+                                <td><span class="badge bg-warning text-dark">MANAGER</span></td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td class="text-muted">Yes</td>
+                                <td class="text-muted">Feb 16, 2026</td>
+                                <td class="text-muted">—</td>
+                                <td>
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
+                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
+                                            <img src="~/Content/img/icons/view.svg" alt="View" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3 fw-bold text-secondary">Staff User</td>
+                                <td class="text-muted">staff@test.local</td>
+                                <td><span class="badge bg-info text-dark">STAFF</span></td>
+                                <td><span class="badge bg-danger">Inactive</span></td>
+                                <td class="text-muted">No</td>
+                                <td class="text-muted">Feb 15, 2026</td>
+                                <td class="text-muted">—</td>
+                                <td>
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
+                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
+                                            <img src="~/Content/img/icons/view.svg" alt="View" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3 fw-bold text-secondary">Buyer User</td>
+                                <td class="text-muted">buyer@test.local</td>
+                                <td><span class="badge bg-secondary">BUYER</span></td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td class="text-muted">Yes</td>
+                                <td class="text-muted">Feb 14, 2026</td>
+                                <td class="text-muted">—</td>
+                                <td>
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
+                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
+                                            <img src="~/Content/img/icons/view.svg" alt="View" />
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="viewUserModal" tabindex="-1" aria-labelledby="viewUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold" id="viewUserModalLabel">User Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-0">View details will be implemented here.</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-
