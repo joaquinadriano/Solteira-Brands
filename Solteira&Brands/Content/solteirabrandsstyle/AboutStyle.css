@@ -1,0 +1,167 @@
+﻿.about-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3vw;
+}
+
+.about-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2vw;
+    max-width: 45vw;
+}
+
+.about-title span {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+}
+
+.about-title p {
+    font-family: "Nunito";
+    font-size: 1.25rem;
+}
+
+.abt-origin {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    padding: 2vw 0;
+}
+
+.abt-origin .row {
+    display: flex;
+    align-items: center;
+}
+
+    .abt-origin .abt-origin-left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background-color: #FFFBE8;
+        padding: 5vw;
+        gap: 2vw;
+    }
+
+        .abt-origin .abt-origin-left span {
+            font-family: "Kaisei Tokumin";
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #87AE73;
+        }
+
+        .abt-origin .abt-origin-left p {
+            font-family: "Nunito";
+            font-size: 1.25rem;
+        }
+
+.abt-origin-right {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+}
+
+.abt-origin-right .col-3 {
+    flex: 1;
+    overflow: hidden;
+    line-height: 0;
+}
+
+.abt-origin-right img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.about-pursuit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3vw;
+    gap: 2vw;
+}
+
+    .about-pursuit .abt-pursuit-title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2vw;
+        max-width: 45vw;
+    }
+
+        .about-pursuit .abt-pursuit-title span {
+            font-family: "Kaisei Tokumin";
+            font-size: 1.75rem;
+            font-weight: bold;
+        }
+
+        .about-pursuit .abt-pursuit-title p {
+            font-family: "Nunito";
+            font-size: 1.25rem;
+        }
+
+    .about-pursuit .abt-pursuit-category {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: center;
+        text-align: center;
+        gap: 3vw;
+        width: 100%;        
+    }
+
+        .about-pursuit .abt-pursuit-category .abt-diamonds,
+        .about-pursuit .abt-pursuit-category .abt-metals,
+        .about-pursuit .abt-pursuit-category .abt-global {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+/*            max-width: 20vw;*/
+        }
+
+            .about-pursuit .abt-pursuit-category .abt-diamonds img,
+            .about-pursuit .abt-pursuit-category .abt-metals img,
+            .about-pursuit .abt-pursuit-category .abt-global img {
+                width: 100%;
+                max-width: 15vw;
+                height: auto;
+            }
+
+/*            .about-pursuit .abt-pursuit-category .abt-diamonds span,
+            .about-pursuit .abt-pursuit-category .abt-metals span,
+            .about-pursuit .abt-pursuit-category .abt-global span {
+                font-family: "Nunito";
+                font-size: 1.75rem;
+                font-weight: bold;
+                margin-top: 2vw;
+            }*/
+
+        .about-pursuit .abt-pursuit-category .card .card-body .card-title {
+            font-family: "Nunito";
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 1vw;
+        }
+
+    .about-pursuit .abt-pursuit-category .card .card-body .card-text {
+        font-family: "Nunito";
+        font-size: 1.15rem;
+        margin-top: 1vw;
+    }
+
+/*            .about-pursuit .abt-pursuit-category .abt-diamonds p,
+            .about-pursuit .abt-pursuit-category .abt-metals p,
+            .about-pursuit .abt-pursuit-category .abt-global p {
+                font-family: "Nunito";
+                font-size: 1.25rem;
+                max-width: 25vw;
+                margin-top: 1vw;
+            }
+*/

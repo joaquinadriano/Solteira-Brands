@@ -1,0 +1,172 @@
+﻿body {
+    margin: 0;
+    padding: 0;
+}
+
+.shopping-cart-text {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 2.5vw;
+}
+
+.hr-line {
+    margin: 0;
+    padding: 0;
+}
+
+/* Container Spacing */
+.cart-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1vw;
+    padding: 0;
+}
+
+.cart-item-container {
+    width: 90%;
+    max-width: 50vw;
+}
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2vw;
+    padding: 2vw 0;
+}
+
+.item-info-group {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    margin-left: 2vw;
+}
+
+.item-image {
+    flex: 0 0 auto;
+    margin-right: 2vw;
+}
+
+    .item-image img {
+        width: 15vw;
+        height: 15vw;
+        display: block;
+        object-fit: cover;
+    }
+
+.custom-checkbox {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.custom-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.checkmark {
+    display: inline-block;
+    position: relative;
+    height: 1.5vw;
+    width: 1.5vw;
+    background-color: transparent;
+    border: 2px solid #87AE73;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.custom-checkbox input:checked ~ .checkmark::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    transition: 0.2s ease;
+    background-color: #87AE73;
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+    background-color: transparent;
+}
+
+.custom-checkbox:hover .checkmark {
+    background-color: #e4ffd6;
+}
+
+.product-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.product-name {
+    font-weight: bold;
+    font-size: 1.5rem;
+    margin-bottom: .5vw;
+}
+
+.product-price {
+    font-weight: bold;
+    font-size: 1.25rem;
+    margin-bottom: .5vw;
+}
+
+.product-desc {
+    color: #b0b0b0;
+    font-size: 1rem;
+}
+
+.product-qty {
+    margin-top: 1vw;
+    font-size: 1.25rem;
+}
+
+.item-actions {
+    align-self: flex-start;
+}
+
+.remove-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #87AE73;
+    cursor: pointer;
+}
+
+.cart-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 50px;
+}
+
+.disabled-label {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+    .disabled-label .checkmark {
+        background-color: #eee;
+    }
+
+.checkout-btn {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.25rem;
+    text-align: center;
+    text-decoration: none;
+    background-color: #87AE73;
+    display: block;
+    border: none;
+    color: #FFFBE8;
+    padding: .5vw;
+    margin-bottom: 2vw;
+    transition: 0.2s ease;
+}
+
+    .checkout-btn:hover {
+        background-color: #789F64;
+    }

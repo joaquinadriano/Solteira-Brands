@@ -1,0 +1,631 @@
+﻿.nav-jewelry {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2vw;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.filter-container {
+    display: inline-block;
+    position: relative;
+    width: fit-content;
+    text-align: center;
+}
+
+.filter-btn {
+    background-color: white;
+    border: 2px solid #1E1E1E;
+    padding: .6vw .6vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.filter-btn i {
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.filter-container.active .filter-btn i {
+    transform: rotate(180deg);
+}
+
+.btn-content {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+    font-family: "Nunito";
+    font-size: 1.15rem;
+    font-weight: bold;
+}
+
+.filter-dropdown {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+    .filter-container.active .filter-dropdown{
+        max-height: 26.5vw;
+    }
+
+.filter-item {
+    background-color: white;
+    border: 2px solid #1E1E1E;
+    border-top: none;
+    padding: .5vw;
+    font-family: "Nunito";
+    font-size: 1.15rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+    .filter-item:hover {
+        background-color: #ECECEC;
+    }
+
+.nav-jewelry .jewelry-label span {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+}
+
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.search-btn {
+    background-color: white;
+    border: 2px solid #1E1E1E; 
+    padding: .6vw .6vw;
+    height: 100%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+    .search-btn .btn-content {
+        display: flex;
+        align-items: center;
+        gap: 1vw;
+        font-family: "Nunito";
+        font-weight: bold;
+        font-size: 1.15rem;
+        color: #1e1e1e;
+    }
+
+    .search-btn i {
+        transition: transform 0.3s ease;
+    }
+
+.search-input-box {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    border: 2px solid #1E1E1E;
+    border-top: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+    z-index: 9999;
+}
+
+.search-field {
+    border: 1px solid #1E1E1E;
+    padding: 0;
+    outline: none;
+    box-sizing: border-box;
+    font-family: "Nunito";
+    display: block;
+    background-color: white;
+    color: #1e1e1e;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 100%;
+    outline: none;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.close-search {
+    position: absolute;
+    right: 0.5vw;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    display: none;
+    z-index: 3;
+}
+
+.search-container.active .search-field {
+    width: 18vw;
+    padding: 0.8vw;
+    opacity: 1;
+}
+
+.search-container.active .close-search {
+    display: block;
+}
+
+.search-container.active .search-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Container for the whole grid */
+.jewelry-grid-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 4vw 4vw 4vw;
+    /*    background-color: #fff;*/
+}
+
+.products-grid {
+    display: grid;    
+    grid-template-columns: repeat(3, 1fr); /* 3 columns as per image */
+    gap: 5vw;
+    width: 80%;
+}
+
+/* Individual Product Card */
+.product-card {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.image-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1; /* Keeps images perfectly square */
+    background-color: #f9f9f9;
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+
+    .image-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Ensures jewelry photos aren't stretched */
+        transition: transform 0.3s ease;
+        pointer-events: none;
+    }
+
+.product-card:hover .image-wrapper img {
+    transform: scale(1.1); /* Increases size by 10% */
+}
+
+.product-card:hover {
+    transform: scale(1.05);
+}
+
+/* Cart Icon overlaying bottom right of image */
+.cart-icon-overlay {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    border-radius: 50%;
+    padding: 5px;
+    cursor: pointer;
+}
+
+    .cart-icon-overlay i {
+        font-size: 2rem;
+        color: #1e1e1e;
+    }
+
+/* Text Styling */
+.product-info {
+    margin-top: 15px;
+}
+
+.name-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.product-name {
+    font-family: "Kaisei Tokumin";
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: #1e1e1e;
+    max-width: 70%;
+}
+
+.product-price {
+    font-family: "Nunito";
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #1e1e1e;
+}
+
+.product-detail-container {
+    padding: 3vw 5vw;
+}
+
+.back-btn {
+    font-family: "Nunito";
+    font-size: 1.15rem;
+    font-weight: bold;
+    background: white;
+    border: 2px solid #1e1e1e;
+    padding: 8px 20px;
+    cursor: pointer;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.3s;
+}
+
+    .back-btn:hover {
+        background-color: #ECECEC;
+    }
+
+/* --- Main Product Card --- */
+.product-card-detail {
+    background-color: #FFFBE8; /* Light cream background from image */
+    border: 1px solid #87AE73;
+    border-radius: 0.3vw;
+    display: flex;
+    padding: 3vw 5vw;
+    gap: 50px;
+    align-items: center;
+    margin-top: 3vw;
+}
+
+.main-image-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+    .main-image-container img {
+/*        width: 100%;*/
+        max-width: 28vw;
+        height: auto;
+        object-fit: contain;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+.product-info-column {
+    flex: 1;
+    color: #1e1e1e;
+}
+
+.detail-name {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.detail-price {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 30px;
+}
+
+/* --- Details Section --- */
+.details-section {
+    font-family: "Nunito";
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 1.5vw;
+    gap: 1vw;
+}
+
+    .details-section .label {
+        font-weight: bold;
+        font-style: italic;
+        font-size: 1.25rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+.specs-list {
+    list-style: none;
+    padding: 0;
+    line-height: 1.5;
+    font-size: 1.25rem;
+    text-align: left;
+/*    flex: 1;*/
+}
+
+.separator {
+    border: 0;
+    border-top: 1px solid #87AE73; /* Muted green/grey line */
+    margin: 20px 0;
+}
+
+/* --- Quantity & Add to Cart --- */
+.action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.quantity-container {
+    font-family: "Nunito";
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 1vw;
+}
+
+.quantity-container .label {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.quantity-controls {
+    display: flex;
+    border: 1px solid #87AE73;
+    background: white;
+    border-radius: .25vw;
+}
+
+    .quantity-controls button {
+        border: none;
+        background: none;
+        padding: 5px 12px;
+        cursor: pointer;
+        font-size: 1.5rem;
+    }
+
+    .quantity-controls input {
+        width: 3vw;
+        text-align: center;
+        border-left: 1px solid #87AE73;
+        border-right: 1px solid #87AE73;
+        border-top: none;
+        border-bottom: none;
+        font-size: 1.35rem;
+    }
+
+.add-to-cart-btn {
+    font-family: "Nunito";
+    background-color: #87AE73; /* Sage green from image */
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.25rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: fit-content;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1vw;
+    border-radius: 0.25vw;
+}
+
+    .add-to-cart-btn:hover {
+        background-color: #7AA166;
+    }
+
+    .add-to-cart-btn .bi {
+        color: #FFFFFF;
+    }
+
+/* --- Related Products Section --- */
+.related-section {
+    margin-top: 3vw;    
+    padding-bottom: 2vw;
+}
+
+.related-title {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.related-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2vw;
+    position: relative;
+}
+
+.related-item {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+    /* Ensure the image-wrapper in related items behaves like the main grid */
+    .related-item .image-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        background-color: #f9f9f9;
+        overflow: hidden;
+        border: 1px solid #eee;
+        margin-bottom: 1.5vw;
+    }
+
+        .related-item .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* Apply the zoom transition */
+            transition: transform 0.3s ease;
+        }
+
+    .related-item:hover {
+        transform: scale(1.05); /* Zooms everything inside .related-item */
+    }
+
+    .related-item .image-wrapper {
+        overflow: hidden;
+        margin-bottom: 1.5vw;
+    }
+
+    /* Zoom effect on hover */
+    .related-item:hover .image-wrapper img {
+        transform: scale(1.1);
+    }
+
+    .related-item p {
+        font-family: "Kaisei Tokumin";
+        font-size: 1.3rem;
+        color: #444;
+    }
+
+    /* Ensure zero movement or transition during the loading trigger */
+    .related-item:active, .product-card:active {
+        transform: translateY(0) !important;
+        transition: none !important;
+        opacity: 0.7; /* Slight fade gives immediate visual feedback of the click */
+    }
+
+.view-stage {
+    position: relative;
+    /*min-height: 800px;*/ /* Adjust this to your average page height */
+    overflow: hidden;
+    width: 100%;
+}
+
+/* Base styles for the views */
+.jewelry-grid-container,
+.product-detail-container {
+    transition: opacity 0.4s ease-in-out; /* Smooth fade only */
+    width: 100%;
+    opacity: 1;
+/*    position: relative;*/
+}
+
+/* Ensure they occupy the same space during the switch */
+    .jewelry-grid-container.ng-hide-add,
+    .product-detail-container.ng-hide-add {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+        z-index: 1;
+    }
+
+    .jewelry-grid-container.ng-hide-remove,
+    .product-detail-container.ng-hide-remove {
+        position: relative;
+        z-index: 2;
+    }
+
+    .jewelry-grid-container.ng-animate,
+    .product-detail-container.ng-animate {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+    }   
+
+.ng-hide-remove {
+    z-index: 2;
+}
+
+ng-hide-add {
+    z-index: 1;
+}
+
+ng-hide {
+    opacity: 0;
+}
+
+/* --- BACKWARD ANIMATION (Back to List) --- */
+.forward .jewelry-grid-container.ng-hide,
+.forward .product-detail-container.ng-hide,
+.backward .jewelry-grid-container.ng-hide,
+.backward .product-detail-container.ng-hide {
+    opacity: 0;
+}
+
+/* Custom Font and Size for the SweetAlert Title */
+.swal-jewelry-title {
+    font-family: "Kaisei Tokumin";
+    font-size: 2rem; /* Increased size */
+    font-weight: bold;
+    color: #1e1e1e;
+}
+
+/* Custom Font and Size for the SweetAlert Body Text */
+.swal-jewelry-content {
+    font-family: "Nunito";
+    font-size: 1.5rem;
+    color: #1e1e1e;
+}
+
+/* Adjust the popup padding if the larger text feels cramped */
+.swal2-popup {
+    padding: 2vw !important;
+}
+
+/* Styling and Animating the Bootstrap Gem Icon */
+.custom-gem-loader {
+    font-size: 2rem; /* Size of the icon */
+    color: #87AE73; /* Your Sage Green color */
+    display: inline-block;
+    animation: gem-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes gem-shimmer {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+        filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0));
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+        /* Adds a subtle glowing effect to the gem */
+        filter: drop-shadow(0 0 15px rgba(135, 174, 115, 0.6));
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.6;
+        filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0));
+    }
+}
+
+/* Hide the default SweetAlert spinner border */
+.swal2-loader {
+    border: none !important;
+}
