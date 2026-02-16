@@ -1,0 +1,26 @@
+using Solteira_Brands.Models;
+using Solteira_Brands.Models.Maps;
+using System.Data.Entity;
+
+namespace Solteira_Brands.Models.Context
+{
+    public class SolteiraBrandsContext : DbContext
+    {
+        static SolteiraBrandsContext()
+        {
+            Database.SetInitializer<SolteiraBrandsContext>(null);
+        }
+
+        public SolteiraBrandsContext() : base("Name=SolteiraBrandsConnection") { }
+
+        public virtual DbSet<tblRolesModel> tbl_roles { get; set; }
+        public virtual DbSet<tblUsersModel> tbl_users { get; set; }
+
+        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.Configurations.Add(new tblRolesMap());
+            modelBuilder.Configurations.Add(new tblUsersMap());
+        }
+    }
+}

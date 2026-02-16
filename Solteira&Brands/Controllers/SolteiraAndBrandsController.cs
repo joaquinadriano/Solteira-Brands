@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Web;
 using System.Web.Mvc;
 
@@ -8,6 +10,19 @@ namespace Solteira_Brands.Controllers
 {
     public class SolteiraAndBrandsController : Controller
     {
+        /// <summary>Hash password with SHA256; returns hex string. Use when registering or comparing password.</summary>
+        private static string HashPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password)) return string.Empty;
+            using (var sha = SHA256.Create())
+            {
+                byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(password));
+                var sb = new StringBuilder(bytes.Length * 2);
+                foreach (byte b in bytes) sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
+        }
+
         // GET: SolteiraAndBrands
         public ActionResult AdminHomePage() 
         {
