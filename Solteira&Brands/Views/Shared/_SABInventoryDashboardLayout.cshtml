@@ -14,6 +14,7 @@
         <link href="~/Content/css/inventory-system/inventory-delivery.css" rel="stylesheet" />
         <link href="~/Content/css/inventory-system/inventory-delivery.css" rel="stylesheet" />
         <link href="~/Content/css/inventory-system/inventory-archive.css" rel="stylesheet" />
+        <link href="~/Content/css/inventory-system/inventory-inventory.css" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdn.datatables.net/2.3.6/css/dataTables.dataTables.css" />
 
         <title>@ViewBag.Title</title>
@@ -34,6 +35,14 @@
                         <img src="~/Content/img/icons/dashboard.svg" id="dashboard-icon" />
                         <img src="~/Content/img/icons/dashboard-hover.svg" id="dashboard-hover-icon" />
                         <p class="sidebar-text">Dashboard</p>
+                    </a>
+                </li>
+
+                <li class="option" id="option-inventory" ng-click="inventoryInventory()">
+                    <a>
+                        <img src="~/Content/img/icons/inventory.svg" id="inventory-icon" />
+                        <img src="~/Content/img/icons/inventory-hover.svg" id="inventory-hover-icon" />
+                        <p class="sidebar-text">Inventory</p>
                     </a>
                 </li>
 
@@ -79,7 +88,7 @@
                     </ul>
                 </li>
 
-                <li class="option" id="option-reports">
+                <li class="option" id="option-reports" ng-click="inventoryReports()">
                     <a>
                         <img src="~/Content/img/icons/reports.svg" id="reports-icon" />
                         <img src="~/Content/img/icons/reports-hover.svg" id="reports-hover-icon" />
@@ -92,6 +101,22 @@
                         <img src="~/Content/img/icons/archive.svg" id="archive-icon" />
                         <img src="~/Content/img/icons/archive-hover.svg" id="archive-hover-icon" />
                         <p class="sidebar-text">Archive</p>
+                    </a>
+                </li>
+
+                <li class="option" id="option-logs" ng-click="inventoryLogs()">
+                    <a>
+                        <img src="~/Content/img/icons/logs.svg" id="logs-icon" />
+                        <img src="~/Content/img/icons/logs-hover.svg" id="logs-hover-icon" />
+                        <p class="sidebar-text">Logs</p>
+                    </a>
+                </li>
+
+                <li class="option" id="option-users" ng-click="inventoryUsers()">
+                    <a>
+                        <img src="~/Content/img/icons/users.svg" id="users-icon" />
+                        <img src="~/Content/img/icons/users-hover.svg" id="users-hover-icon" />
+                        <p class="sidebar-text">Users</p>
                     </a>
                 </li>
             </ul>
@@ -167,6 +192,10 @@
                 $('#orderArchiveTable').DataTable();
             });
 
+            //----------Activity Logs Page----------
+            $(document).ready(function () {
+                $('#activityLogsTable').DataTable();
+            });
 
             //---------Payment Page----------
             $(document).ready(function () {
@@ -180,6 +209,16 @@
 
             $(document).ready(function () {
                 $('#deliveryMeetupTable').DataTable();
+            });
+
+            //----------Reports Page----------
+            $(document).ready(function () {
+                $('#salesReportTable').DataTable();
+            });
+
+            //----------Inventory Page----------
+            $(document).ready(function () {
+                $('#inventoryTable').DataTable();
             });
 
         </script>

@@ -1,0 +1,80 @@
+Timestamp: 2026-02-02
+
+Change A: Admin sidebar navigation completion + icons
+
+- Sidebar order updated to:
+  Dashboard, Inventory, Orders, Payment, Delivery, Reports, Archive, Logs, Users
+
+- Icons added/updated:
+  - Inventory: uses ~/Content/img/icons/inventory.svg (normal) and intenvtory-hover.svg (hover)
+  - Logs: uses ~/Content/img/icons/logs.svg (normal) and logs-hover.svg (hover)
+  - Users: uses ~/Content/img/icons/users.svg (normal) and users-hover.svg (hover)
+  - Reports: made clickable in sidebar (navigates to Reports page)
+
+- New placeholder pages added so the sidebar links won't break:
+  - /SolteiraAndBrands/AdminInventoryPage
+  - /SolteiraAndBrands/AdminReportsPage
+  - /SolteiraAndBrands/AdminLogsPage
+  - /SolteiraAndBrands/AdminUsersPage
+
+Where to edit sidebar icons:
+- File: Views/Shared/_SABInventoryDashboardLayout.cshtml
+  - Inventory icons: search for id="inventory-icon" and id="inventory-hover-icon"
+  - Logs icons: search for id="logs-icon" and id="logs-hover-icon"
+  - Users icons: search for id="users-icon" and id="users-hover-icon"
+  Update the `src="~/Content/img/icons/*.svg"` paths if new assets are added later.
+
+Change B: Inventory tab UI + DataTables + search/add item
+
+- Inventory page implemented:
+  - File: Views/SolteiraAndBrands/AdminInventoryPage.cshtml (L1–L242)
+  - Uses same layout and typography as other inventory pages.
+
+- Header controls (updated to match Delivery Shipments pattern):
+  - Removed Filter + custom Search UI to avoid duplication (DataTables provides built-in search).
+  - Added "Add Item" button aligned right, opening a modal:
+    - Header + button + modal: AdminInventoryPage.cshtml (L6–L105)
+
+- Inventory table:
+  - New table with id="inventoryTable" styled like Orders/Archive tables:
+    - HTML: AdminInventoryPage.cshtml (L107–L239)
+    - Columns: Photo, Product ID, Category, Product Name, Product Description, Selling Price, Stock Left, Date Added, Date Updated, Action.
+  - Temporary static rows matching the Inventory design reference image.
+
+- Icons and action buttons:
+  - Reused existing icons for consistency:
+    - Edit: ~/Content/img/icons/edit.svg
+    - Archive: ~/Content/img/icons/archive-status.svg
+  - Action styling matches Orders action icons:
+    - CSS: Content/css/inventory-system/inventory-inventory.css (L48–L66)
+
+- Styles:
+  - New stylesheet added for Inventory page:
+    - File: Content/css/inventory-system/inventory-inventory.css (L1–L66)
+  - Linked in shared inventory layout head:
+    - Views/Shared/_SABInventoryDashboardLayout.cshtml (L6–L17)
+  - Inventory uses existing Delivery modal/button styles for consistency:
+    - Button: .btn-add-order + .plus-icon from Content/css/inventory-system/inventory-delivery.css
+    - Modal: delivery-form-box, delivery-label, delivery-input-field, delivery-btn-* from Content/css/inventory-system/inventory-delivery.css
+
+ - DataTables:
+   - Inventory DataTable init (no custom search wiring):
+     - Views/Shared/_SABInventoryDashboardLayout.cshtml (L213–L216)
+
+- Notifications:
+  - SweetAlert notification when an Inventory item is added via the modal:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryAddStatus)
+    - Triggered by Add Item button: AdminInventoryPage.cshtml (L94–L97)
+  - SweetAlert notification when an Inventory item is edited via the Edit modal:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryEditStatus)
+    - Triggered by Save Changes button: AdminInventoryPage.cshtml (L185–L206)
+  - SweetAlert confirmation + success popup when an Inventory item is archived:
+    - JS: Scripts/HolyScripts/Controller.js (function inventoryArchiveAlert)
+    - Triggered by Archive icons in the Action column: AdminInventoryPage.cshtml (L135–L140, L153–L158, L171–L176, L189–L194)
+
+ - Project file:
+   - Added Inventory CSS to project includes:
+     - Solteira&Brands.csproj (added Content/css/inventory-system/inventory-inventory.css near other inventory css includes)
+
+
+

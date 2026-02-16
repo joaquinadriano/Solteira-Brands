@@ -100,40 +100,52 @@ html, body {
 
 /*----------sidebar icons hover----------*/
 #dashboard-hover-icon,
+#inventory-hover-icon,
 #orders-hover-icon,
 #payment-hover-icon,
 #delivery-hover-icon,
 #reports-hover-icon,
-#archive-hover-icon {
+#archive-hover-icon,
+#logs-hover-icon,
+#users-hover-icon {
     position: absolute;
     top: 0;
     opacity: 0;
 }
 
 #dashboard-icon,
+#inventory-icon,
 #orders-icon,
 #payment-icon,
 #delivery-icon,
 #reports-icon,
-#archive-icon {
+#archive-icon,
+#logs-icon,
+#users-icon {
     opacity: 1;
 }
 
 #option-dashboard:hover #dashboard-icon,
+#option-inventory:hover #inventory-icon,
 #option-orders:hover #orders-icon,
 #option-payment:hover #payment-icon,
 #option-delivery:hover #delivery-icon,
 #option-reports:hover #reports-icon,
-#option-archive:hover #archive-icon {
+#option-archive:hover #archive-icon,
+#option-logs:hover #logs-icon,
+#option-users:hover #users-icon {
     opacity: 0;
 }
 
 #option-dashboard:hover #dashboard-hover-icon,
+#option-inventory:hover #inventory-hover-icon,
 #option-orders:hover #orders-hover-icon,
 #option-payment:hover #payment-hover-icon,
 #option-delivery:hover #delivery-hover-icon,
 #option-reports:hover #reports-hover-icon,
-#option-archive:hover #archive-hover-icon {
+#option-archive:hover #archive-hover-icon,
+#option-logs:hover #logs-hover-icon,
+#option-users:hover #users-hover-icon {
     opacity: 1;
 }
 

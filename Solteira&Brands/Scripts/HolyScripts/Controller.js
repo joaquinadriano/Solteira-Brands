@@ -10,6 +10,11 @@
         window.location.href = "/SolteiraAndBrands/AdminDashboardPage";
     }
 
+    //to inventory page
+    $scope.inventoryInventory = function () {
+        window.location.href = "/SolteiraAndBrands/AdminInventoryPage";
+    }
+
     //to inventory orders page
     $scope.inventoryOrders = function () {
         window.location.href = "/SolteiraAndBrands/AdminOrdersPage";
@@ -31,6 +36,21 @@
     //to orders archive
     $scope.orderArchive = function () {
         window.location.href = "/SolteiraAndBrands/AdminOrdersArchivePage";
+    }
+
+    //to reports page
+    $scope.inventoryReports = function () {
+        window.location.href = "/SolteiraAndBrands/AdminReportsPage";
+    }
+
+    //to logs page
+    $scope.inventoryLogs = function () {
+        window.location.href = "/SolteiraAndBrands/AdminLogsPage";
+    }
+
+    //to users page
+    $scope.inventoryUsers = function () {
+        window.location.href = "/SolteiraAndBrands/AdminUsersPage";
     }
 
 
@@ -76,6 +96,44 @@
                 title: 'status-title',
                 confirmButton: 'status-button'
             }
+        });
+    }
+
+    //for when an item is added in the INVENTORY Page
+    $scope.inventoryAddStatus = function () {
+        Swal.fire({
+            title: 'Inventory item added!',
+            icon: 'success',
+            iconColor: '#FFFBE8',
+            background: '#8eb078',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#FFFBE8',
+            buttonsStyling: true,
+            customClass: {
+                title: 'status-title',
+                confirmButton: 'status-button'
+            }
+        }).then(() => {
+            $('#inventoryAddItemModal').modal('hide');
+        });
+    }
+
+    //for when an item is edited in the INVENTORY Page
+    $scope.inventoryEditStatus = function () {
+        Swal.fire({
+            title: 'Inventory item updated!',
+            icon: 'success',
+            iconColor: '#FFFBE8',
+            background: '#8eb078',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#FFFBE8',
+            buttonsStyling: true,
+            customClass: {
+                title: 'status-title',
+                confirmButton: 'status-button'
+            }
+        }).then(() => {
+            $('#inventoryEditItemModal').modal('hide');
         });
     }
 
@@ -276,6 +334,37 @@
             customClass: {
                 title: 'status-title',
                 confirmButton: 'status-button'
+            }
+        });
+    }
+
+    //for when archive is clicked in INVENTORY Page
+    $scope.inventoryArchiveAlert = function () {
+        Swal.fire({
+            title: 'Archive Confirmation',
+            text: 'Please confirm you wish to archive this inventory item',
+            icon: 'info',
+            iconColor: '#8eb078',
+            showCancelButton: true,
+            confirmButtonText: 'Archive',
+            confirmButtonColor: '#8eb078',
+            cancelButtonText: 'Cancel',
+            background: '#FFFBE8',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Inventory item archived successfully!',
+                    icon: 'success',
+                    iconColor: '#FFFBE8',
+                    background: '#8eb078',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#FFFBE8',
+                    buttonsStyling: true,
+                    customClass: {
+                        title: 'status-title',
+                        confirmButton: 'status-button'
+                    }
+                });
             }
         });
     }

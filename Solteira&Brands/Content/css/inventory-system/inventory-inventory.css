@@ -1,0 +1,16 @@
+html, body {
+    overflow-x: hidden;
+}
+
+.inventory-product-photo {
+    width: 5rem;
+    height: auto;
+    object-fit: cover;
+}
+
+.inventory-view-link {
+    font-size: 0.9rem;
+    color: #87AE73;
+    text-decoration: underline;
+    cursor: pointer;
+}
