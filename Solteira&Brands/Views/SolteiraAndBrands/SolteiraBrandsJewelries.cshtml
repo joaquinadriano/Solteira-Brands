@@ -1,0 +1,183 @@
+@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/JewelriesStyle.css" />
+
+<div ng-controller="SolteiraBrandsController">
+
+    <div class="nav-jewelry" ng-show="viewMode === 'list'">
+        <div class="filter-container">
+            <div class="filter-btn">
+                <span class="btn-content">FILTER <i class="bi bi-filter fs-5"></i></span>
+            </div>
+            <div class="filter-dropdown">
+                <div class="filter-item">A-Z</div>
+                <div class="filter-item">Z-A</div>
+                <div class="filter-item">PRICE: L-H</div>
+                <div class="filter-item">PRICE: H-L</div>
+                <div class="filter-item">BRACELET</div>
+                <div class="filter-item">EARRING</div>
+                <div class="filter-item">NECKLACE</div>
+                <div class="filter-item">RING</div>
+            </div>
+        </div>
+
+        <div class="jewelry-label">
+            <span>JEWELRIES</span>
+        </div>
+
+        <div class="search-container">
+
+            <div class="search-wrapper">
+                <div class="search-btn">
+                    <span class="btn-content">
+                        SEARCH <i class="bi bi-search search-icon fs-5"></i>
+                    </span>
+                </div>
+                <input type="text" placeholder="SEARCH..." class="search-field" />
+                <i class="bi bi-x-lg close-search"></i>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="view-stage" ng-class="transitionDir">
+
+        <div class="jewelry-grid-container" ng-show="viewMode === 'list'">
+            <div class="products-grid">
+                <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
+                    <div class="image-wrapper">
+                        <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{item.img}}" alt="{{item.name}}">
+                        <div class="cart-icon-overlay">
+                            <i class="bi bi-cart-plus-fill"></i>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="name-price-row">
+                            <span class="product-name">{{item.name}}</span>
+                            <span class="product-price">&#8369; {{item.price | number:2}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="product-detail-container" ng-if="viewMode === 'detail' && selectedProduct">
+            <div class="top-nav">
+                <button class="back-btn" ng-click="goBack()">
+                    <i class="bi bi-arrow-left"></i> BACK
+                </button>
+            </div>
+
+            <div class="product-card-detail">
+                <div class="main-image-container">
+                    <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{selectedProduct.img}}" alt="{{selectedProduct.name}}">
+                </div>
+
+                <div class="product-info-column">
+                    <h1 class="detail-name">{{selectedProduct.name}}</h1>
+                    <p class="detail-price">&#8369; {{selectedProduct.price | number:2}}</p>
+
+                    <div class="details-section">
+                        <span class="label">Product Details:</span>
+                        <ul class="specs-list">
+                            <li ng-if="!isEnumerable(selectedProduct.stones)">{{selectedProduct.stones}}</li>
+                            <li ng-repeat="stone in selectedProduct.stones" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
+
+                            <li>{{selectedProduct.material}}</li>
+                            <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>
+                        </ul>
+                    </div>
+
+                    <hr class="separator">
+
+                    <div class="action-section">
+                        <div class="quantity-container">
+                            <span class="label">Quantity:</span>
+                            <div class="quantity-controls">
+                                <button ng-click="qty = (qty > 1) ? qty - 1 : 1" ng-init="qty=1">-</button>
+                                <input type="text" ng-model="qty" readonly>
+                                <button ng-click="qty = qty + 1">+</button>
+                            </div>
+                        </div>
+                        <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
+                            <i class="bi bi-cart-plus"></i>Add to Cart
+                        </button>                    
+                    </div>
+                </div>
+            </div>
+
+            <div class="related-section">
+                <h2 class="related-title">RELATED PRODUCTS</h2>
+                <div class="related-grid">
+                    <div class="related-item"
+                         ng-repeat="rel in getRelatedProducts()"
+                         ng-click="selectProduct(rel)">
+                        <div class="image-wrapper">
+                            <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{rel.img}}">
+                        </div>
+                        <p>{{rel.name}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const filterContainer = document.querySelector('.filter-container');
+        const filterBtn = document.querySelector('.filter-btn');
+        const searchContainer = document.querySelector('.search-container');
+        const searchBtn = document.querySelector('.search-btn');
+        const searchField = document.querySelector('.search-field');
+        const closeBtn = document.querySelector('.close-search');
+
+        // Combined Global Click Listener
+        window.addEventListener('click', function (e) {
+            // 1. If we click a product, let Angular handle it and do nothing here
+            if (e.target.closest('.product-card')) return;
+
+            // 2. Otherwise, handle filter/search closing
+            if (filterContainer) filterContainer.classList.remove('active');
+            if (searchContainer) searchContainer.classList.remove('active');
+        });
+
+        if (filterBtn) {
+            filterBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                searchContainer.classList.remove('active');
+                filterContainer.classList.toggle('active');
+            });
+        }
+
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                filterContainer.classList.remove('active');
+                searchContainer.classList.add('active');
+                setTimeout(() => searchField.focus(), 300);
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                searchContainer.classList.remove('active');
+                searchField.value = '';
+            });
+        }
+
+        if (searchField) {
+            searchField.addEventListener('click', (e) => e.stopPropagation());
+            searchField.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    alert("Searching for: " + this.value);
+                }
+            });
+        }
+    });
+</script>

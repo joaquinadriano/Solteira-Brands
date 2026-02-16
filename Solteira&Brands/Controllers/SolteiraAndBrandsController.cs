@@ -89,5 +89,61 @@ namespace Solteira_Brands.Controllers
         {
             return View();
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////
+        // E-COMMERCE PAGE
+        public ActionResult SolteiraBrandsAbout()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsAccountSettings()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsCart()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsCheckout()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsFaq()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsHome()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsJewelries()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsMyOrders()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsForgotPassword()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsLogin()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsNewPassword()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsOTP()
+        {
+            return View();
+        }
+        public ActionResult SolteiraBrandsRegister()
+        {
+            return View();
+        }
+
     }
 }

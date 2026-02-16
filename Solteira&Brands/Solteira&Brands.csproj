@@ -146,11 +146,6 @@
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\SolteiraAndBrandsController.cs" />
-    <Compile Include="Models\Context\SolteiraBrandsContext.cs" />
-    <Compile Include="Models\Maps\tblRolesMap.cs" />
-    <Compile Include="Models\Maps\tblUsersMap.cs" />
-    <Compile Include="Models\tblRolesModel.cs" />
-    <Compile Include="Models\tblUsersModel.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -206,6 +201,46 @@
     <Content Include="Content\img\icons\upload.svg" />
     <Content Include="Content\img\icons\view.svg" />
     <Content Include="Content\img\solteira-logo.png" />
+    <Content Include="Content\solteirabrandsimages\SBAboutImages\about-img[1].png" />
+    <Content Include="Content\solteirabrandsimages\SBAboutImages\about-img[2].png" />
+    <Content Include="Content\solteirabrandsimages\SBAboutImages\about-img[3].png" />
+    <Content Include="Content\solteirabrandsimages\SBAboutImages\about-img[4].png" />
+    <Content Include="Content\solteirabrandsimages\SBAccountImages\login-img.jpg" />
+    <Content Include="Content\solteirabrandsimages\SBHomeImages\mirror-ring.png" />
+    <Content Include="Content\solteirabrandsimages\SBHomeImages\pearl-earring.png" />
+    <Content Include="Content\solteirabrandsimages\SBHomeImages\sapphire-bracelet.png" />
+    <Content Include="Content\solteirabrandsimages\SBHomeImages\Solteira&amp;BrandsHomeBanner.png" />
+    <Content Include="Content\solteirabrandsimages\SBHomeImages\tennis-necklace.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\alexandra-set.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\big-square-ring.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\carat-necklace.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\citrine-diamond-ring.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\many-shape-bracelet.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\mirror-ring.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\pearl-earring.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\sapphire-bracelet.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\tennis-necklace.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\tiara-ring-whitegold.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\tiara-ring-yellow-gold.png" />
+    <Content Include="Content\solteirabrandsimages\SBJewelryImages\water-dangling-earrings.png" />
+    <Content Include="Content\solteirabrandsimages\SBSharedImages\profile-img.jpg" />
+    <Content Include="Content\solteirabrandsimages\SBSharedImages\Solteira&amp;BrandsFooterLogo.png" />
+    <Content Include="Content\solteirabrandsimages\SBSharedImages\Solteira&amp;BrandsMainLogo.png" />
+    <Content Include="Content\solteirabrandsstyle\AboutStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\AccountSettings.css" />
+    <Content Include="Content\solteirabrandsstyle\CartStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\CheckoutStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\CreateAccountStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\FAQsStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\ForgotPasswordStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\HomeStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\JewelriesStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\LoginStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\MyOrders.css" />
+    <Content Include="Content\solteirabrandsstyle\NewPassword.css" />
+    <Content Include="Content\solteirabrandsstyle\OTPStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\ProductPageStyle.css" />
+    <Content Include="Content\solteirabrandsstyle\SolteiraBrandsLayout.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
     <Content Include="Content\Site.css" />
@@ -269,6 +304,9 @@
     <Content Include="Scripts\HolyScripts\Controller.js" />
     <Content Include="Scripts\HolyScripts\Module.js" />
     <Content Include="Scripts\HolyScripts\Service.js" />
+    <Content Include="Scripts\SBScripts\Controller.js" />
+    <Content Include="Scripts\SBScripts\Module.js" />
+    <Content Include="Scripts\SBScripts\Service.js" />
     <Content Include="Scripts\i18n\angular-locale_af-na.js" />
     <Content Include="Scripts\i18n\angular-locale_af-za.js" />
     <Content Include="Scripts\i18n\angular-locale_af.js" />
@@ -1060,10 +1098,23 @@
     <Content Include="Views\SolteiraAndBrands\AdminLogsPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminUsersPage.cshtml" />
     <Content Include="ChangeNotes\2026-02-02_AdminSidebar_Icons.txt" />
+    <Content Include="Views\Shared\_SolteiraBrandsLayout.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsAbout.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsAccountSettings.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsCart.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsCheckout.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsFaq.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsHome.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsJewelries.cshtml" />
+    <Content Include="Views\SolteiraAndBrands\SolteiraBrandsMyOrders.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsForgotPassword.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsLogin.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsNewPassword.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsOTP.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsRegister.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
-    <Folder Include="ChangeNotes\" />
     <Folder Include="Content\css\ordering-system\" />
     <Folder Include="Models\" />
   </ItemGroup>
