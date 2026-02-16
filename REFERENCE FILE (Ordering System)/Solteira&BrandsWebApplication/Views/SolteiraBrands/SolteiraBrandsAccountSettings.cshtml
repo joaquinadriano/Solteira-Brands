@@ -1,0 +1,77 @@
+﻿@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/AccountSettings.css" />
+
+<div class="acc-settings-page-wrapper">
+
+    <div class="acc-settings-container">
+
+        <div class="left-as-container">
+
+            <div class="profile">
+                <img src="~/Content/SolteiraBrandsImages/SBSharedImages/profile-img.jpg" class="profile-img rounded-circle" />
+            </div>
+
+            <div class="profile-name">
+                <span>Egg Sheeran</span>
+            </div>
+
+            <div class="select-img">
+                <span>Select Image</span>
+            </div>
+
+        </div>
+
+        <hr />
+
+        <div class="right-as-container">
+
+            <div class="edit-profile">
+                <h3>Edit Profile</h3>
+                <p>Manage your account.</p>
+            </div>
+
+            <div class="edit-field">
+
+                <form name="editForm" class="d-flex flex-column align-items-center">
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="name" class="form-label">
+                            Name
+                        </label>
+                        <input type="text" class="form-control custom-input" id="name"
+                               placeholder="Egg Sheeran" required />
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="name" class="form-label">
+                            Email (cannot be changed)
+                        </label>
+                        <input type="email" class="form-control custom-input" id="email"
+                               placeholder="eggsheeran@gmail.com" disabled />
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="name" class="form-label">
+                            Password
+                        </label>
+                        <a href="@Url.Action("SolteiraBrandsForgotPassword", "SolteiraBrandsAccount")" class="change-password-link">
+                            Change Password (Optional)
+                        </a>                    
+                    </div>
+
+                    <button class="save-changes">
+                        SAVE CHANGES
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

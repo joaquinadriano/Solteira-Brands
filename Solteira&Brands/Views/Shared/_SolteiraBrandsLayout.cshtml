@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/SolteiraBrandsLayout.css" />
 </head>
 
-<body ng-app="SolteiraBrandsApplication">
+<body ng-app="SolteiraAndBrands">
 
     @{
         var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
@@ -47,6 +47,9 @@
                 </ul>
 
                 <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
+                    <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
+                        <i class="bi bi-box-seam me-1"></i>Inventory
+                    </a>
                     <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
 
                     @if (!isLoggedIn)
@@ -124,8 +127,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-animate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="~/Scripts/SBScripts/Module.js"></script>
-    <script src="~/Scripts/SBScripts/Service.js"></script>
-    <script src="~/Scripts/SBScripts/Controller.js"></script>
+    <script src="~/Scripts/HolyScripts/Module.js"></script>
+    <script src="~/Scripts/HolyScripts/Service.js"></script>
+    <script src="~/Scripts/HolyScripts/Controller.js"></script>
 </body>
 </html>

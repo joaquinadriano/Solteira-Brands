@@ -1,4 +1,4 @@
-﻿@{
+@{
     Layout = null;
 }
 
@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/OTPStyle.css"/>
 </head>
-<body ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController">
+<body ng-app="SolteiraAndBrands" ng-controller="SolteiraAndBrandsController">
 
     <div class="otp-container d-flex align-items-center justify-content-center">
         <div class="otp-logo">
@@ -99,7 +99,7 @@
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 // This calls your handleOTPSuccess function in the Angular Controller
-                                const scope = angular.element(document.querySelector('[ng-controller="SolteiraBrandsController"]')).scope();
+                                const scope = angular.element(document.querySelector('[ng-controller="SolteiraAndBrandsController"]')).scope();
                                 scope.$apply(() => { scope.handleOTPSuccess(); });
                             }
                         });
@@ -121,9 +121,9 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-animate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="~/Scripts/SBScripts/Module.js"></script>
-    <script src="~/Scripts/SBScripts/Service.js"></script>
-    <script src="~/Scripts/SBScripts/Controller.js"></script>
+    <script src="~/Scripts/HolyScripts/Module.js"></script>
+    <script src="~/Scripts/HolyScripts/Service.js"></script>
+    <script src="~/Scripts/HolyScripts/Controller.js"></script>
 
 </body>
 </html>
