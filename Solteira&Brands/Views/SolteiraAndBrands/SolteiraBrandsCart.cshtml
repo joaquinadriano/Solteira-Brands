@@ -1,0 +1,84 @@
+@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/CartStyle.css" />
+
+<div ng-controller="SolteiraBrandsController">
+    <div class="shopping-cart-text">
+        <span>Shopping Cart ({{cart.length}})</span>
+    </div>
+
+    <hr class="hr-line" />
+
+    <div class="empty-cart-message" ng-if="cart.length === 0" style="text-align: center; margin-top: 50px;">
+        <i class="bi bi-cart-x" style="font-size: 3rem; color: #ccc;"></i>
+        <p style="margin-top: 15px; font-size: 1.2rem; color: #666;">Your jewelry box is currently empty.</p>
+        <a href="/SolteiraAndBrands/SolteiraBrandsJewelries" class="btn btn-dark" style="margin-top: 10px;">
+            CONTINUE SHOPPING
+        </a>
+    </div>
+
+    <div class="cart-page-wrapper">
+        <div class="select-all-container" style="padding: 10px 20px;" ng-show="cart.length > 0">
+            <label class="custom-checkbox">
+                <input type="checkbox"
+                       ng-model="selectAll"
+                       ng-change="toggleAll()" />
+                <span class="checkmark"></span>
+                <span style="margin-left: 35px; font-weight: bold;">SELECT ALL</span>
+            </label>
+        </div>
+
+        <hr class="hr-line" ng-show="cart.length > 0" />
+
+        <hr class="hr-line" />
+
+        <div class="cart-item-container" ng-repeat="item in cart">
+            <div class="cart-item">
+                <div class="item-selection">
+                    <label class="custom-checkbox">
+                        <input type="checkbox" ng-model="item.selected" />
+                        <span class="checkmark"></span>
+                    </label>
+                </div>
+
+                <div class="item-info-group">
+                    <div class="item-image">
+                        <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{item.img}}" />
+                    </div>
+
+                    <div class="product-details">
+                        <span class="product-name">{{item.name}}</span>
+                        <div class="product-price">&#8369; {{item.price | number:2}}</div>
+
+                        <div class="quantity-adjuster" style="margin-top: 10px;">
+                            <button class="btn-qty" ng-click="item.qty = (item.qty > 1 ? item.qty - 1 : 1)">-</button>
+                            <input type="text" ng-model="item.qty" style="width: 40px; text-align: center; border: 1px solid #ddd;" readonly>
+                            <button class="btn-qty" ng-click="item.qty = item.qty + 1">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="item-actions">
+                    <button class="remove-btn" ng-click="removeFromCart($index)">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="cart-summary-footer" ng-if="cart.length > 0">
+        <div class="total-display">
+            <span class="total-label">TOTAL:</span>
+            <span class="total-amount">&#8369; {{getCartTotal() | number:2}}</span>
+        </div>
+        <button ng-click="proceedToCheckout()"
+                class="checkout-btn"
+                ng-disabled="(cart | filter:{selected: true}).length === 0">
+            CHECK OUT ({{ (cart | filter:{selected: true}).length }} ITEMS)
+        </button>
+    </div>
+
+</div>
