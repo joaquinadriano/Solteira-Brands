@@ -19,6 +19,8 @@
         var actionVal = ViewContext.RouteData.Values["action"];
         var currentAction = actionVal != null ? actionVal.ToString() : null;
         bool isLoggedIn = User != null && User.Identity != null && User.Identity.IsAuthenticated;
+        bool isBuyer = isLoggedIn && User.IsInRole("BUYER");
+        bool isInventoryRole = isLoggedIn && (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF"));
         var displayName = isLoggedIn ? User.Identity.Name : "Guest";
     }
 
@@ -51,43 +53,90 @@
                 </ul>
 
                 <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
-                    @if (User != null && User.Identity != null && User.Identity.IsAuthenticated && (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF")))
+                    @if (isInventoryRole)
                     {
                         <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
                             <i class="bi bi-box-seam me-1"></i>Inventory
                         </a>
                     }
-                    <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
+                    @* Cart icon: BUYER gets working cart; anonymous sees login; backend roles see no cart *@
+                    @if (isBuyer)
+                    {
+                        <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
+                    }
+                    else if (!isInventoryRole)
+                    {
+                        <a href="@Url.Action("SolteiraBrandsLogin","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
+                    }
 
-                    @* Profile: trigger and dropdown show user avatar (or default); both updated by GetMyProfile script *@
-                    <div class="dropdown d-flex align-items-center">
-                        <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
-                        </a>
+                    @* Profile / account area *@
+                    @if (!isLoggedIn)
+                    {
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="icon-link nav-item-align" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle fs-4"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsLogin","SolteiraAndBrands")">Login</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsRegister","SolteiraAndBrands")">Register</a></li>
+                            </ul>
+                        </div>
+                    }
+                    else if (isBuyer)
+                    {
+                        @* BUYER: full account dropdown with avatar, My Orders, Logout *@
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
+                            </a>
 
-                        <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
 
-                            <li class="px-3 py-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="avatar-circle me-2">
-                                        <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
                                     </div>
-                                    <span class="profile-name fw-bold">@displayName</span>
-                                </div>
-                            </li>
+                                </li>
 
-                            <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><hr class="dropdown-divider fw-bold"></li>
 
-                            <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
 
-                            <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
+                                <li><hr class="dropdown-divider"></li>
 
-                            <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
 
-                            <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
+                            </ul>
+                        </div>
+                    }
+                    else if (isInventoryRole)
+                    {
+                        @* ADMIN / MANAGER / STAFF: no cart, simple account + logout *@
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
+                            </a>
 
-                        </ul>
-                    </div>
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
+                            </ul>
+                        </div>
+                    }
                 </div>
             </div>
         </nav>
@@ -119,6 +168,10 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-animate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Expose BUYER role flag to Angular so cart logic is buyer-only
+        window.sbIsBuyer = @(isBuyer ? "true" : "false");
+    </script>
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
     <script src="~/Scripts/SBScripts/Controller.js"></script>

@@ -1,1 +1,1 @@
-var app = angular.module("SolteiraAndBrands", ['ngAnimate', 'chart.js']);
+var app = angular.module("SolteiraAndBrands", []);

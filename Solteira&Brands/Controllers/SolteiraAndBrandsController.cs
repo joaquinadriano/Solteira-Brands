@@ -8,6 +8,7 @@ using System.Web;
 using System.Web.Mvc;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
+using Solteira_Brands.Security;
 
 namespace Solteira_Brands.Controllers
 {
@@ -67,14 +68,19 @@ namespace Solteira_Brands.Controllers
         {
             return View();
         }
+        [BuyerAuthorize]
         public ActionResult SolteiraBrandsAccountSettings()
         {
             return View();
         }
+
+        [BuyerAuthorize]
         public ActionResult SolteiraBrandsCart()
         {
             return View();
         }
+
+        [BuyerAuthorize]
         public ActionResult SolteiraBrandsCheckout()
         {
             return View();
@@ -91,9 +97,169 @@ namespace Solteira_Brands.Controllers
         {
             return View();
         }
+        [BuyerAuthorize]
         public ActionResult SolteiraBrandsMyOrders()
         {
             return View();
+        }
+
+        // ----- PRODUCTS: Admin inventory (CRUA) -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetInventoryProducts(bool archived = false)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var now = DateTime.Now;
+                var list = (from p in db.tbl_products
+                            join img in db.tbl_images on p.ImageId equals img.Id into productImages
+                            from img in productImages.DefaultIfEmpty()
+                            where p.IsArchived == archived
+                            orderby p.CreatedAt descending
+                            select new
+                            {
+                                id = p.Id,
+                                name = p.Name,
+                                category = p.Category,
+                                description = p.Description,
+                                price = p.Price,
+                                material = p.Material,
+                                stones = p.Stones,
+                                weight = p.Weight,
+                                length = p.Length,
+                                stockQuantity = p.StockQuantity,
+                                imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : null,
+                                isBestSeller = p.IsBestSeller,
+                                createdAt = p.CreatedAt,
+                                updatedAt = p.UpdatedAt
+                            }).ToList()
+                            .Select(x => new
+                            {
+                                x.id,
+                                x.name,
+                                x.category,
+                                x.description,
+                                x.price,
+                                x.material,
+                                x.stones,
+                                x.weight,
+                                x.length,
+                                x.stockQuantity,
+                                x.imageUrl,
+                                x.isBestSeller,
+                                createdAtString = x.createdAt.ToString("MM/dd/yy"),
+                                updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MM/dd/yy")
+                            });
+
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult CreateProduct(ProductSaveRequest request)
+        {
+            if (request == null) return Json(new { success = false, message = "Invalid payload." });
+            using (var db = new SolteiraBrandsContext())
+            {
+                var now = DateTime.Now;
+                var product = new tblProductsModel
+                {
+                    Name = (request.Name ?? string.Empty).Trim(),
+                    Category = (request.Category ?? string.Empty).Trim(),
+                    Description = (request.Description ?? string.Empty).Trim(),
+                    Price = request.Price,
+                    Material = request.Material,
+                    Stones = request.Stones,
+                    Weight = request.Weight,
+                    Length = request.Length,
+                    StockQuantity = request.StockQuantity,
+                    ImageId = request.ImageId,
+                    IsBestSeller = request.IsBestSeller,
+                    IsArchived = false,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                db.tbl_products.Add(product);
+                db.SaveChanges();
+                return Json(new { success = true, message = "Product created successfully.", id = product.Id });
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdateProduct(ProductSaveRequest request)
+        {
+            if (request == null || !request.Id.HasValue)
+                return Json(new { success = false, message = "Invalid payload." });
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var product = db.tbl_products.FirstOrDefault(p => p.Id == request.Id.Value);
+                if (product == null) return Json(new { success = false, message = "Product not found." });
+
+                product.Name = (request.Name ?? string.Empty).Trim();
+                product.Category = (request.Category ?? string.Empty).Trim();
+                product.Description = (request.Description ?? string.Empty).Trim();
+                product.Price = request.Price;
+                product.Material = request.Material;
+                product.Stones = request.Stones;
+                product.Weight = request.Weight;
+                product.Length = request.Length;
+                product.StockQuantity = request.StockQuantity;
+                if (request.ImageId.HasValue) product.ImageId = request.ImageId;
+                product.IsBestSeller = request.IsBestSeller;
+                product.UpdatedAt = DateTime.Now;
+
+                db.SaveChanges();
+                return Json(new { success = true, message = "Product updated successfully." });
+            }
+        }
+
+        [Authorize(Roles = "ADMIN")]
+        [HttpPost]
+        public JsonResult ToggleProductArchive(int id)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var product = db.tbl_products.FirstOrDefault(p => p.Id == id);
+                if (product == null) return Json(new { success = false, message = "Product not found." });
+
+                product.IsArchived = !product.IsArchived;
+                product.UpdatedAt = DateTime.Now;
+                db.SaveChanges();
+
+                return Json(new { success = true, message = "Product archive status updated.", isArchived = product.IsArchived });
+            }
+        }
+
+        // ----- PRODUCTS: Storefront listing (READ for buyers) -----
+        [HttpGet]
+        public JsonResult GetStorefrontProducts()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var products = (from p in db.tbl_products
+                                join img in db.tbl_images on p.ImageId equals img.Id into productImages
+                                from img in productImages.DefaultIfEmpty()
+                                where !p.IsArchived
+                                orderby p.Category, p.Name
+                                select new
+                                {
+                                    id = p.Id,
+                                    name = p.Name,
+                                    price = p.Price,
+                                    category = p.Category,
+                                    material = p.Material,
+                                    stones = p.Stones,
+                                    weight = p.Weight,
+                                    length = p.Length,
+                                    img = img != null ? (img.ImagePath + img.ImageFileName) : null,
+                                    isBestSeller = p.IsBestSeller
+                                }).ToList();
+
+                return Json(new { success = true, data = products }, JsonRequestBehavior.AllowGet);
+            }
         }
 
         // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images/productsupload/) -----
@@ -103,8 +269,13 @@ namespace Solteira_Brands.Controllers
             if (file == null || file.ContentLength == 0)
                 return Json(new { success = false, message = "No file uploaded." });
             var fileName = file.FileName ?? "";
-            if (!fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Only JPG/JPEG images are allowed." });
+            var ext = Path.GetExtension(fileName) ?? "";
+            if (!ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) &&
+                !ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) &&
+                !ext.Equals(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                return Json(new { success = false, message = "Only JPG, JPEG, or PNG images are allowed." });
+            }
             if (file.ContentLength > 5 * 1024 * 1024)
                 return Json(new { success = false, message = "File size exceeds 5MB limit." });
 
@@ -162,6 +333,12 @@ namespace Solteira_Brands.Controllers
         public ActionResult SolteiraBrandsNewPassword()
         {
             return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsNewPassword.cshtml");
+        }
+
+        [BuyerAuthorize]
+        public ActionResult SolteiraBrandsChangePassword()
+        {
+            return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsChangePassword.cshtml");
         }
     }
 }

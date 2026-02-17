@@ -90,6 +90,10 @@ body {
     padding: 0.5vw;
 }
 
+.input-error {
+    border-color: #dc3545 !important;
+}
+
     .acc-settings-container .custom-input::placeholder {
         font-family: "Kaisei Tokumin";
         font-size: 1.25rem;

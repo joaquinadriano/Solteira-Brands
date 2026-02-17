@@ -5,53 +5,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.viewMode = 'list';
     $scope.qty = 1;
 
-    $scope.jewelries = [
-        {
-            id: 1, name: "Many Shape Tennis Bracelet", price: 55790, category: "Bracelet",
-            material: "18K White Gold", weight: "9.6 grams", length: "18cm", stones: "5 Total Carat Diamond",
-            img: "many-shape-bracelet.png"
-        },
-        {
-            id: 2, name: "Alexandra Set", price: 48450, category: "Bracelet",
-            material: "18K White Gold", weight: "5.1 grams", length: "", stones: "2 Total Carat Diamond",
-            img: "alexandra-set.png"
-        },
-        {
-            id: 3, name: "Tiara Ring - White Gold", price: 34478, category: "Ring",
-            material: "18K White Gold", weight: "4.5 grams", length: "", stones: "1 Total Carat Diamond",
-            img: "tiara-ring-whitegold.png"
-        },
-        {
-            id: 4, name: "Water Dangling Earrings", price: 14378, category: "Earring",
-            material: "18K Yellow Gold", weight: "0.3 grams", length: "", stones: "0.250 Total Carat Diamond",
-            img: "water-dangling-earrings.png"
-        },
-        {
-            id: 5, name: "Heart Citrine Diamond Ring", price: 38750, category: "Ring",
-            material: "18K White Gold", weight: "2.1 grams", length: "", stones: ["0.24 Total Carat Diamond", "1.5 Total Carat Citrine"],
-            img: "citrine-diamond-ring.png"
-        },
-        {
-            id: 6, name: "Sapphire Bracelet", price: 7611, category: "Bracelet",
-            material: "18K White Gold", weight: "0.88 grams", length: "", stones: "0.61 Total Carat Sapphire",
-            img: "sapphire-bracelet.png"
-        },
-        {
-            id: 7, name: "Big Square Ring", price: 27509, category: "Ring",
-            material: "18K Yellow Gold", weight: "4.3 grams", length: "", stones: "1 Total Carat Diamond",
-            img: "big-square-ring.png"
-        },
-        {
-            id: 8, name: "Tiara Ring - Yellow Gold", price: 34478, category: "Ring",
-            material: "18K Yellow Gold", weight: "4.5 grams", length: "", stones: "1 Total Carat Diamond",
-            img: "tiara-ring-yellow-gold.png"
-        },
-        {
-            id: 9, name: "1 Carat Station Necklace", price: 28482, category: "Necklace",
-            material: "18K White Gold", weight: "", length: "", stones: "1 Total Carat Diamond",
-            img: "carat-necklace.png"
-        }
-    ];
+    $scope.jewelries = [];
+    $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
+
+    $scope.loadStorefrontProducts = function () {
+        SolteiraBrandsService.getStorefrontProducts().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                $scope.jewelries = res.data.data;
+            } else {
+                $scope.jewelries = [];
+            }
+        }, function () {
+            $scope.jewelries = [];
+        });
+    };
 
     $scope.isEnumerable = function (item) {
         return angular.isArray(item);
@@ -116,6 +83,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.init = function () {
         const urlParams = new URLSearchParams(window.location.search);
+
+        // Load products for storefront jewelries page
+        if (document.querySelector('.jewelry-grid-container')) {
+            $scope.loadStorefrontProducts();
+        }
         const productId = parseInt(urlParams.get('id'));
 
         if (productId) {
@@ -146,6 +118,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         password: ''
     };
 
+    $scope.loginErrors = { username: '', password: '' };
+
     $scope.registerData = {
         email: '',
         username: '',
@@ -153,32 +127,105 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         verifyPassword: ''
     };
 
-    $scope.registerErrors = { password: '', verifyPassword: '' };
+    $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '' };
+
+    function validateEmailFormat(email) {
+        if (!email) return "Email is required.";
+        var re = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (!re.test(email)) return "Enter a valid email address.";
+        return "";
+    }
+
+    function validateUsernameFormat(u) {
+        if (!u) return "Username is required.";
+        if (u.length < 5 || u.length > 20) return "Username must be 5–20 characters.";
+        if (!/^[A-Za-z0-9_]+$/.test(u)) return "Use letters, numbers, and underscore only.";
+        return "";
+    }
 
     function validatePassword(p) {
-        if (!p || p.length < 8) return 'Password must be at least 8 characters.';
-        if (p.length > 64) return 'Password must not exceed 64 characters.';
-        if (!/[A-Z]/.test(p)) return 'Password must contain at least one uppercase letter.';
-        if (!/[a-z]/.test(p)) return 'Password must contain at least one lowercase letter.';
-        if (!/[0-9]/.test(p)) return 'Password must contain at least one number.';
-        if (!/[!\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(p)) return 'Password must contain at least one special character.';
+        var msg = 'Minimum 8 characters. Must include uppercase, lowercase, number, and special character.';
+        if (!p || p.length < 8) return msg;
+        if (p.length > 64) return msg;
+        if (!/[A-Z]/.test(p)) return msg;
+        if (!/[a-z]/.test(p)) return msg;
+        if (!/[0-9]/.test(p)) return msg;
+        if (!/[^A-Za-z0-9]/.test(p)) return msg;
         return '';
     }
 
+    $scope.onEmailBlur = function () {
+        var e = $scope.registerData.email;
+        var err = validateEmailFormat(e);
+        $scope.registerErrors.email = err;
+        if (err) return;
+
+        SolteiraBrandsService.isEmailAvailable(e).then(function (r) {
+            if (r.data && r.data.available === false) {
+                $scope.registerErrors.email = "Email already registered.";
+            }
+        });
+    };
+
+    $scope.onUsernameBlur = function () {
+        var u = $scope.registerData.username;
+        var err = validateUsernameFormat(u);
+        $scope.registerErrors.username = err;
+        if (err) return;
+
+        SolteiraBrandsService.isUsernameAvailable(u, false).then(function (r) {
+            if (r.data && r.data.available === false) {
+                $scope.registerErrors.username = "Username already taken.";
+            }
+        });
+    };
+
+    function clearRegisterErrors() {
+        $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '' };
+    }
+
+    $scope.onPasswordInput = function () {
+        var p = $scope.registerData.password || '';
+        var v = $scope.registerData.verifyPassword || '';
+
+        // Re-validate password strength on each input
+        var pErr = validatePassword(p);
+        $scope.registerErrors.password = pErr;
+
+        // Re-validate match only when there is something typed
+        if (v) {
+            $scope.registerErrors.verifyPassword = (p && p === v) ? '' : 'Passwords do not match.';
+        }
+    };
+
+    $scope.onVerifyPasswordInput = function () {
+        var p = $scope.registerData.password || '';
+        var v = $scope.registerData.verifyPassword || '';
+        if (!v) {
+            $scope.registerErrors.verifyPassword = '';
+            return;
+        }
+        $scope.registerErrors.verifyPassword = (p && p === v) ? '' : 'Passwords do not match.';
+    };
+
     $scope.register = function (form) {
-        $scope.registerErrors = { password: '', verifyPassword: '' };
+        clearRegisterErrors();
         if (!form) return;
+
+        var eErr = validateEmailFormat($scope.registerData.email);
+        var uErr = validateUsernameFormat($scope.registerData.username);
         var p = $scope.registerData.password;
         var v = $scope.registerData.verifyPassword;
-        var err = validatePassword(p);
-        if (err) {
-            $scope.registerErrors.password = err;
+        var pErr = validatePassword(p);
+
+        if (eErr || uErr || pErr || p !== v) {
+            $scope.registerErrors.email = eErr;
+            $scope.registerErrors.username = uErr;
+            if (pErr) $scope.registerErrors.password = pErr;
+            if (p !== v) $scope.registerErrors.verifyPassword = "Passwords do not match.";
             return;
         }
-        if (p !== v) {
-            $scope.registerErrors.verifyPassword = 'Passwords do not match.';
-            return;
-        }
+
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
         var token = tokenEl ? tokenEl.value : '';
         SolteiraBrandsService.register($scope.registerData, token).then(function (r) {
@@ -186,6 +233,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 Swal.fire({ icon: 'success', title: 'Account created', text: r.data.message || 'You can now log in.' }).then(function () {
                     window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
                 });
+            } else if (r.data && r.data.errors) {
+                angular.extend($scope.registerErrors, r.data.errors);
             } else {
                 Swal.fire({ icon: 'error', title: 'Registration failed', text: (r.data && r.data.message) || 'Please try again.' });
             }
@@ -195,19 +244,44 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
+    // Account Settings: async username validation on blur
+    $scope.profileErrors = { username: '' };
+
+    $scope.onLoginFieldChange = function (field) {
+        if (field === 'username') {
+            if ($scope.loginData.username) {
+                $scope.loginErrors.username = '';
+            }
+        } else if (field === 'password') {
+            if ($scope.loginData.password) {
+                $scope.loginErrors.password = '';
+            }
+        }
+    };
+
     $scope.login = function () {
-        if (!$scope.loginData || !$scope.loginData.username || !$scope.loginData.password) {
-            Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter username and password.' });
+        $scope.loginErrors = { username: '', password: '' };
+        if (!$scope.loginData || !$scope.loginData.username) {
+            $scope.loginErrors.username = 'Username is required.';
+        }
+        if (!$scope.loginData || !$scope.loginData.password) {
+            $scope.loginErrors.password = 'Password is required.';
+        }
+        if ($scope.loginErrors.username || $scope.loginErrors.password) {
             return;
         }
         SolteiraBrandsService.login($scope.loginData.username, $scope.loginData.password).then(function (r) {
             if (r.data && r.data.success && r.data.redirectUrl) {
                 window.location.href = r.data.redirectUrl;
             } else {
-                Swal.fire({ icon: 'error', title: 'Login failed', text: (r.data && r.data.message) || 'Please try again.' });
+                $scope.loginErrors.username = 'Invalid username or password.';
+                $scope.loginErrors.password = 'Invalid username or password.';
+                Swal.fire({ icon: 'error', title: 'Login failed', text: (r.data && r.data.message) || 'Invalid username or password.' });
             }
         }, function (err) {
             var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Invalid username or password.';
+            $scope.loginErrors.username = 'Invalid username or password.';
+            $scope.loginErrors.password = 'Invalid username or password.';
             Swal.fire({ icon: 'error', title: 'Login failed', text: msg });
         });
     };
@@ -276,9 +350,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
     };
 
-    $scope.cart = JSON.parse(localStorage.getItem('sb_cart')) || [];
+    // Only BUYERs should have a persisted cart. Anonymous or non-buyer roles see an empty cart.
+    var isBuyer = !!(window.sbIsBuyer);
+    $scope.cart = isBuyer ? (JSON.parse(localStorage.getItem('sb_cart')) || []) : [];
 
     $scope.addToCart = function (product, quantity) {
+        // Anonymous or non-BUYER user: redirect to login instead of storing a guest cart
+        if (!isBuyer) {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+            return;
+        }
         let cartItem = {
             id: product.id,
             name: product.name,
@@ -380,7 +461,26 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
+    $scope.onProfileUsernameBlur = function () {
+        $scope.profileErrors.username = '';
+        var u = ($scope.profile && $scope.profile.username) ? $scope.profile.username.trim() : '';
+        var err = validateUsernameFormat(u);
+        if (err) {
+            $scope.profileErrors.username = err;
+            return;
+        }
+        SolteiraBrandsService.isUsernameAvailable(u, true).then(function (r) {
+            if (r.data && r.data.available === false) {
+                $scope.profileErrors.username = "Username already taken.";
+            }
+        });
+    };
+
     $scope.saveProfile = function () {
+        if ($scope.profileErrors.username) {
+            Swal.fire({ icon: 'warning', title: 'Fix errors', text: $scope.profileErrors.username });
+            return;
+        }
         var username = ($scope.profile && $scope.profile.username) ? $scope.profile.username.trim() : '';
         if (!username) {
             Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter a name (username).' });

@@ -69,6 +69,16 @@ body, html {
     border-radius: 0;
 }
 
+.is-invalid {
+    border: 2px solid red !important;
+}
+
+.error-text {
+    color: red;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
 .custom-input-group {
     display: flex;
     align-items: center;

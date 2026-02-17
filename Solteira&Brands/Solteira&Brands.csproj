@@ -151,9 +151,13 @@
     <Compile Include="Models\Maps\tblImagesMap.cs" />
     <Compile Include="Models\Maps\tblRolesMap.cs" />
     <Compile Include="Models\Maps\tblUsersMap.cs" />
+    <Compile Include="Models\Maps\tblProductsMap.cs" />
+    <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\tblImagesModel.cs" />
     <Compile Include="Models\tblRolesModel.cs" />
     <Compile Include="Models\tblUsersModel.cs" />
+    <Compile Include="Models\tblProductsModel.cs" />
+    <Compile Include="Security\BuyerAuthorizeAttribute.cs" />
     <Compile Include="Security\PasswordHasher.cs" />
     <Compile Include="Security\PasswordValidation.cs" />
     <Compile Include="Global.asax.cs">

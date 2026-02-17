@@ -16,6 +16,7 @@ namespace Solteira_Brands.Models.Context
         public virtual DbSet<tblRolesModel> tbl_roles { get; set; }
         public virtual DbSet<tblUsersModel> tbl_users { get; set; }
         public virtual DbSet<tblImagesModel> tbl_images { get; set; }
+        public virtual DbSet<tblProductsModel> tbl_products { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -23,6 +24,7 @@ namespace Solteira_Brands.Models.Context
             modelBuilder.Configurations.Add(new tblRolesMap());
             modelBuilder.Configurations.Add(new tblUsersMap());
             modelBuilder.Configurations.Add(new tblImagesMap());
+            modelBuilder.Configurations.Add(new tblProductsMap());
         }
     }
 }
