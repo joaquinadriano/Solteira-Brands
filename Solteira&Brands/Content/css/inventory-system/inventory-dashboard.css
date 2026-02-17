@@ -1,4 +1,4 @@
-﻿html, body {
+html, body {
     overflow-x: hidden;
 }
 
@@ -118,4 +118,15 @@ color: #87AE73;*/
     #userTable.dataTable tbody td, #usersTable.dataTable tbody td {
         background-color: #FFFBE8 !important;
     }
+/*---------Charts----------------*/
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+.chart-container canvas {
+    max-height: 300px;
+}
+/*---------Charts end----------------*/
+
 /*---------Table end----------------*/

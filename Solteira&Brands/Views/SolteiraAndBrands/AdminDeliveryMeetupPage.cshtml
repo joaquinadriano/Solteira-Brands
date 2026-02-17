@@ -1,5 +1,5 @@
-﻿ @{
-    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+ @{
+    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content">
     <div class="container-fluid delivery-container px-1">
@@ -132,7 +132,7 @@
                             <td>
                                 <div class="dropdown">
                                     <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
-                                        {{ deliveryMeetupStatus || 'Status' }}
+                                        <span ng-bind="deliveryMeetupStatus || 'Status'">Status</span>
                                     </a>
 
                                     <ul class="dropdown-menu order-dropdown-menu py-0">
@@ -177,7 +177,7 @@
                             <td class="">
                                 <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Meetup Details" class="d-inline-block">
                                     <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#deliveryViewMeetupModal">
-                                        <img src="~/Content/img/icons/view.svg" />
+                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" />
                                     </a>
                                 </div>
                                 @*modal - view delivery*@
@@ -275,7 +275,7 @@
                                 @*edit button*@
                                 <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Meetup Details" class="d-inline-block">
                                     <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#deliveryEditMeetupModal">
-                                        <img src="~/Content/img/icons/edit.svg" />
+                                        <img src="@Url.Content("~/Content/img/icons/edit.svg")" />
                                     </a>
                                 </div>
                                 @*Modal - Edit Delivery*@

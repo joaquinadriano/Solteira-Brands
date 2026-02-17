@@ -1,26 +1,27 @@
-﻿@{
+@{
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
 }
 
-<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/AccountSettings.css" />
+<link rel="stylesheet" href="~/Content/css/ordering-system/AccountSettings.css" />
 
-<div class="acc-settings-page-wrapper">
+<div class="acc-settings-page-wrapper" ng-controller="SolteiraBrandsController" ng-init="loadProfile()">
 
     <div class="acc-settings-container">
 
         <div class="left-as-container">
 
             <div class="profile">
-                <img src="~/Content/SolteiraBrandsImages/SBSharedImages/profile-img.jpg" class="profile-img rounded-circle" />
+                <img ng-src="{{profile.avatarUrl || defaultAvatarUrl}}" class="profile-img rounded-circle" alt="Profile" />
             </div>
 
             <div class="profile-name">
-                <span>Egg Sheeran</span>
+                <span>{{profile.username || 'User'}}</span>
             </div>
 
-            <div class="select-img">
+            <label for="profileImageInput" class="select-img" style="cursor:pointer;margin:0;">
                 <span>Select Image</span>
-            </div>
+                <input id="profileImageInput" type="file" accept=".jpg,.jpeg,.png" style="display:none;" onchange="angular.element(this).scope().onProfileImageSelect(event)" />
+            </label>
 
         </div>
 
@@ -35,36 +36,28 @@
 
             <div class="edit-field">
 
-                <form name="editForm" class="d-flex flex-column align-items-center">
+                <form name="editForm" class="d-flex flex-column align-items-center" ng-submit="saveProfile()">
 
                     <div class="text-start mb-4 w-100">
-                        <label for="name" class="form-label">
-                            Name
-                        </label>
-                        <input type="text" class="form-control custom-input" id="name"
-                               placeholder="Egg Sheeran" required />
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control custom-input" id="name" name="username"
+                               ng-model="profile.username" placeholder="Username" required />
                     </div>
 
                     <div class="text-start mb-4 w-100">
-                        <label for="name" class="form-label">
-                            Email (cannot be changed)
-                        </label>
+                        <label for="email" class="form-label">Email (cannot be changed)</label>
                         <input type="email" class="form-control custom-input" id="email"
-                               placeholder="eggsheeran@gmail.com" disabled />
+                               ng-value="profile.email" disabled />
                     </div>
 
                     <div class="text-start mb-4 w-100">
-                        <label for="name" class="form-label">
-                            Password
-                        </label>
-                        <a href="@Url.Action("SolteiraBrandsForgotPassword", "SolteiraBrandsAccount")" class="change-password-link">
+                        <label class="form-label">Password</label>
+                        <a href="@Url.Action("SolteiraBrandsForgotPassword", "SolteiraAndBrands")" class="change-password-link">
                             Change Password (Optional)
-                        </a>                    
+                        </a>
                     </div>
 
-                    <button class="save-changes">
-                        SAVE CHANGES
-                    </button>
+                    <button type="submit" class="save-changes">SAVE CHANGES</button>
 
                 </form>
 

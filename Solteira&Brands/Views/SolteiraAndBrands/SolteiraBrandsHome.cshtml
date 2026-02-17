@@ -2,11 +2,11 @@
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
 }
 
-<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/HomeStyle.css"/>
+<link rel="stylesheet" href="~/Content/css/ordering-system/HomeStyle.css"/>
 
 <div class="home-banner">
 
-    <img src="~/Content/SolteiraBrandsImages/SBHomeImages/Solteira&BrandsHomeBanner.png" class="home-banner-img img-fluid"/>
+    <img src="@Url.Content("~/Content/img/home/Solteira&BrandsHomeBanner.png")" class="home-banner-img img-fluid"/>
 
     <div class="home-overlay ">
 
@@ -30,7 +30,7 @@
 
         <div ng-repeat="item in jewelries | limitTo: 4" ng-class="'jewelry' + ($index + 1)">
             <a href="javascript:void(0)" class="product-link" ng-click="goToProduct(item)">
-                <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{item.img}}" />
+                <img ng-src="/Content/img/jewelry/{{item.img}}" />
                 <span>{{item.name}}</span>
             </a>
         </div>

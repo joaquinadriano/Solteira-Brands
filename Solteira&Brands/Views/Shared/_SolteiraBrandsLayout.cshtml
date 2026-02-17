@@ -8,23 +8,24 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/SolteiraBrandsLayout.css" />
+    <link rel="stylesheet" href="~/Content/css/ordering-system/SolteiraBrandsLayout.css" />
     <style type="text/css">[ng\:cloak], [ng-cloak], [data-ng-cloak], .ng-cloak { display: none !important; }</style>
 </head>
 
 <body ng-app="SolteiraBrandsApplication">
 
     @{
-        var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-        // Check if user is logged in (Replacing the 'false' logic)
-        bool isLoggedIn = Session["Username"] != null;
+        var actionVal = ViewContext.RouteData.Values["action"];
+        var currentAction = actionVal != null ? actionVal.ToString() : null;
+        bool isLoggedIn = User != null && User.Identity != null && User.Identity.IsAuthenticated;
+        var displayName = isLoggedIn ? User.Identity.Name : "Guest";
     }
 
     <header class="navbar-wrapper">
         <nav class="navbar header-logo p-0">
             <div class="container-fluid justify-content-center">
                 <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="navbar-brand">
-                    <img src="~/Content/SolteiraBrandsImages/SBSharedImages/Solteira&BrandsMainLogo.png" class="sblogo" alt="Logo" />
+                    <img src="@Url.Content("~/Content/img/shared/Solteira&BrandsMainLogo.png")" class="sblogo" alt="Logo" />
                 </a>
             </div>
         </nav>
@@ -49,55 +50,43 @@
                 </ul>
 
                 <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
-                    <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
-                        <i class="bi bi-box-seam me-1"></i>Inventory
-                    </a>
-                    <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
-
-                    @if (!isLoggedIn)
+                    @if (User != null && User.Identity != null && User.Identity.IsAuthenticated && (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF")))
                     {
-                        <a href="@Url.Action("SolteiraBrandsLogin","SolteiraBrandsAccount")" class="icon-link nav-item-align">
-                            <i class="bi bi-person-circle"></i>
+                        <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
+                            <i class="bi bi-box-seam me-1"></i>Inventory
                         </a>
                     }
-                    else
-                    {
-                        <div class="dropdown d-flex align-items-center">
-                            <a href="#" class="icon-link nav-item-align" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-person-circle"></i>
-                            </a>
+                    <a href="@Url.Action("SolteiraBrandsCart","SolteiraAndBrands")" class="icon-link nav-item-align"><i class="bi bi-bag"></i></a>
 
-                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                    @* Profile: trigger and dropdown show user avatar (or default); both updated by GetMyProfile script *@
+                    <div class="dropdown d-flex align-items-center">
+                        <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
+                        </a>
 
-                                <li class="px-3 py-2">
+                        <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
 
-                                    <div class="d-flex align-items-center gap-2">
-
-                                        <div class="avatar-circle me-2">
-
-                                            <img src="~/Content/SolteiraBrandsImages/SBSharedImages/profile-img.jpg" class="rounded-circle" />
-
-                                        </div>
-
-                                        <span class="profile-name fw-bold">Egg Sheeran</span>
-
+                            <li class="px-3 py-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="avatar-circle me-2">
+                                        <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                     </div>
+                                    <span class="profile-name fw-bold">@displayName</span>
+                                </div>
+                            </li>
 
-                                </li>
+                            <li><hr class="dropdown-divider fw-bold"></li>
 
-                                <li><hr class="dropdown-divider fw-bold"></li>
+                            <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
 
-                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
+                            <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
 
-                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
+                            <li><hr class="dropdown-divider"></li>
 
-                                <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
 
-                                <li><a class="dropdown-item text-danger" href="@Url.Action("SolteiraBrandsLogin","SolteiraBrandsAccount")">Logout</a></li>
-
-                            </ul>
-                        </div>
-                    }
+                        </ul>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -112,7 +101,7 @@
         <div class="d-flex justify-content-between align-items-center px-4">
 
             <div class="d-flex align-items-center">
-                <img src="~/Content/SolteiraBrandsImages/SBSharedImages/Solteira&BrandsFooterLogo.png" class="footer-logo me-2" alt="Footer Logo" />
+                <img src="@Url.Content("~/Content/img/shared/Solteira&BrandsFooterLogo.png")" class="footer-logo me-2" alt="Footer Logo" />
                 <span class="text-muted">&copy; 2026 Solteira & Brands</span>
             </div>
 
@@ -132,5 +121,29 @@
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
     <script src="~/Scripts/SBScripts/Controller.js"></script>
+    @if (isLoggedIn)
+    {
+        <script>
+            (function () {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/Account/GetMyProfile', true);
+                xhr.withCredentials = true;
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText);
+                            if (d.success && d.avatarUrl) {
+                                var el = document.getElementById('layoutProfileImg');
+                                var trigger = document.getElementById('layoutProfileImgTrigger');
+                                if (el) el.src = d.avatarUrl;
+                                if (trigger) trigger.src = d.avatarUrl;
+                            }
+                        } catch (e) { }
+                    }
+                };
+                xhr.send();
+            })();
+        </script>
+    }
 </body>
 </html>

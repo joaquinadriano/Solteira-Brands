@@ -2,7 +2,7 @@
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
 }
 
-<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/JewelriesStyle.css" />
+<link rel="stylesheet" href="~/Content/css/ordering-system/JewelriesStyle.css" />
 
 <div ng-controller="SolteiraBrandsController">
 
@@ -48,7 +48,7 @@
             <div class="products-grid">
                 <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
                     <div class="image-wrapper">
-                        <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{item.img}}" alt="{{item.name}}">
+                        <img ng-src="/Content/img/jewelry/{{item.img}}" alt="{{item.name}}">
                         <div class="cart-icon-overlay">
                             <i class="bi bi-cart-plus-fill"></i>
                         </div>
@@ -72,7 +72,7 @@
 
             <div class="product-card-detail">
                 <div class="main-image-container">
-                    <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{selectedProduct.img}}" alt="{{selectedProduct.name}}">
+                    <img ng-src="/Content/img/jewelry/{{selectedProduct.img}}" alt="{{selectedProduct.name}}">
                 </div>
 
                 <div class="product-info-column">
@@ -115,7 +115,7 @@
                          ng-repeat="rel in getRelatedProducts()"
                          ng-click="selectProduct(rel)">
                         <div class="image-wrapper">
-                            <img ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{rel.img}}">
+                            <img ng-src="/Content/img/jewelry/{{rel.img}}">
                         </div>
                         <p>{{rel.name}}</p>
                     </div>

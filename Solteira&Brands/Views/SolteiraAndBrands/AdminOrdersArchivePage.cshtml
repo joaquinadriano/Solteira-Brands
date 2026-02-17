@@ -1,5 +1,5 @@
-﻿@{
-    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
 }
 <div class="main-content">
     <div class="container-fluid ordersArchive-container px-1">
@@ -34,7 +34,7 @@
                             <td>
                                 <div class="dropdown">
                                     <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
-                                        {{ orderStatus || 'Status' }}
+                                        <span ng-bind="orderStatus || 'Status'">Status</span>
                                     </a>
 
                                     <ul class="dropdown-menu order-dropdown-menu py-0">

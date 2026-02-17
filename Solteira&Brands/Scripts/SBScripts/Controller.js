@@ -153,15 +153,62 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         verifyPassword: ''
     };
 
-    $scope.login = function () {
-        Swal.fire({
-            title: "Welcome back!",
-            icon: "success",
-            customClass: {
-                title: 'my-swal-title',
-                htmlContainer: 'my-swal-text',
-                confirmButton: 'my-swal-button'
+    $scope.registerErrors = { password: '', verifyPassword: '' };
+
+    function validatePassword(p) {
+        if (!p || p.length < 8) return 'Password must be at least 8 characters.';
+        if (p.length > 64) return 'Password must not exceed 64 characters.';
+        if (!/[A-Z]/.test(p)) return 'Password must contain at least one uppercase letter.';
+        if (!/[a-z]/.test(p)) return 'Password must contain at least one lowercase letter.';
+        if (!/[0-9]/.test(p)) return 'Password must contain at least one number.';
+        if (!/[!\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(p)) return 'Password must contain at least one special character.';
+        return '';
+    }
+
+    $scope.register = function (form) {
+        $scope.registerErrors = { password: '', verifyPassword: '' };
+        if (!form) return;
+        var p = $scope.registerData.password;
+        var v = $scope.registerData.verifyPassword;
+        var err = validatePassword(p);
+        if (err) {
+            $scope.registerErrors.password = err;
+            return;
+        }
+        if (p !== v) {
+            $scope.registerErrors.verifyPassword = 'Passwords do not match.';
+            return;
+        }
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        SolteiraBrandsService.register($scope.registerData, token).then(function (r) {
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: 'Account created', text: r.data.message || 'You can now log in.' }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Registration failed', text: (r.data && r.data.message) || 'Please try again.' });
             }
+        }, function (err) {
+            var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Registration failed. Please try again.';
+            Swal.fire({ icon: 'error', title: 'Registration failed', text: msg });
+        });
+    };
+
+    $scope.login = function () {
+        if (!$scope.loginData || !$scope.loginData.username || !$scope.loginData.password) {
+            Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter username and password.' });
+            return;
+        }
+        SolteiraBrandsService.login($scope.loginData.username, $scope.loginData.password).then(function (r) {
+            if (r.data && r.data.success && r.data.redirectUrl) {
+                window.location.href = r.data.redirectUrl;
+            } else {
+                Swal.fire({ icon: 'error', title: 'Login failed', text: (r.data && r.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Invalid username or password.';
+            Swal.fire({ icon: 'error', title: 'Login failed', text: msg });
         });
     };
 
@@ -218,14 +265,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     });
 
     $scope.sendOTP = function () {
-        window.location.href = '/SolteiraBrandsAccount/SolteiraBrandsOTP?mode=forgot&email=' + $scope.userEmail;
+        window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?mode=forgot&email=' + $scope.userEmail;
     };
 
     $scope.handleOTPSuccess = function () {
         if ($scope.currentMode === 'forgot') {
-            window.location.href = '/SolteiraBrandsAccount/SolteiraBrandsNewPassword';
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsNewPassword';
         } else {
-            window.location.href = '/SolteiraBrandsAccount/SolteiraBrandsLogin';
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
         }
     };
 
@@ -277,6 +324,69 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             }
             return total;
         }, 0);
+    };
+
+    $scope.profile = { username: '', email: '', avatarUrl: '' };
+    $scope.defaultAvatarUrl = SolteiraBrandsService.defaultAvatarUrl;
+
+    $scope.loadProfile = function () {
+        SolteiraBrandsService.getMyProfile().then(function (r) {
+            if (r.data && r.data.success) {
+                $scope.profile.username = r.data.username || '';
+                $scope.profile.email = r.data.email || '';
+                $scope.profile.avatarUrl = r.data.avatarUrl || $scope.defaultAvatarUrl;
+            }
+        });
+    };
+
+    $scope.onProfileImageSelect = function (event) {
+        var file = event.target.files[0];
+        if (!file) return;
+        var fn = (file.name || '').toLowerCase();
+        if (fn.indexOf('.jpg') === -1 && fn.indexOf('.jpeg') === -1 && fn.indexOf('.png') === -1) {
+            Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Only JPG, JPEG, or PNG allowed.' });
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({ icon: 'warning', title: 'Too large', text: 'File must be under 5MB.' });
+            return;
+        }
+        SolteiraBrandsService.uploadProfileImage(file).then(function (r) {
+            if (r.data && r.data.success && r.data.imageID) {
+                SolteiraBrandsService.updateProfile(r.data.imageID, null).then(function (up) {
+                    if (up.data && up.data.success) {
+                        var newUrl = (r.data.imagePath || '') + (r.data.imageFileName || '');
+                        $scope.profile.avatarUrl = newUrl;
+                        var el = document.getElementById('layoutProfileImg');
+                        var trigger = document.getElementById('layoutProfileImgTrigger');
+                        if (el) el.src = newUrl;
+                        if (trigger) trigger.src = newUrl;
+                        Swal.fire({ icon: 'success', title: 'Photo updated', timer: 1500, showConfirmButton: false });
+                    }
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Upload failed', text: (r.data && r.data.message) || 'Try again.' });
+            }
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Upload failed', text: 'Try again.' });
+        });
+    };
+
+    $scope.saveProfile = function () {
+        var username = ($scope.profile && $scope.profile.username) ? $scope.profile.username.trim() : '';
+        if (!username) {
+            Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter a name (username).' });
+            return;
+        }
+        SolteiraBrandsService.updateProfile(null, username).then(function (r) {
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: 'Saved', text: 'Profile updated.', timer: 1500, showConfirmButton: false });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (r.data && r.data.message) || 'Try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Try again.' });
+        });
     };
 
     $scope.selectAll = true;
