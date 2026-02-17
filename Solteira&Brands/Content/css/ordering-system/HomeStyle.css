@@ -1,49 +1,57 @@
-﻿.home-banner {
+.home-banner {
     position: relative;
     width: 100%;
-    margin: 0 auto;
+    height: auto;
     overflow: hidden;
 }
 
 .home-banner-img {
-/*    width: 100%;
-    height: auto;*/
-/*    object-fit: cover;
-    display: block;*/
+    width: 100%;
+    display: block;
 }
 
 .home-overlay {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
     position: absolute;
-    gap: 2vw;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-/*    background: radial-gradient(circle,rgba(255, 255, 255, 1) 11%, rgba(232, 232, 232, 1) 47%);*/
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; 
+    align-items: center;
+    padding-bottom: 50px;
+    pointer-events: none;
 }
 
 .home-description {
-    font-family: "Kaisei Tokumin";
-    font-size: 2rem;
+    font-family: "Kaisei Tokumin", serif;
+    font-size: 1.8rem;
+    color: #1e1e1e;
+    margin-bottom: 1vw;
     text-align: center;
-    width: 45vw;
-    text-shadow: 0px 1px 2px #B3B3B3;
+    width: 80%; 
+}
+
+.button-wrapper {
+    pointer-events: auto;
 }
 
 .shop-btn {
     font-family: "Nunito";
-    font-size: 1.5rem;
+    font-size: 1rem;
     color: #1e1e1e;
-    font-weight: bold;
-    border: 2px solid #1e1e1e;
+    background-color: rgba(255, 255, 255, 0.5); 
     padding: .5vw 1vw;
-    pointer-events: auto;
+    border: 1px solid #1e1e1e;
+    display: inline-block;
+    transition: all 0.3s ease;
 }
+
+    .shop-btn:hover {
+        background-color: #1e1e1e;
+        color: #fff;
+    }
 
 .home-products {
     display: flex;
@@ -101,29 +109,25 @@
             transition: transition 0.3s ease;
         }
 
-/* Container styling for the featured products */
 .home-content .product-link {
     display: flex;
     flex-direction: column;
     text-align: center;
     text-decoration: none;
-    transition: transform 0.3s ease; /* Transition applied to the whole link */
+    transition: transform 0.3s ease;
     overflow: hidden;
 }
 
-    /* Zoom effect on both image and text when the link is hovered */
     .home-content .product-link:hover {
-        transform: scale(1.05); /* Scales the entire container (image + text) */
+        transform: scale(1.05); 
     }
 
-    /* Ensure images fill the space correctly */
     .home-content .product-link img {
         width: 100%;
         display: block;
         margin-bottom: 10px;
     }
 
-    /* Text styling within the link */
     .home-content .product-link span {
         font-family: "Kaisei Tokumin";
         font-size: 1.1rem;

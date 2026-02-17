@@ -1,4 +1,4 @@
-﻿body {
+body {
     background-color: #87AE73;
     margin: 0;
     padding: 0;
@@ -41,13 +41,13 @@
     color: #1e1e1e;
 }
 
-.form-label {
+.register-container .form-label {
     font-family: "Nunito";
     font-size: 1.25rem;
     margin-bottom: .5vw;
 }
 
-.custom-input {
+.register-container .custom-input {
     font-family: "Nunito";
     font-size: 1.25rem;
     border: 1px solid #87AE73;
@@ -55,18 +55,18 @@
     border-radius: 0;
 }
 
-.custom-input-group {
+.register-container .custom-input-group {
     display: flex;
     align-items: center;
     border: 1px solid #87AE73;
 }
 
-    .custom-input-group .custom-input {
+    .register-container .custom-input-group .custom-input {
         border: none;
         flex: 1;
     }
 
-    .custom-input-group .input-group-text {
+    .register-container .custom-input-group .input-group-text {
         font-size: 1.25rem;
         border: none;
         background: transparent;
@@ -78,11 +78,7 @@
         z-index: 5;
     }
 
-.bi::before {
-    display: inline-block;
-}
-
-.form-control:focus {
+.register-container .form-control:focus {
     box-shadow: none;
     border-color: #87AE73;
 }

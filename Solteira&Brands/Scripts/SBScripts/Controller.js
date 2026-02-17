@@ -315,6 +315,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
     };
 
+    $scope.removeFromCartByItem = function (item) {
+        var idx = $scope.cart.findIndex(function (i) { return i.id === item.id; });
+        if (idx !== -1) {
+            $scope.cart.splice(idx, 1);
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+        }
+    };
+
     $scope.getCartTotal = function () {
         if (!$scope.cart) return 0;
 
@@ -393,6 +401,59 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.toggleAll = function () {
         angular.forEach($scope.cart, function (item) {
             item.selected = $scope.selectAll;
+        });
+    };
+
+    $scope.proceedToCheckout = function (url) {
+        if (!url) url = '/SolteiraAndBrands/SolteiraBrandsCheckout';
+        window.location.href = url;
+    };
+
+    $scope.getSelectedItems = function () {
+        if (!$scope.cart) return [];
+        return $scope.cart.filter(function (item) { return item.selected === true; });
+    };
+
+    $scope.getCheckoutSubtotal = function () {
+        var selected = $scope.getSelectedItems();
+        return selected.reduce(function (total, item) { return total + (item.price * item.qty); }, 0);
+    };
+
+    $scope.orders = JSON.parse(localStorage.getItem('sb_orders')) || [];
+
+    $scope.viewOrderDetails = function (orderId) {
+        if (orderId) {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders?orderId=' + encodeURIComponent(orderId);
+        }
+    };
+
+    $scope.placeOrder = function () {
+        Swal.fire({
+            title: 'Processing Order...',
+            text: 'Please wait while we verify your transaction.',
+            allowOutsideClick: false,
+            didOpen: function () { Swal.showLoading(); }
+        });
+        var selected = $scope.getSelectedItems();
+        var orderId = 'ORD-' + Date.now();
+        var newOrder = {
+            orderId: orderId,
+            status: 'Pending',
+            deliveryStatus: 'Preparing',
+            items: selected,
+            total: $scope.getCheckoutSubtotal()
+        };
+        $scope.orders.push(newOrder);
+        localStorage.setItem('sb_orders', JSON.stringify($scope.orders));
+        $scope.cart = $scope.cart.filter(function (item) { return !item.selected; });
+        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+        Swal.fire({
+            title: 'Order Placed!',
+            text: 'Order ' + orderId + ' has been submitted. You will receive confirmation via email.',
+            icon: 'success',
+            confirmButtonText: 'OK'
+        }).then(function () {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
         });
     };
 

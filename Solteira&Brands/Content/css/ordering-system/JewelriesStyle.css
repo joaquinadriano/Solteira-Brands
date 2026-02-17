@@ -1,4 +1,4 @@
-﻿.nav-jewelry {
+.nav-jewelry {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -82,7 +82,7 @@
     font-weight: bold;
 }
 
-.search-container {
+.jewelry-grid-container .search-container {
     position: relative;
     display: flex;
     align-items: center;
@@ -121,20 +121,6 @@
     .search-btn i {
         transition: transform 0.3s ease;
     }
-
-.search-input-box {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background: white;
-    border: 2px solid #1E1E1E;
-    border-top: none;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-    z-index: 9999;
-}
 
 .search-field {
     border: 1px solid #1E1E1E;
@@ -181,23 +167,20 @@
     pointer-events: none;
 }
 
-/* Container for the whole grid */
 .jewelry-grid-container {
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 0 4vw 4vw 4vw;
-    /*    background-color: #fff;*/
 }
 
 .products-grid {
     display: grid;    
-    grid-template-columns: repeat(3, 1fr); /* 3 columns as per image */
+    grid-template-columns: repeat(3, 1fr);
     gap: 5vw;
     width: 80%;
 }
 
-/* Individual Product Card */
 .product-card {
     display: flex;
     flex-direction: column;
@@ -208,7 +191,7 @@
 .image-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 1 / 1; /* Keeps images perfectly square */
+    aspect-ratio: 1 / 1;
     background-color: #f9f9f9;
     overflow: hidden;
     border: 1px solid #eee;
@@ -217,20 +200,19 @@
     .image-wrapper img {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Ensures jewelry photos aren't stretched */
+        object-fit: cover;
         transition: transform 0.3s ease;
         pointer-events: none;
     }
 
 .product-card:hover .image-wrapper img {
-    transform: scale(1.1); /* Increases size by 10% */
+    transform: scale(1.1);
 }
 
 .product-card:hover {
     transform: scale(1.05);
 }
 
-/* Cart Icon overlaying bottom right of image */
 .cart-icon-overlay {
     position: absolute;
     bottom: 10px;
@@ -245,8 +227,7 @@
         color: #1e1e1e;
     }
 
-/* Text Styling */
-.product-info {
+.jewelry-grid-container .product-info {
     margin-top: 15px;
 }
 
@@ -256,7 +237,7 @@
     align-items: flex-start;
 }
 
-.product-name {
+.jewelry-grid-container .product-name {
     font-family: "Kaisei Tokumin";
     font-weight: 500;
     font-size: 1.1rem;
@@ -264,7 +245,7 @@
     max-width: 70%;
 }
 
-.product-price {
+.jewelry-grid-container .product-price {
     font-family: "Nunito";
     font-weight: bold;
     font-size: 1.1rem;
@@ -281,12 +262,12 @@
     font-weight: bold;
     background: white;
     border: 2px solid #1e1e1e;
-    padding: 8px 20px;
+    padding: 0.5vw 1vw;
     cursor: pointer;
-    margin-bottom: 30px;
+    margin-bottom: 1.5vw;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5vw;
     transition: 0.3s;
 }
 
@@ -294,9 +275,8 @@
         background-color: #ECECEC;
     }
 
-/* --- Main Product Card --- */
 .product-card-detail {
-    background-color: #FFFBE8; /* Light cream background from image */
+    background-color: #FFFBE8;
     border: 1px solid #87AE73;
     border-radius: 0.3vw;
     display: flex;
@@ -313,7 +293,6 @@
 }
 
     .main-image-container img {
-/*        width: 100%;*/
         max-width: 28vw;
         height: auto;
         object-fit: contain;
@@ -339,7 +318,6 @@
     margin-bottom: 30px;
 }
 
-/* --- Details Section --- */
 .details-section {
     font-family: "Nunito";
     display: flex;
@@ -363,16 +341,14 @@
     line-height: 1.5;
     font-size: 1.25rem;
     text-align: left;
-/*    flex: 1;*/
 }
 
 .separator {
     border: 0;
-    border-top: 1px solid #87AE73; /* Muted green/grey line */
+    border-top: 1px solid #87AE73;
     margin: 20px 0;
 }
 
-/* --- Quantity & Add to Cart --- */
 .action-section {
     display: flex;
     flex-direction: column;
@@ -419,7 +395,7 @@
 
 .add-to-cart-btn {
     font-family: "Nunito";
-    background-color: #87AE73; /* Sage green from image */
+    background-color: #87AE73;
     color: white;
     border: none;
     padding: 12px 25px;
@@ -442,7 +418,6 @@
         color: #FFFFFF;
     }
 
-/* --- Related Products Section --- */
 .related-section {
     margin-top: 3vw;    
     padding-bottom: 2vw;
@@ -472,7 +447,6 @@
     transition: transform 0.3s ease;
 }
 
-    /* Ensure the image-wrapper in related items behaves like the main grid */
     .related-item .image-wrapper {
         position: relative;
         width: 100%;
@@ -487,20 +461,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Apply the zoom transition */
             transition: transform 0.3s ease;
         }
 
     .related-item:hover {
-        transform: scale(1.05); /* Zooms everything inside .related-item */
+        transform: scale(1.05);
     }
 
-    .related-item .image-wrapper {
-        overflow: hidden;
-        margin-bottom: 1.5vw;
-    }
-
-    /* Zoom effect on hover */
     .related-item:hover .image-wrapper img {
         transform: scale(1.1);
     }
@@ -511,121 +478,62 @@
         color: #444;
     }
 
-    /* Ensure zero movement or transition during the loading trigger */
     .related-item:active, .product-card:active {
         transform: translateY(0) !important;
         transition: none !important;
-        opacity: 0.7; /* Slight fade gives immediate visual feedback of the click */
+        opacity: 0.7;
     }
 
 .view-stage {
     position: relative;
-    /*min-height: 800px;*/ /* Adjust this to your average page height */
     overflow: hidden;
     width: 100%;
 }
 
-/* Base styles for the views */
-.jewelry-grid-container,
-.product-detail-container {
-    transition: opacity 0.4s ease-in-out; /* Smooth fade only */
-    width: 100%;
-    opacity: 1;
-/*    position: relative;*/
-}
-
-/* Ensure they occupy the same space during the switch */
-    .jewelry-grid-container.ng-hide-add,
-    .product-detail-container.ng-hide-add {
-        position: absolute !important;
-        top: 0;
-        left: 0;
-        z-index: 1;
-    }
-
-    .jewelry-grid-container.ng-hide-remove,
-    .product-detail-container.ng-hide-remove {
-        position: relative;
-        z-index: 2;
-    }
-
-    .jewelry-grid-container.ng-animate,
-    .product-detail-container.ng-animate {
-        position: absolute !important;
-        top: 0;
-        left: 0;
-    }   
-
-.ng-hide-remove {
-    z-index: 2;
-}
-
-ng-hide-add {
+.jewelry-grid-container.ng-hide-add,
+.product-detail-container.ng-hide-add {
+    position: absolute !important;
+    top: 0;
+    left: 0;
     z-index: 1;
 }
 
-ng-hide {
-    opacity: 0;
+.jewelry-grid-container.ng-hide-remove,
+.product-detail-container.ng-hide-remove {
+    position: relative;
+    z-index: 2;
 }
 
-/* --- BACKWARD ANIMATION (Back to List) --- */
-.forward .jewelry-grid-container.ng-hide,
-.forward .product-detail-container.ng-hide,
-.backward .jewelry-grid-container.ng-hide,
-.backward .product-detail-container.ng-hide {
-    opacity: 0;
-}
-
-/* Custom Font and Size for the SweetAlert Title */
 .swal-jewelry-title {
     font-family: "Kaisei Tokumin";
-    font-size: 2rem; /* Increased size */
+    font-size: 2rem;
     font-weight: bold;
     color: #1e1e1e;
 }
 
-/* Custom Font and Size for the SweetAlert Body Text */
 .swal-jewelry-content {
     font-family: "Nunito";
     font-size: 1.5rem;
     color: #1e1e1e;
 }
 
-/* Adjust the popup padding if the larger text feels cramped */
 .swal2-popup {
     padding: 2vw !important;
 }
 
-/* Styling and Animating the Bootstrap Gem Icon */
 .custom-gem-loader {
-    font-size: 2rem; /* Size of the icon */
-    color: #87AE73; /* Your Sage Green color */
+    font-size: 2rem;
+    color: #87AE73;
     display: inline-block;
     animation: gem-shimmer 1.2s ease-in-out infinite;
 }
 
 @keyframes gem-shimmer {
-    0% {
-        transform: scale(1);
-        opacity: 0.6;
-        filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0));
-    }
-
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
-        /* Adds a subtle glowing effect to the gem */
-        filter: drop-shadow(0 0 15px rgba(135, 174, 115, 0.6));
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 0.6;
-        filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0));
-    }
+    0% { transform: scale(1); opacity: 0.6; filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0)); }
+    50% { transform: scale(1.2); opacity: 1; filter: drop-shadow(0 0 15px rgba(135, 174, 115, 0.6)); }
+    100% { transform: scale(1); opacity: 0.6; filter: drop-shadow(0 0 0px rgba(135, 174, 115, 0)); }
 }
 
-/* Hide the default SweetAlert spinner border */
 .swal2-loader {
     border: none !important;
 }

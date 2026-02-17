@@ -1,4 +1,4 @@
-﻿.about-content {
+.about-content {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -123,7 +123,6 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
-/*            max-width: 20vw;*/
         }
 
             .about-pursuit .abt-pursuit-category .abt-diamonds img,
@@ -133,15 +132,6 @@
                 max-width: 15vw;
                 height: auto;
             }
-
-/*            .about-pursuit .abt-pursuit-category .abt-diamonds span,
-            .about-pursuit .abt-pursuit-category .abt-metals span,
-            .about-pursuit .abt-pursuit-category .abt-global span {
-                font-family: "Nunito";
-                font-size: 1.75rem;
-                font-weight: bold;
-                margin-top: 2vw;
-            }*/
 
         .about-pursuit .abt-pursuit-category .card .card-body .card-title {
             font-family: "Nunito";
@@ -155,13 +145,3 @@
         font-size: 1.15rem;
         margin-top: 1vw;
     }
-
-/*            .about-pursuit .abt-pursuit-category .abt-diamonds p,
-            .about-pursuit .abt-pursuit-category .abt-metals p,
-            .about-pursuit .abt-pursuit-category .abt-global p {
-                font-family: "Nunito";
-                font-size: 1.25rem;
-                max-width: 25vw;
-                margin-top: 1vw;
-            }
-*/
