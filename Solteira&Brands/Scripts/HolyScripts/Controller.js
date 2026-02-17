@@ -1,4 +1,4 @@
-app.controller("SolteiraAndBrandsController", function ($scope, $timeout, SolteiraAndBrandsService) {
+app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval', 'SolteiraAndBrandsService', function ($scope, $timeout, $interval, SolteiraAndBrandsService) {
 
 
 
@@ -371,18 +371,18 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
     //---------Sweet Alert Dialogue Box end---------
 
     //----------Charts--------- 
-    //Temporary Datas *Please modify/remove once the database is implemented
-    $scope.labels = ["January", "February", "March", "April", "May", "June", "July"];
-    $scope.series = ['Series A', 'Series B'];
-    $scope.data = [
+    // Line chart: Total Sales This Month (Daily Breakdown)
+    $scope.lineChartLabels = ["January", "February", "March", "April", "May", "June", "July"];
+    $scope.lineChartSeries = ['Series A', 'Series B'];
+    $scope.lineChartData = [
         [65, 59, 80, 81, 56, 55, 40],
         [28, 48, 40, 19, 86, 27, 90]
     ];
     $scope.onClick = function (points, evt) {
         console.log(points, evt);
     };
-    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
-    $scope.options = {
+    $scope.lineChartDatasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
+    $scope.lineChartOptions = {
         scales: {
             yAxes: [
                 {
@@ -401,9 +401,10 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
         }
     };
 
-
-    $scope.labels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
-    $scope.data = [300, 500, 100];
+    // Pie chart: Sales by Category
+    $scope.pieChartLabels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
+    $scope.pieChartData = [300, 500, 100];
+    $scope.pieChartOptions = {};
     //----------Charts end---------
 
     //----------Dashboard Page----------
@@ -783,4 +784,4 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
         });
     };
 
-});
+}]);

@@ -59,16 +59,16 @@
             <div class="col-6">
                 <p class="fw-bold text-center h4">Total Sales This Month (Daily Breakdown)</p>
         @*----------Line Chart----------*@
-        <canvas id="line" class="chart chart-line" chart-data="data"
-                    chart-labels="labels" chart-series="series" chart-options="options"
-                    chart-dataset-override="datasetOverride" chart-click="onClick">
+        <canvas id="line" class="chart chart-line" chart-data="lineChartData"
+                    chart-labels="lineChartLabels" chart-series="lineChartSeries" chart-options="lineChartOptions"
+                    chart-dataset-override="lineChartDatasetOverride" chart-click="onClick">
             </canvas>
         </div>
         <div class="col-6">
             <p class="fw-bold text-center h4">Sales by Category</p>
         @*----------Pie Chart----------*@
         <canvas id="pie" class="chart chart-pie"
-                        chart-data="data" chart-labels="labels" chart-options="options">
+                        chart-data="pieChartData" chart-labels="pieChartLabels" chart-options="pieChartOptions">
                 </canvas>
             </div>
         </div>
