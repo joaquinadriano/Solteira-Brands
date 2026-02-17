@@ -26,13 +26,31 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        // ----- ADMIN / INVENTORY PAGES (require inventory role) -----
+        // ----- SoD: ADMIN-only (Archive, Logs, Users) -----
+        [Authorize(Roles = "ADMIN")]
+        public ActionResult AdminOrdersArchivePage() { return View(); }
+        [Authorize(Roles = "ADMIN")]
+        public ActionResult AdminLogsPage() { return View(); }
+        [Authorize(Roles = "ADMIN")]
+        public ActionResult AdminUsersPage() { return View(); }
+
+        // ----- SoD: MANAGER & STAFF only (Orders, Payment, Delivery) -----
+        [Authorize(Roles = "MANAGER,STAFF")]
+        public ActionResult AdminOrdersPage() { return View(); }
+        [Authorize(Roles = "MANAGER,STAFF")]
+        public ActionResult AdminOrderDetailsPage() { return View(); }
+        [Authorize(Roles = "MANAGER,STAFF")]
+        public ActionResult AdminPaymentPage() { return View(); }
+        [Authorize(Roles = "MANAGER,STAFF")]
+        public ActionResult AdminDeliveryShipmentsPage() { return View(); }
+        [Authorize(Roles = "MANAGER,STAFF")]
+        public ActionResult AdminDeliveryMeetupPage() { return View(); }
+
+        // ----- Shared: ADMIN, MANAGER, STAFF (Dashboard, Inventory, Reports) -----
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminHomePage() { return View(); }
-
         /// <summary>Redirect to shared login.</summary>
         public ActionResult AdminLoginPage() { return RedirectToAction("SolteiraBrandsLogin"); }
-
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminPasswordChangePage() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
@@ -40,25 +58,9 @@ namespace Solteira_Brands.Controllers
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminDashboardPage() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrdersPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrderDetailsPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrdersArchivePage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminPaymentPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminDeliveryShipmentsPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminDeliveryMeetupPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminInventoryPage() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminReportsPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminLogsPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminUsersPage() { return View(); }
 
         // ----- E-COMMERCE PAGES -----
         public ActionResult SolteiraBrandsAbout()

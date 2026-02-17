@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content">
     <div class="container-fluid orders-container px-1">
@@ -89,16 +89,13 @@
                                     </ul>
                                 </div>
                             </td>
-                            @*view and archive button*@
+                            @* View only — Archive not available in Operations layout (ADMIN-only) *@
                             <td class="">
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
                                     <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#viewOrderDetailsModal">
                                         <img src="@Url.Content("~/Content/img/icons/view.svg")" />
                                     </a>
                                 </div>
-                                <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Order" ng-click="archiveOrder()">
-                                    <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" />
-                                </a>
                             </td>
                         </tr>
                     </tbody>

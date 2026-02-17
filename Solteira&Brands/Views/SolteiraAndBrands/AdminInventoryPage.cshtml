@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content">
     <div class="container-fluid orders-container px-1">
@@ -149,9 +149,12 @@
                                             <img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" />
                                         </a>
                                     </div>
-                                    <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
-                                        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
-                                    </a>
+                                    @if (User.IsInRole("ADMIN"))
+                                    {
+                                        <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
+                                            <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                                        </a>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -178,9 +181,12 @@
                                             <img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" />
                                         </a>
                                     </div>
-                                    <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
-                                        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
-                                    </a>
+                                    @if (User.IsInRole("ADMIN"))
+                                    {
+                                        <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
+                                            <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                                        </a>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -208,9 +214,12 @@
                                             <img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" />
                                         </a>
                                     </div>
-                                    <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
-                                        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
-                                    </a>
+                                    @if (User.IsInRole("ADMIN"))
+                                    {
+                                        <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
+                                            <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                                        </a>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -237,9 +246,12 @@
                                             <img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" />
                                         </a>
                                     </div>
-                                    <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
-                                        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
-                                    </a>
+                                    @if (User.IsInRole("ADMIN"))
+                                    {
+                                        <a class="order-action-icon" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive Item" ng-click="inventoryArchiveAlert()">
+                                            <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                                        </a>
+                                    }
                                 </div>
                             </td>
                         </tr>

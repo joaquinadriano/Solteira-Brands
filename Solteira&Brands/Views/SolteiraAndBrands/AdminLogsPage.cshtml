@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
 }
 
 <div class="main-content">
@@ -18,50 +18,68 @@
                     <table class="table table-hover table-striped text-center align-middle" id="activityLogsTable" style="width:100%">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-start ps-3">Log ID</th>
-                                <th>Date & Time</th>
-                                <th>User</th>
+                                <th class="text-start ps-3">User</th>
                                 <th>Role</th>
                                 <th>Action</th>
-                                <th class="text-start">Description</th>
+                                <th>Module</th>
+                                <th>Entity ID</th>
+                                <th>Timestamp</th>
                             </tr>
                         </thead>
                         <tbody class="table-group-divider">
 
                             <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">LOG-2025-001</td>
-                                <td>2025-11-04 08:30 AM</td>
-                                <td>System Admin</td>
+                                <td class="text-start ps-3">System Admin</td>
                                 <td><span class="badge bg-danger">Admin</span></td>
-                                <td class="fw-bold text-primary">Login</td>
-                                <td class="text-start text-muted">User logged into the system successfully.</td>
-                            </tr>
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">LOG-2025-002</td>
-                                <td>2025-11-04 09:15 AM</td>
-                                <td>Maria Santos</td>
-                                <td><span class="badge bg-warning text-dark">Manager</span></td>
-                                <td class="fw-bold text-success">Update Inventory</td>
-                                <td class="text-start text-muted">Updated stock quantity for Item <strong>P-001</strong> (Bracelet).</td>
-                            </tr>
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">LOG-2025-003</td>
-                                <td>2025-11-04 10:45 AM</td>
-                                <td>Juan Dela Cruz</td>
-                                <td><span class="badge bg-info text-dark">Staff</span></td>
-                                <td class="fw-bold text-secondary">Generate Report</td>
-                                <td class="text-start text-muted">Exported <em>Weekly Sales Report</em> as PDF.</td>
-                            </tr>
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">LOG-2025-004</td>
+                                <td class="fw-bold text-danger">Archive Product</td>
+                                <td>Inventory</td>
+                                <td>3</td>
                                 <td>2025-11-04 01:20 PM</td>
-                                <td>Maria Santos</td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3">System Admin</td>
+                                <td><span class="badge bg-danger">Admin</span></td>
+                                <td class="fw-bold text-success">Unarchive Product</td>
+                                <td>Inventory</td>
+                                <td>2</td>
+                                <td>2025-11-04 11:00 AM</td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3">System Admin</td>
+                                <td><span class="badge bg-danger">Admin</span></td>
+                                <td class="fw-bold text-primary">User Role Change</td>
+                                <td>Users</td>
+                                <td>5</td>
+                                <td>2025-11-04 10:30 AM</td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3">System Admin</td>
+                                <td><span class="badge bg-danger">Admin</span></td>
+                                <td class="fw-bold text-primary">User Deactivation</td>
+                                <td>Users</td>
+                                <td>7</td>
+                                <td>2025-11-04 09:45 AM</td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3">Maria Santos</td>
                                 <td><span class="badge bg-warning text-dark">Manager</span></td>
-                                <td class="fw-bold text-danger">Archive Item</td>
-                                <td class="text-start text-muted">Archived Product <strong>P-003</strong> (Earring) due to discontinuation.</td>
+                                <td class="fw-bold text-success">Order Approved</td>
+                                <td>Orders</td>
+                                <td>12</td>
+                                <td>2025-11-04 09:15 AM</td>
+                            </tr>
+
+                            <tr>
+                                <td class="text-start ps-3">Juan Dela Cruz</td>
+                                <td><span class="badge bg-info text-dark">Staff</span></td>
+                                <td class="fw-bold text-danger">Payment Rejected</td>
+                                <td>Payment</td>
+                                <td>8</td>
+                                <td>2025-11-04 08:50 AM</td>
                             </tr>
 
                         </tbody>
