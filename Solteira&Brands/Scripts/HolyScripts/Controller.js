@@ -1,4 +1,4 @@
-app.controller("SolteiraAndBrandsController", function ($scope, $timeout, SolteiraAndBrandsService) {
+app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval', 'SolteiraAndBrandsService', function ($scope, $timeout, $interval, SolteiraAndBrandsService) {
 
 
 
@@ -786,4 +786,4 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
         });
     };
 
-});
+}]);

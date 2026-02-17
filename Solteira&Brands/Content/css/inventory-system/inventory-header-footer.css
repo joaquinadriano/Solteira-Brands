@@ -281,7 +281,6 @@ html, body {
 /*Same for all pages except for the Order Details Page*/
 .main-content {
     margin-left: 6vw;
-    padding-top: 4.5rem;
-    padding: 2rem;
+    padding: 4.5rem 2rem 2rem 2rem;
     min-height: 100vh;
 }
