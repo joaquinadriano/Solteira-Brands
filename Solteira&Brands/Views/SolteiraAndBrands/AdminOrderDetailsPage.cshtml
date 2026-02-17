@@ -1,4 +1,4 @@
-﻿@{
+@{
     Layout = "~/Views/Shared/_SABInventoryDashboardLayout.cshtml";
 }
 
@@ -11,7 +11,7 @@
                 <div class="col-12">
                     <button class="orderDetails-button d-inline-flex align-items-center mb-4 px-3 py-1"
                             ng-click="inventoryOrders()">
-                        <img src="~/Content/img/icons/back.svg" class="orderDetails-back-icon me-4" />
+                        <img src="@Url.Content("~/Content/img/icons/back.svg")" class="orderDetails-back-icon me-4" />
                         <span>BACK</span>
                     </button>
                     <h2 class="fw-bold mb-2">Order Details</h2>

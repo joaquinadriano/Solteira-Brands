@@ -8,11 +8,24 @@ namespace Solteira_Brands.Models.Maps
         {
             ToTable("tbl_users");
             HasKey(x => x.Id);
+            Property(x => x.RoleId).HasColumnName("role_id");
+            Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
+            Property(x => x.Username).HasColumnName("username").HasMaxLength(150).IsRequired();
+            Property(x => x.PasswordHash).HasColumnName("password_hash").HasMaxLength(255).IsRequired();
+            Property(x => x.PasswordSalt).HasColumnName("password_salt").HasMaxLength(255).IsRequired();
+            Property(x => x.IsVerified).HasColumnName("is_verified");
+            Property(x => x.IsActive).HasColumnName("is_active");
+            Property(x => x.CreatedAt).HasColumnName("created_at");
+            Property(x => x.AvatarImageId).HasColumnName("avatar_image_id");
 
             HasRequired(x => x.Role)
                 .WithMany(r => r.Users)
                 .HasForeignKey(x => x.RoleId)
                 .WillCascadeOnDelete(false);
+
+            HasOptional(x => x.AvatarImage)
+                .WithMany()
+                .HasForeignKey(x => x.AvatarImageId);
         }
     }
 }

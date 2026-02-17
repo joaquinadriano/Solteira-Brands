@@ -1,10 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
+using System.Web.Security;
 
 namespace Solteira_Brands
 {
@@ -16,6 +18,30 @@ namespace Solteira_Brands
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+        }
+
+        protected void Application_AuthenticateRequest(object sender, EventArgs e)
+        {
+            var authCookie = Request.Cookies[FormsAuthentication.FormsCookieName];
+            if (authCookie == null) return;
+
+            try
+            {
+                var ticket = FormsAuthentication.Decrypt(authCookie.Value);
+                if (ticket == null || string.IsNullOrEmpty(ticket.UserData)) return;
+
+                var parts = ticket.UserData.Split('|');
+                var username = parts.Length > 0 ? parts[0] : ticket.Name;
+                var role = parts.Length > 1 ? parts[1] : "";
+
+                var identity = new GenericIdentity(ticket.Name, "Forms");
+                var principal = new GenericPrincipal(identity, new[] { role });
+                HttpContext.Current.User = principal;
+            }
+            catch
+            {
+                // Invalid ticket; leave User as unauthenticated
+            }
         }
     }
 }

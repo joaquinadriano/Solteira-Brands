@@ -15,12 +15,14 @@ namespace Solteira_Brands.Models.Context
 
         public virtual DbSet<tblRolesModel> tbl_roles { get; set; }
         public virtual DbSet<tblUsersModel> tbl_users { get; set; }
+        public virtual DbSet<tblImagesModel> tbl_images { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Configurations.Add(new tblRolesMap());
             modelBuilder.Configurations.Add(new tblUsersMap());
+            modelBuilder.Configurations.Add(new tblImagesMap());
         }
     }
 }

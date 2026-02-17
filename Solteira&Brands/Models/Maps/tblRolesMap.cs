@@ -8,6 +8,9 @@ namespace Solteira_Brands.Models.Maps
         {
             ToTable("tbl_roles");
             HasKey(x => x.Id);
+            Property(x => x.Name).HasColumnName("name").HasMaxLength(50);
+            Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
+            Property(x => x.CreatedAt).HasColumnName("created_at");
         }
     }
 }

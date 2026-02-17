@@ -77,7 +77,7 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
 
                 //code for sessionStorage.clear?? or kayo na bahala
                 //redirect to login page
-                window.location.href = "/SolteiraAndBrands/AdminLoginPage";
+                window.location.href = "/SolteiraAndBrands/SolteiraBrandsLogin";
             } 
         });
     }
@@ -372,9 +372,10 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
 
     //----------Charts--------- 
     //Temporary Datas *Please modify/remove once the database is implemented
-    $scope.labels = ["January", "February", "March", "April", "May", "June", "July"];
+    // Line chart (Total Sales This Month)
+    $scope.lineLabels = ["January", "February", "March", "April", "May", "June", "July"];
     $scope.series = ['Series A', 'Series B'];
-    $scope.data = [
+    $scope.lineData = [
         [65, 59, 80, 81, 56, 55, 40],
         [28, 48, 40, 19, 86, 27, 90]
     ];
@@ -382,7 +383,9 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
         console.log(points, evt);
     };
     $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
-    $scope.options = {
+    $scope.lineOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
         scales: {
             yAxes: [
                 {
@@ -400,10 +403,10 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
             ]
         }
     };
-
-
-    $scope.labels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
-    $scope.data = [300, 500, 100];
+    // Pie chart (Sales by Category)
+    $scope.pieLabels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
+    $scope.pieData = [300, 500, 100];
+    $scope.pieOptions = { responsive: true, maintainAspectRatio: true };
     //----------Charts end---------
 
     //----------Dashboard Page----------
@@ -705,15 +708,15 @@ app.controller("SolteiraAndBrandsController", function ($scope, $timeout, Soltei
 
     // forgot password otp
     $scope.sendOTP = function () {
-        window.location.href = '/SolteiraBrandsAccount/SolteiraBrandsOTP?mode=forgot&email=' + $scope.userEmail;
+        window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?mode=forgot&email=' + $scope.userEmail;
     };
 
     // This function will be called by the OTP submit logic
     $scope.handleOTPSuccess = function () {
         if ($scope.currentMode === 'forgot') {
-            window.location.href = '/SolteiraBrandsAccount/NewPassword';
+            window.location.href = '/SolteiraAndBrands/SoliteiraBrandsNewPassword';
         } else {
-            window.location.href = '/SolteiraBrandsAccount/SolteiraBrandsLogin';
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
         }
     };
 

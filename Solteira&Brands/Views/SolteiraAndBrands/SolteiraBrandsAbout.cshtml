@@ -1,8 +1,8 @@
-﻿@{
+@{
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
 }
 
-<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/AboutStyle.css" />
+<link rel="stylesheet" href="~/Content/css/ordering-system/AboutStyle.css" />
 
 <div class="about-content">
 
@@ -38,11 +38,11 @@
    <div class="col-6 abt-origin-right">
 
        <div class="col-3">
-           <img src="~/Content/SolteiraBrandsImages/SBAboutImages/about-img[1].png"/>
+           <img src="@Url.Content("~/Content/img/about/about-img[1].png")"/>
        </div>
 
        <div class="col-3">
-           <img src="~/Content/SolteiraBrandsImages/SBAboutImages/about-img[2].png"/>
+           <img src="@Url.Content("~/Content/img/about/about-img[2].png")"/>
        </div>
 
    </div>
@@ -67,7 +67,7 @@
     <div class="abt-pursuit-category">
 
         <div class="card" style="width: 22rem;">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/citrine-diamond-ring.png" class="card-img-top" alt="...">
+            <img src="@Url.Content("~/Content/img/jewelry/citrine-diamond-ring.png")" class="card-img-top" alt="...">
             <div class="card-body">
                 <h5 class="card-title">Natural Diamonds Only</h5>
                 <p class="card-text">
@@ -78,7 +78,7 @@
         </div>
 
         <div class="card" style="width: 22rem;">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/alexandra-set.png" class="card-img-top" alt="...">
+            <img src="@Url.Content("~/Content/img/jewelry/alexandra-set.png")" class="card-img-top" alt="...">
             <div class="card-body">
                 <h5 class="card-title">Global Sourcing</h5>
                 <p class="card-text">
@@ -89,7 +89,7 @@
         </div>
 
         <div class="card" style="width: 22rem;">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/tiara-ring-whitegold.png" class="card-img-top" alt="...">
+            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" class="card-img-top" alt="...">
             <div class="card-body">
                 <h5 class="card-title">Pure Precious Metals</h5>
                 <p class="card-text">
@@ -101,7 +101,7 @@
 
 
         @*<div class="abt-diamonds">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/citrine-diamond-ring.png" />
+            <img src="@Url.Content("~/Content/img/jewelry/citrine-diamond-ring.png")" />
 
             <span>Natural Diamonds Only</span>
             <p>
@@ -111,7 +111,7 @@
         </div>*@
 
         @*<div class="abt-metals">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/tiara-ring-whitegold.png" />
+            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" />
 
             <span>Pure Precious Metals</span>
             <p>
@@ -121,7 +121,7 @@
         </div>
 
         <div class="abt-global">
-            <img src="~/Content/SolteiraBrandsImages/SBJewelryImages/alexandra-set.png" />
+            <img src="@Url.Content("~/Content/img/jewelry/alexandra-set.png")" />
 
             <span>Global Sourcing</span>
             <p>
