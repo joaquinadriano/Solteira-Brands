@@ -4,7 +4,7 @@
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/MyOrders.css" />
 
-<div class="my-orders-main-wrapper" ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController">
+<div class="my-orders-main-wrapper" ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController" ng-init="loadMyOrders()">
 
     <div class="my-orders-text">
         <span>MY ORDERS ({{orders.length}})</span>

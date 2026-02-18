@@ -82,22 +82,66 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     }
 
-    //for when status is changed in the ORDERS Page
-    $scope.statusChange = function () {
-        Swal.fire({
-            title: 'Order status changed!',
-            icon: 'success',
-            iconColor: '#FFFBE8', 
-            background: '#8eb078', 
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8', 
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
+    // ----- Orders (Admin): list, details modal, status update -----
+    $scope.ordersList = [];
+    $scope.selectedOrderDetails = null;
+    $scope.orderStatusOptions = ['Pending', 'Approved', 'Rejected', 'Fully Paid'];
+
+    $scope.loadOrders = function () {
+        SolteiraAndBrandsService.getOrders().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                $scope.ordersList = res.data.data;
+            } else {
+                $scope.ordersList = [];
+            }
+        }, function () {
+            $scope.ordersList = [];
+        });
+    };
+
+    $scope.openOrderDetails = function (order) {
+        if (!order || !order.id) return;
+        $scope.selectedOrderDetails = null;
+        SolteiraAndBrandsService.getOrderDetails(order.id).then(function (res) {
+            if (res.data && res.data.success && res.data.order) {
+                $scope.selectedOrderDetails = res.data.order;
+                var modalEl = document.getElementById('viewOrderDetailsModal');
+                if (modalEl && window.bootstrap) {
+                    var modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
             }
         });
-    }
+    };
+
+    $scope.updateOrderStatusFor = function (orderId, newStatus) {
+        if (!orderId || !newStatus) return;
+        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus).then(function (res) {
+            if (res.data && res.data.success) {
+                var order = $scope.ordersList.find(function (o) { return o.id === orderId; });
+                if (order) order.orderStatus = res.data.orderStatus || newStatus;
+                if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
+                    $scope.selectedOrderDetails.orderStatus = res.data.orderStatus || newStatus;
+                }
+                Swal.fire({
+                    title: 'Order status updated',
+                    icon: 'success',
+                    iconColor: '#FFFBE8',
+                    background: '#8eb078',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#FFFBE8'
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Update failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Update failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.statusChange = function (orderId, newStatus) {
+        $scope.updateOrderStatusFor(orderId, newStatus);
+    };
 
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
     $scope.inventoryProducts = [];

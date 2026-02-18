@@ -1,59 +1,17 @@
 @{
     Layout = "~/Views/Shared/_OperationsLayout.cshtml";
 }
-<div class="main-content">
+<div class="main-content" ng-init="loadOrders()">
     <div class="container-fluid orders-container px-1">
         <div class="row px-4 pb-0 mb-0">
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Orders</p>
             </div>
         </div>
-        @*----------Table----------*@
-        @*ito itsura kapag yung original*@
-        @*<div class="row  px-5 pt-1">
+
+        <div class="row px-4 pt-1">
             <div class="col">
-                <table class="table table-striped table-responsive text-center" id="ordersTable">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Email</th>
-                            <th>Customer Name</th>
-                            <th>Contact Number</th>
-                            <th>Address</th>
-                            <th>Date</th>
-                            <th>Items</th>
-                            <th>Payment Method</th>
-                            <th>Total Price</th>
-                            <th>Order Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-
-                    <tbody class="table-group-divider">
-                        <tr>
-                            <td>ORD-001</td>
-                            <td>customer@gmail.com</td>
-                            <td>Customer Customer</td>
-                            <td>09123456789</td>
-                            <td>Dapitan St, Sampaloc, Manila</td>
-                            <td>12/25/2025</td>
-                            <td>2 items</td>
-                            <td>Full Payment</td>
-                            <td>P 90, 468.00</td>
-                            <td>Photo</td>
-                            <td>Photo</td>
-
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>*@
-
-
-        @*Ito itsura if yung revised*@
-        <div class="row  px-4 pt-1">
-            <div class="col">
-                <table class="table table-striped table-responsive text-center" id="ordersTable">
+                <table class="table table-striped table-responsive text-center" id="adminOrdersTable">
                     <thead>
                         <tr>
                             <th>Order ID</th>
@@ -65,49 +23,46 @@
                             <th>Action</th>
                         </tr>
                     </thead>
-
                     <tbody class="table-group-divider">
-                        @*Temporary js for the changing of status for ui purpose only. Please modify once database is implemented*@
-                        <tr class="text-start" ng-init="orderStatus=''">
-                            <td>ORD-001</td>
-                            <td>12/25/2025</td>
-                            <td>2 items</td>
-                            <td>Dapitan St, Sampaloc, Manila</td>
-                            <td>P 90, 468.00</td>
-                            @*status dropdown*@
+                        <tr class="text-start" ng-repeat="order in ordersList">
+                            <td>{{order.orderNumber}}</td>
+                            <td>{{order.orderDateString}}</td>
+                            <td>{{order.itemCount}} item(s)</td>
+                            <td>{{order.deliveryAddress}}</td>
+                            <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>
                                 <div class="dropdown">
                                     <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
-                                        <span ng-bind="orderStatus || 'Status'">Status</span>
+                                        <span>{{order.orderStatus || 'Status'}}</span>
                                     </a>
-
                                     <ul class="dropdown-menu order-dropdown-menu py-0">
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Pending';statusChange()">Pending</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Approved'; statusChange()">Approved</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Rejected'; statusChange()">Rejected</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="orderStatus='Fully Paid'; statusChange()">Fully Paid</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Pending')">Pending</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Approved')">Approved</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Rejected')">Rejected</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Fully Paid')">Fully Paid</a></li>
                                     </ul>
                                 </div>
                             </td>
-                            @* View only — Archive not available in Operations layout (ADMIN-only) *@
-                            <td class="">
+                            <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
-                                    <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#viewOrderDetailsModal">
-                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" />
+                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openOrderDetails(order)">
+                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
                                     </a>
                                 </div>
                             </td>
+                        </tr>
+                        <tr ng-if="ordersList.length === 0">
+                            <td colspan="7" class="text-muted py-4">No orders yet.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-        @*----------Table end----------*@
 
         @*----------modal view for view button----------*@
         <div class="modal fade" id="viewOrderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered">
-                <div class="modal-content orderDetails-modal-custom" style="background-color: #f8f9fa ">
+                <div class="modal-content orderDetails-modal-custom" style="background-color: #f8f9fa " ng-if="selectedOrderDetails">
 
                     <div class="modal-header border-0 px-4 pt-4 pb-0">
                         <div class="d-flex align-items-center justify-content-between w-100">
@@ -119,23 +74,20 @@
                     <div class="modal-body p-4">
                         <div class="row g-4">
 
-                            @* Left Column *@
                             <div class="col-lg-4">
-                                @* Order ID *@
                                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h4 class="fw-bold mb-0">Order ID #001</h4>
-                                            <span class="orderDetails-badgeNew">Fully Paid</span>
+                                            <h4 class="fw-bold mb-0">Order {{selectedOrderDetails.orderNumber}}</h4>
+                                            <span class="orderDetails-badgeNew">{{selectedOrderDetails.orderStatus}}</span>
                                         </div>
                                         <p class="text-muted mb-0">
                                             <i class="bi bi-calendar me-1"></i>
-                                            Placed on 17 Nov 2024 · 08:37 PM
+                                            Placed on {{selectedOrderDetails.createdAtString}}
                                         </p>
                                     </div>
                                 </div>
 
-                                @* Customer Information *@
                                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
@@ -144,36 +96,33 @@
                                         </h5>
                                         <div class="mb-3">
                                             <label class="orderDetails-infoLabel">Name</label>
-                                            <p class="orderDetails-infoValue">Kim Namjuan</p>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.customerName}}</p>
                                         </div>
                                         <div class="mb-3">
                                             <label class="orderDetails-infoLabel">Email</label>
-                                            <p class="orderDetails-infoValue">kimnamjuan@gmail.com</p>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.email}}</p>
                                         </div>
                                         <div>
                                             <label class="orderDetails-infoLabel">Contact No</label>
-                                            <p class="orderDetails-infoValue">0912 345 6789</p>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.contactNumber}}</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                @* Delivery Information *@
                                 <div class="card border-0 shadow-sm rounded-4 mb-2">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-2">
                                             <i class="bi bi-geo-alt me-2 orderDetails-icon"></i>
                                             Delivery Address
                                         </h5>
-                                        <p class="fw-bold mb-1">Kim Namjuan</p>
-                                        <p class="mb-1">1C Brgy Santol, Espana, Manila</p>
-                                        <p class="mb-0 text-muted small">Contact: 0912 345 6789</p>
+                                        <p class="fw-bold mb-1">{{selectedOrderDetails.customerName}}</p>
+                                        <p class="mb-1">{{selectedOrderDetails.deliveryAddress}}</p>
+                                        <p class="mb-0 text-muted small">Contact: {{selectedOrderDetails.contactNumber}}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            @* Right Column *@
                             <div class="col-lg-8">
-                                @* Order Items *@
                                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
@@ -190,15 +139,10 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr class="border-bottom">
-                                                        <td class="fw-bold py-3">Many Shape Tennis Bracelet</td>
-                                                        <td class="text-center">1</td>
-                                                        <td class="text-end">P 55,790.00</td>
-                                                    </tr>
-                                                    <tr class="border-bottom">
-                                                        <td class="fw-bold py-3">Tiara Ring - White Gold</td>
-                                                        <td class="text-center">1</td>
-                                                        <td class="text-end">P 34,478.00</td>
+                                                    <tr class="border-bottom" ng-repeat="item in selectedOrderDetails.items">
+                                                        <td class="fw-bold py-3">{{item.productName}}</td>
+                                                        <td class="text-center">{{item.quantity}}</td>
+                                                        <td class="text-end">&#8369; {{item.unitPrice * item.quantity | number:2}}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -206,7 +150,6 @@
                                     </div>
                                 </div>
 
-                                @* Payment Summary *@
                                 <div class="card border-0 shadow-sm rounded-4">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
@@ -215,15 +158,11 @@
                                         </h5>
                                         <div class="d-flex justify-content-between mb-2">
                                             <span class="text-muted">Payment Method</span>
-                                            <span>Full Payment</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Sub Total</span>
-                                            <span>P6.00</span>
+                                            <span>{{selectedOrderDetails.paymentMethod}}</span>
                                         </div>
                                         <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-3 mt-2">
                                             <span>Total</span>
-                                            <span class="orderDetails-total">P6.39</span>
+                                            <span class="orderDetails-total">&#8369; {{selectedOrderDetails.totalAmount | number:2}}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -232,6 +171,17 @@
                     </div>
 
                     <div class="modal-footer border-0 p-4">
+                        <div class="dropdown me-2">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                {{selectedOrderDetails.orderStatus}}
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Pending')">Pending</a></li>
+                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Approved')">Approved</a></li>
+                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Rejected')">Rejected</a></li>
+                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Fully Paid')">Fully Paid</a></li>
+                            </ul>
+                        </div>
                         <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
                             <span>CLOSE</span>
                         </button>

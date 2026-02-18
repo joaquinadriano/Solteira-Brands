@@ -101,4 +101,17 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    this.createOrder = function (payload) {
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/CreateOrder",
+            data: payload,
+            headers: { "Content-Type": "application/json" }
+        });
+    };
+
+    this.getMyOrders = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetMyOrders" });
+    };
+
 });
