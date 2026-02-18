@@ -31,7 +31,7 @@
 
         <div ng-repeat="item in jewelries | limitTo: 4" ng-class="'jewelry' + ($index + 1)">
             <a href="javascript:void(0)" class="product-link" ng-click="goToProduct(item)">
-                <img ng-src="/Content/img/jewelry/{{item.img}}" />
+                <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
                 <span>{{item.name}}</span>
             </a>
         </div>

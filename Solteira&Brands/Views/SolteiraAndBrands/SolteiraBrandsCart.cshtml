@@ -37,7 +37,7 @@
                 </div>
 
                 <div class="item-image">
-                    <img ng-src="/Content/img/jewelry/{{item.img}}" alt="{{item.name}}" />
+                    <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
                 </div>
 
                 <div class="product-details">

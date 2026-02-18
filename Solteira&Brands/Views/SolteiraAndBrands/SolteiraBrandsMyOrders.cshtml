@@ -43,7 +43,7 @@
                     <div class="order-products">
                         <div class="product-row" ng-repeat="item in order.items">
                             <div class="product-info">
-                                <img ng-src="/Content/img/jewelry/{{item.img}}" class="product-img" alt="{{item.name}}" />
+                                <img ng-src="{{item.img || defaultProductImageUrl}}" class="product-img" alt="{{item.name}}" />
                                 <div class="product-details">
                                     <span class="product-name">{{item.name}}</span>
                                     <span class="product-desc">{{item.stones}}</span>
