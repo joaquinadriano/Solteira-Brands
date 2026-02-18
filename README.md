@@ -1,6 +1,6 @@
 
-<h1 align="center">Welcome to the Github Repository for Solteria-Brands💎, We are Joaquin Adriano and Warren Chua</h1>
-<h3 align="center">Junior IT Students based in Philippines</h3>
+<h1 align="center">Welcome to the Github Repository for Solteria-Brands💎 <br></h1>
+<h3 align="center">MANAGED BY: Joaquin Adriano and Warren Chua<br>3rd year IT Students based in University of Santo Tomas, Manila 🐯</h3>
 
 ---
 
