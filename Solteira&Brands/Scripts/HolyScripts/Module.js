@@ -1,1 +1,1 @@
-var app = angular.module("SolteiraAndBrands", []);
+var app = angular.module("SolteiraAndBrands", ["chart.js"]);

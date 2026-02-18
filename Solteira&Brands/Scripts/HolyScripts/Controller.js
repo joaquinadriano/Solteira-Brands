@@ -665,43 +665,67 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     }
     //---------Sweet Alert Dialogue Box end---------
 
-    //----------Charts--------- 
-    //Temporary Datas *Please modify/remove once the database is implemented
-    // Line chart (Total Sales This Month)
-    $scope.lineLabels = ["January", "February", "March", "April", "May", "June", "July"];
-    $scope.series = ['Series A', 'Series B'];
-    $scope.lineData = [
-        [65, 59, 80, 81, 56, 55, 40],
-        [28, 48, 40, 19, 86, 27, 90]
-    ];
+    //----------Charts (initialized empty; filled by loadDashboardData) --------- 
+    $scope.lineLabels = [];
+    $scope.series = ['Total Sales (\u20B1)'];
+    $scope.lineData = [[]];
     $scope.onClick = function (points, evt) {
         console.log(points, evt);
     };
-    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
+    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }];
     $scope.lineOptions = {
         responsive: true,
         maintainAspectRatio: true,
         scales: {
-            yAxes: [
-                {
-                    id: 'y-axis-1',
-                    type: 'linear',
-                    display: true,
-                    position: 'left'
-                },
-                {
-                    id: 'y-axis-2',
-                    type: 'linear',
-                    display: true,
-                    position: 'right'
-                }
-            ]
+            yAxes: [{
+                id: 'y-axis-1',
+                type: 'linear',
+                display: true,
+                position: 'left'
+            }]
         }
     };
-    // Pie chart (Sales by Category)
-    $scope.pieLabels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
-    $scope.pieData = [300, 500, 100];
+    $scope.pieLabels = [];
+    $scope.pieData = [];
     $scope.pieOptions = { responsive: true, maintainAspectRatio: true };
+
+    // Dashboard stats (cards)
+    $scope.dashboardStats = {
+        totalSales: 0,
+        productSold: 0,
+        pendingOrders: 0,
+        approvedOrders: 0,
+        shippedOrders: 0
+    };
+    $scope.dashboardDate = '';
+
+    $scope.loadDashboardData = function () {
+        SolteiraAndBrandsService.getDashboardData().then(function (res) {
+            if (res.data && res.data.success) {
+                var stats = res.data.stats || {};
+                $scope.dashboardStats = {
+                    totalSales: stats.totalSales || 0,
+                    productSold: stats.productSold || 0,
+                    pendingOrders: stats.pendingOrders || 0,
+                    approvedOrders: stats.approvedOrders || 0,
+                    shippedOrders: stats.shippedOrders || 0
+                };
+                var daily = res.data.dailySales || {};
+                $scope.lineLabels = daily.labels || [];
+                $scope.lineData = [(daily.data || [])];
+                var byCat = res.data.salesByCategory || {};
+                $scope.pieLabels = byCat.labels || [];
+                $scope.pieData = byCat.data || [];
+                var now = new Date();
+                $scope.dashboardDate = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+        }, function () {
+            $scope.lineLabels = [];
+            $scope.lineData = [[]];
+            $scope.pieLabels = [];
+            $scope.pieData = [];
+        });
+    };
     //----------Charts end---------
 
     //----------Dashboard Page----------

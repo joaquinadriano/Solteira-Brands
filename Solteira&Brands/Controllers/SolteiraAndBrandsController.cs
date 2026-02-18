@@ -441,12 +441,74 @@ namespace Solteira_Brands.Controllers
         }
 
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetDashboardData()
+        {
+                var now = DateTime.Now;
+                var startOfMonth = new DateTime(now.Year, now.Month, 1);
+                var endOfMonth = startOfMonth.AddMonths(1);
+                var daysInMonth = DateTime.DaysInMonth(now.Year, now.Month);
+
+                using (var db = new SolteiraBrandsContext())
+                {
+                    var orders = db.tbl_orders.ToList();
+
+                    // Stats: total sales (sum of order totals), product sold (sum of order item quantities), counts by status
+                    var totalSales = orders.Sum(o => o.TotalAmount);
+                    var productSold = db.tbl_order_items.Sum(i => i.Quantity);
+                    var pendingOrders = orders.Count(o => o.OrderStatus == "Pending");
+                    var approvedOrders = orders.Count(o => o.OrderStatus == "Approved");
+                    var shippedOrders = orders.Count(o => o.OrderStatus == "Shipped");
+
+                    // Daily sales this month: one value per day (orders placed in current month)
+                    var ordersThisMonth = orders.Where(o => o.CreatedAt >= startOfMonth && o.CreatedAt < endOfMonth).ToList();
+                    var dailyTotals = new decimal[daysInMonth];
+                    for (var i = 0; i < daysInMonth; i++)
+                    {
+                        var day = i + 1;
+                        dailyTotals[i] = ordersThisMonth.Where(o => o.CreatedAt.Day == day).Sum(o => o.TotalAmount);
+                    }
+                var lineLabels = Enumerable.Range(1, daysInMonth).Select(d => d.ToString()).ToList();
+                var lineData = dailyTotals.Select(x => (double)x).ToList();
+
+                // Sales by category: Ring, Earring, Necklace, Bracelet (from order_items joined to products)
+                var categories = new[] { "Ring", "Earring", "Necklace", "Bracelet" };
+                var pieLabels = new List<string>();
+                var pieDataList = new List<double>();
+                foreach (var cat in categories)
+                {
+                    var total = (from oi in db.tbl_order_items
+                                 join p in db.tbl_products on oi.ProductId equals p.Id
+                                 where p.Category == cat
+                                 select (decimal?) (oi.Quantity * oi.UnitPrice)).Sum() ?? 0;
+                    pieLabels.Add(cat);
+                    pieDataList.Add((double)total);
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    stats = new
+                    {
+                        totalSales,
+                        productSold,
+                        pendingOrders,
+                        approvedOrders,
+                        shippedOrders
+                    },
+                    dailySales = new { labels = lineLabels, data = lineData },
+                    salesByCategory = new { labels = pieLabels, data = pieDataList }
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
         public JsonResult UpdateOrderStatus(int id, string status)
         {
             if (string.IsNullOrWhiteSpace(status))
                 return Json(new { success = false, message = "Status is required." });
-            var allowed = new[] { "Pending", "Approved", "Rejected", "Fully Paid" };
+            var allowed = new[] { "Pending", "Approved", "Rejected", "Fully Paid", "Shipped" };
             if (!allowed.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
                 return Json(new { success = false, message = "Invalid status." });
 

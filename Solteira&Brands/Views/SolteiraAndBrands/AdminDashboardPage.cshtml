@@ -1,56 +1,49 @@
 @{
     Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
-<div class="main-content">
+<div class="main-content" ng-init="loadDashboardData()">
     <div class="container-fluid dashboard-container">
         <div class="row px-4 pb-0 mb-0">
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Dashboard</p>
             </div>
-            @*----------Date and Time----------*@
             <div class="col">
-                <p class="h1  h4 ps-0 ms-0 text-end">11/17/2024, 4:23PM</p>
+                <p class="h1 h4 ps-0 ms-0 text-end">{{dashboardDate}}</p>
             </div>
         </div>
         <div class="row px-5">
-            @*----------Cards----------*@
-            @*---------first card---------*@
             <div class="d-flex justify-content-center">
                 <div class="col-6 dashboard-card-container ">
                     <div class="row dashboard-card-content ">
                         <div class="col dashboard-card-content vl-right">
                             <p>Total Sales</p>
-                            <p>
-                                &#8369;248, 320.00
-                            </p>
+                            <p>&#8369; {{dashboardStats.totalSales | number:2}}</p>
                         </div>
                         <div class="col dashboard-card-content vl-left">
                             <p>Product Sold</p>
-                            <p>12</p>
+                            <p>{{dashboardStats.productSold}}</p>
                         </div>
                     </div>
                 </div>
-                @*---------second card---------*@
                 <div class="col-6 dashboard-card-container ">
                     <div class="row dashboard-card-content-2">
                         <div class="col d-flex align-items-center justify-content-center">
                             <p class="dashboard-card2-title">Orders</p>
                         </div>
                         <div class="col dashboard-card-content-2 vl-right">
-                            <p>3</p>
+                            <p>{{dashboardStats.pendingOrders}}</p>
                             <p>Pending</p>
                         </div>
                         <div class="col dashboard-card-content-2 vl-left vl-right">
-                            <p>2</p>
+                            <p>{{dashboardStats.approvedOrders}}</p>
                             <p>Approved</p>
                         </div>
                         <div class="col dashboard-card-content-2 vl-left">
-                            <p>6</p>
+                            <p>{{dashboardStats.shippedOrders}}</p>
                             <p>Shipped</p>
                         </div>
                     </div>
                 </div>
-                @*----------Cards end----------*@
             </div>
         </div>
 

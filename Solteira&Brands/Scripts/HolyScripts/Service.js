@@ -64,4 +64,8 @@ app.service("SolteiraAndBrandsService", function ($http) {
             params: { id: orderId, status: status }
         });
     };
+
+    this.getDashboardData = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetDashboardData" });
+    };
 });

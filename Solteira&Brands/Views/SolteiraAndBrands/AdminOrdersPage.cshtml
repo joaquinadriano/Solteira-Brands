@@ -40,6 +40,7 @@
                                         <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Approved')">Approved</a></li>
                                         <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Rejected')">Rejected</a></li>
                                         <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Fully Paid')">Fully Paid</a></li>
+                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Shipped')">Shipped</a></li>
                                     </ul>
                                 </div>
                             </td>
@@ -180,6 +181,7 @@
                                 <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Approved')">Approved</a></li>
                                 <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Rejected')">Rejected</a></li>
                                 <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Fully Paid')">Fully Paid</a></li>
+                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Shipped')">Shipped</a></li>
                             </ul>
                         </div>
                         <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
