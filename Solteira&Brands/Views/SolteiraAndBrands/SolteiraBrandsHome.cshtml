@@ -11,10 +11,11 @@
     <div class="home-overlay ">
 
         <div class="home-description">
-            Experience the luxury of natural diamonds, exquisitely set in real gold and platinum.
+            Experience the luxury of natural diamonds,<br>
+            exquisitely set in real gold and platinum.
         </div>
-        <div>
-            <a class="shop-btn text-decoration-none" href="@Url.Action("SolteiraBrandsJewelries","SolteiraAndBrands")">
+        <div class="button-wrapper">
+            <a class="shop-btn text-decoration-none" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">
                 Shop Now
             </a>
         </div>
@@ -30,7 +31,7 @@
 
         <div ng-repeat="item in jewelries | limitTo: 4" ng-class="'jewelry' + ($index + 1)">
             <a href="javascript:void(0)" class="product-link" ng-click="goToProduct(item)">
-                <img ng-src="/Content/img/jewelry/{{item.img}}" />
+                <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
                 <span>{{item.name}}</span>
             </a>
         </div>

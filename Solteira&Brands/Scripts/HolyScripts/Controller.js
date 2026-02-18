@@ -82,59 +82,325 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     }
 
-    //for when status is changed in the ORDERS Page
-    $scope.statusChange = function () {
-        Swal.fire({
-            title: 'Order status changed!',
-            icon: 'success',
-            iconColor: '#FFFBE8', 
-            background: '#8eb078', 
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8', 
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
-            }
-        });
-    }
+    // ----- Orders (Admin): list, details modal, status update -----
+    $scope.ordersList = [];
+    $scope.selectedOrderDetails = null;
+    $scope.orderStatusOptions = ['Pending', 'Approved', 'Rejected', 'Fully Paid'];
 
-    //for when an item is added in the INVENTORY Page
-    $scope.inventoryAddStatus = function () {
-        Swal.fire({
-            title: 'Inventory item added!',
-            icon: 'success',
-            iconColor: '#FFFBE8',
-            background: '#8eb078',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8',
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
+    $scope.loadOrders = function () {
+        SolteiraAndBrandsService.getOrders().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                $scope.ordersList = res.data.data;
+            } else {
+                $scope.ordersList = [];
             }
-        }).then(() => {
-            $('#inventoryAddItemModal').modal('hide');
+        }, function () {
+            $scope.ordersList = [];
         });
-    }
+    };
 
-    //for when an item is edited in the INVENTORY Page
-    $scope.inventoryEditStatus = function () {
-        Swal.fire({
-            title: 'Inventory item updated!',
-            icon: 'success',
-            iconColor: '#FFFBE8',
-            background: '#8eb078',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8',
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
+    $scope.openOrderDetails = function (order) {
+        if (!order || !order.id) return;
+        $scope.selectedOrderDetails = null;
+        SolteiraAndBrandsService.getOrderDetails(order.id).then(function (res) {
+            if (res.data && res.data.success && res.data.order) {
+                $scope.selectedOrderDetails = res.data.order;
+                var modalEl = document.getElementById('viewOrderDetailsModal');
+                if (modalEl && window.bootstrap) {
+                    var modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
             }
-        }).then(() => {
-            $('#inventoryEditItemModal').modal('hide');
         });
+    };
+
+    $scope.updateOrderStatusFor = function (orderId, newStatus) {
+        if (!orderId || !newStatus) return;
+        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus).then(function (res) {
+            if (res.data && res.data.success) {
+                var order = $scope.ordersList.find(function (o) { return o.id === orderId; });
+                if (order) order.orderStatus = res.data.orderStatus || newStatus;
+                if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
+                    $scope.selectedOrderDetails.orderStatus = res.data.orderStatus || newStatus;
+                }
+                Swal.fire({
+                    title: 'Order status updated',
+                    icon: 'success',
+                    iconColor: '#FFFBE8',
+                    background: '#8eb078',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#FFFBE8'
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Update failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Update failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.statusChange = function (orderId, newStatus) {
+        $scope.updateOrderStatusFor(orderId, newStatus);
+    };
+
+    // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
+    $scope.inventoryProducts = [];
+    $scope.showArchivedInventory = false;
+    $scope.productCategories = ["Bracelet", "Ring", "Earring", "Necklace"];
+    $scope.newProduct = {
+        name: "",
+        category: "",
+        description: "",
+        price: null,
+        stockQuantity: null,
+        stones: "",
+        material: "",
+        weight: "",
+        length: "",
+        isBestSeller: false
+    };
+    $scope.inventoryPhotoFile = null;
+    $scope.inventoryEditPhotoFile = null;
+    $scope.editProduct = null;
+    $scope.nextProductDisplayId = 'P-001';
+
+    $scope.loadInventoryProducts = function () {
+        SolteiraAndBrandsService.getInventoryProducts($scope.showArchivedInventory).then(function (res) {
+            var list = [];
+            if (angular.isArray(res.data)) {
+                list = res.data;
+            } else if (res.data && res.data.data) {
+                list = res.data.data;
+            }
+            $scope.inventoryProducts = list || [];
+
+            if (!$scope.showArchivedInventory) {
+                // Compute next display Product ID (P-001 style) based on max existing id among active items
+                var maxId = 0;
+                angular.forEach($scope.inventoryProducts, function (p) {
+                    if (p && p.id && p.id > maxId) {
+                        maxId = p.id;
+                    }
+                });
+                $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
+            }
+        }, function () {
+            $scope.inventoryProducts = [];
+        });
+    };
+
+    $scope.onInventoryFileSelected = function (files) {
+        if (files && files.length > 0) {
+            $scope.$applyAsync(function () {
+                $scope.inventoryPhotoFile = files[0];
+            });
+        } else {
+            $scope.$applyAsync(function () {
+                $scope.inventoryPhotoFile = null;
+            });
+        }
+    };
+
+    $scope.onInventoryEditFileSelected = function (files) {
+        if (files && files.length > 0) {
+            $scope.$applyAsync(function () {
+                $scope.inventoryEditPhotoFile = files[0];
+            });
+        } else {
+            $scope.$applyAsync(function () {
+                $scope.inventoryEditPhotoFile = null;
+            });
+        }
+    };
+
+    $scope.createInventoryProduct = function () {
+        if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || !$scope.newProduct.stockQuantity) {
+            Swal.fire({
+                title: 'Missing required fields',
+                text: 'Please fill in Product Name, Category, Selling Price, and Stock Left.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        var doCreate = function (imageId) {
+            var payload = {
+                Name: $scope.newProduct.name,
+                Category: $scope.newProduct.category,
+                Description: $scope.newProduct.description,
+                Price: parseFloat($scope.newProduct.price) || 0,
+                Material: $scope.newProduct.material,
+                Stones: $scope.newProduct.stones,
+                Weight: $scope.newProduct.weight,
+                Length: $scope.newProduct.length,
+                StockQuantity: parseInt($scope.newProduct.stockQuantity) || 0,
+                ImageId: imageId,
+                IsBestSeller: !!$scope.newProduct.isBestSeller
+            };
+
+            SolteiraAndBrandsService.createProduct(payload).then(function (res) {
+                if (res.data && res.data.success) {
+                    Swal.fire({
+                        title: 'Inventory item added!',
+                        icon: 'success',
+                        iconColor: '#FFFBE8',
+                        background: '#8eb078',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#FFFBE8',
+                        buttonsStyling: true,
+                        customClass: {
+                            title: 'status-title',
+                            confirmButton: 'status-button'
+                        }
+                    }).then(function () {
+                        $('#inventoryAddItemModal').modal('hide');
+                        $scope.loadInventoryProducts();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Unable to add item.',
+                        text: (res.data && res.data.message) || 'Please try again.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }, function () {
+                Swal.fire({
+                    title: 'Unable to add item.',
+                    text: 'Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+        };
+
+        if ($scope.inventoryPhotoFile) {
+            SolteiraAndBrandsService.uploadProductImage($scope.inventoryPhotoFile).then(function (res) {
+                console.log('Create uploadProductImage response:', res.data);
+                if (res.data && res.data.success && res.data.imageID) {
+                    doCreate(res.data.imageID);
+                } else {
+                    Swal.fire({
+                        title: 'Image upload failed',
+                        text: (res.data && res.data.message) || 'Only JPG/JPEG up to 5MB are allowed.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }, function () {
+                Swal.fire({
+                    title: 'Image upload failed',
+                    text: 'Please try again. Ensure the file is a JPG/JPEG under 5MB.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+        } else {
+            doCreate(null);
+        }
+    };
+
+    $scope.openEditProduct = function (item) {
+        if (!item) return;
+        $scope.editProduct = angular.copy(item);
+        $scope.inventoryEditPhotoFile = null;
+        $('#inventoryEditItemModal').modal('show');
+    };
+
+    $scope.updateInventoryProduct = function () {
+        if (!$scope.editProduct || !$scope.editProduct.id) return;
+        if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || !$scope.editProduct.stockQuantity) {
+            Swal.fire({
+                title: 'Missing required fields',
+                text: 'Please fill in Product Name, Category, Selling Price, and Stock Left.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        var doUpdate = function (imageId) {
+            var payload = {
+                Id: $scope.editProduct.id,
+                Name: $scope.editProduct.name,
+                Category: $scope.editProduct.category,
+                Description: $scope.editProduct.description,
+                Price: parseFloat($scope.editProduct.price) || 0,
+                Material: $scope.editProduct.material,
+                Stones: $scope.editProduct.stones,
+                Weight: $scope.editProduct.weight,
+                Length: $scope.editProduct.length,
+                StockQuantity: parseInt($scope.editProduct.stockQuantity) || 0,
+                ImageId: imageId,
+                IsBestSeller: !!$scope.editProduct.isBestSeller
+            };
+
+            SolteiraAndBrandsService.updateProduct(payload).then(function (res) {
+                if (res.data && res.data.success) {
+                    Swal.fire({
+                        title: 'Inventory item updated!',
+                        icon: 'success',
+                        iconColor: '#FFFBE8',
+                        background: '#8eb078',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#FFFBE8',
+                        buttonsStyling: true,
+                        customClass: {
+                            title: 'status-title',
+                            confirmButton: 'status-button'
+                        }
+                    }).then(function () {
+                        $('#inventoryEditItemModal').modal('hide');
+                        $scope.loadInventoryProducts();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Unable to update item.',
+                        text: (res.data && res.data.message) || 'Please try again.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }, function () {
+                Swal.fire({
+                    title: 'Unable to update item.',
+                    text: 'Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+        };
+
+        if ($scope.inventoryEditPhotoFile) {
+            SolteiraAndBrandsService.uploadProductImage($scope.inventoryEditPhotoFile).then(function (res) {
+                console.log('Edit uploadProductImage response:', res.data);
+                if (res.data && res.data.success && res.data.imageID) {
+                    doUpdate(res.data.imageID);
+                } else {
+                    Swal.fire({
+                        title: 'Image upload failed',
+                        text: (res.data && res.data.message) || 'Only JPG/JPEG up to 5MB are allowed.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }, function () {
+                Swal.fire({
+                    title: 'Image upload failed',
+                    text: 'Please try again. Ensure the file is a JPG/JPEG under 5MB.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            });
+        } else {
+            doUpdate(null);
+        }
+    };
+
+    // Initialize when inventory table is present
+    if (document.getElementById('inventoryTable')) {
+        $scope.loadInventoryProducts();
     }
 
     //for when status is changed in the DELIVERY SHIPMENTS Page
@@ -338,75 +604,128 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     }
 
-    //for when archive is clicked in INVENTORY Page
-    $scope.inventoryArchiveAlert = function () {
+    //for when archive/restore is clicked in INVENTORY Page
+    $scope.inventoryArchiveAlert = function (item) {
+        if (!item || !item.id) return;
+
+        var isArchiving = !$scope.showArchivedInventory;
+        var title = isArchiving ? 'Archive Confirmation' : 'Restore Confirmation';
+        var text = isArchiving ? 'Please confirm you wish to archive this inventory item'
+                               : 'Please confirm you wish to restore this inventory item';
+        var confirmLabel = isArchiving ? 'Archive' : 'Restore';
+        var successTitle = isArchiving ? 'Inventory item archived successfully!'
+                                       : 'Inventory item restored successfully!';
+
         Swal.fire({
-            title: 'Archive Confirmation',
-            text: 'Please confirm you wish to archive this inventory item',
+            title: title,
+            text: text,
             icon: 'info',
             iconColor: '#8eb078',
             showCancelButton: true,
-            confirmButtonText: 'Archive',
+            confirmButtonText: confirmLabel,
             confirmButtonColor: '#8eb078',
             cancelButtonText: 'Cancel',
             background: '#FFFBE8',
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'Inventory item archived successfully!',
-                    icon: 'success',
-                    iconColor: '#FFFBE8',
-                    background: '#8eb078',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#FFFBE8',
-                    buttonsStyling: true,
-                    customClass: {
-                        title: 'status-title',
-                        confirmButton: 'status-button'
+                SolteiraAndBrandsService.toggleProductArchive(item.id).then(function (res) {
+                    if (res.data && res.data.success) {
+                        Swal.fire({
+                            title: successTitle,
+                            icon: 'success',
+                            iconColor: '#FFFBE8',
+                            background: '#8eb078',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#FFFBE8',
+                            buttonsStyling: true,
+                            customClass: {
+                                title: 'status-title',
+                                confirmButton: 'status-button'
+                            }
+                        });
+                        $scope.loadInventoryProducts();
+                    } else {
+                        Swal.fire({
+                            title: 'Unable to update item.',
+                            text: (res.data && res.data.message) || 'Please try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
                     }
+                }, function () {
+                    Swal.fire({
+                        title: 'Unable to update item.',
+                        text: 'Please try again.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
                 });
             }
         });
     }
     //---------Sweet Alert Dialogue Box end---------
 
-    //----------Charts--------- 
-    //Temporary Datas *Please modify/remove once the database is implemented
-    // Line chart (Total Sales This Month)
-    $scope.lineLabels = ["January", "February", "March", "April", "May", "June", "July"];
-    $scope.series = ['Series A', 'Series B'];
-    $scope.lineData = [
-        [65, 59, 80, 81, 56, 55, 40],
-        [28, 48, 40, 19, 86, 27, 90]
-    ];
+    //----------Charts (initialized empty; filled by loadDashboardData) --------- 
+    $scope.lineLabels = [];
+    $scope.series = ['Total Sales (\u20B1)'];
+    $scope.lineData = [[]];
     $scope.onClick = function (points, evt) {
         console.log(points, evt);
     };
-    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }, { yAxisID: 'y-axis-2' }];
+    $scope.datasetOverride = [{ yAxisID: 'y-axis-1' }];
     $scope.lineOptions = {
         responsive: true,
         maintainAspectRatio: true,
         scales: {
-            yAxes: [
-                {
-                    id: 'y-axis-1',
-                    type: 'linear',
-                    display: true,
-                    position: 'left'
-                },
-                {
-                    id: 'y-axis-2',
-                    type: 'linear',
-                    display: true,
-                    position: 'right'
-                }
-            ]
+            yAxes: [{
+                id: 'y-axis-1',
+                type: 'linear',
+                display: true,
+                position: 'left'
+            }]
         }
     };
-    // Pie chart (Sales by Category)
-    $scope.pieLabels = ["Download Sales", "In-Store Sales", "Mail-Order Sales"];
-    $scope.pieData = [300, 500, 100];
+    $scope.pieLabels = [];
+    $scope.pieData = [];
     $scope.pieOptions = { responsive: true, maintainAspectRatio: true };
+
+    // Dashboard stats (cards)
+    $scope.dashboardStats = {
+        totalSales: 0,
+        productSold: 0,
+        pendingOrders: 0,
+        approvedOrders: 0,
+        shippedOrders: 0
+    };
+    $scope.dashboardDate = '';
+
+    $scope.loadDashboardData = function () {
+        SolteiraAndBrandsService.getDashboardData().then(function (res) {
+            if (res.data && res.data.success) {
+                var stats = res.data.stats || {};
+                $scope.dashboardStats = {
+                    totalSales: stats.totalSales || 0,
+                    productSold: stats.productSold || 0,
+                    pendingOrders: stats.pendingOrders || 0,
+                    approvedOrders: stats.approvedOrders || 0,
+                    shippedOrders: stats.shippedOrders || 0
+                };
+                var daily = res.data.dailySales || {};
+                $scope.lineLabels = daily.labels || [];
+                $scope.lineData = [(daily.data || [])];
+                var byCat = res.data.salesByCategory || {};
+                $scope.pieLabels = byCat.labels || [];
+                $scope.pieData = byCat.data || [];
+                var now = new Date();
+                $scope.dashboardDate = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+        }, function () {
+            $scope.lineLabels = [];
+            $scope.lineData = [[]];
+            $scope.pieLabels = [];
+            $scope.pieData = [];
+        });
+    };
     //----------Charts end---------
 
     //----------Dashboard Page----------

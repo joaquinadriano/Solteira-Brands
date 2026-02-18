@@ -1,4 +1,4 @@
-﻿body, html {
+body, html {
     height: 100%;
     width: 100%;
     margin: 0;
@@ -55,18 +55,28 @@
     margin-bottom: 1.5vw;
 }
 
-.form-label {
+.login-form .form-label {
     font-family: "Nunito";
     font-size: 1.25rem;
     margin-bottom: .5vw;
 }
 
-.custom-input {
+.login-form .custom-input {
     font-family: "Nunito";
     font-size: 1.25rem;
     border: 1px solid #87AE73;
     padding: .5vw;
     border-radius: 0;
+}
+
+.is-invalid {
+    border: 2px solid red !important;
+}
+
+.error-text {
+    color: red;
+    font-size: 12px;
+    margin-top: 4px;
 }
 
 .custom-input-group {
@@ -101,10 +111,6 @@
     font-size: 1.15rem;
     color: #1e1e1e;
 }
-
-    .forgot-password-text label {
-        text-decoration: underline;
-    }
 
 .login-btn {
     font-family: "Kaisei Tokumin";

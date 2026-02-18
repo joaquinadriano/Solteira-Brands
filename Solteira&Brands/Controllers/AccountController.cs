@@ -12,10 +12,34 @@ using Solteira_Brands.Security;
 namespace Solteira_Brands.Controllers
 {
     /// <summary>
-    /// Authentication: Login (cookie + role), Logout, Register.
+        /// Authentication: Login (cookie + role), Logout, Register, profile update, password changes.
     /// </summary>
     public class AccountController : Controller
     {
+        /// <summary>
+        /// Create or refresh the FormsAuthentication cookie for the specified user.
+        /// Keeps User.Identity.Name and role in sync after profile changes.
+        /// </summary>
+        private void IssueAuthCookie(tblUsersModel user)
+        {
+            if (user == null) return;
+
+            var roleName = user.Role != null ? user.Role.Name : "BUYER";
+            var userData = (user.Username ?? string.Empty) + "|" + roleName;
+
+            var ticket = new FormsAuthenticationTicket(
+                version: 1,
+                name: user.Username,
+                issueDate: DateTime.UtcNow,
+                expiration: DateTime.UtcNow.AddMinutes(60),
+                isPersistent: false,
+                userData: userData);
+
+            var encTicket = FormsAuthentication.Encrypt(ticket);
+            var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, encTicket) { HttpOnly = true };
+            Response.Cookies.Set(cookie);
+        }
+
         /// <summary>
         /// POST: Validate username/password, create Forms auth cookie with role, return redirect URL.
         /// </summary>
@@ -45,20 +69,9 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid username or password." });
                 }
 
+                IssueAuthCookie(user);
+
                 var roleName = user.Role?.Name ?? "BUYER";
-                var userData = user.Username + "|" + roleName;
-                var ticket = new FormsAuthenticationTicket(
-                    version: 1,
-                    name: user.Username,
-                    issueDate: DateTime.UtcNow,
-                    expiration: DateTime.UtcNow.AddMinutes(60),
-                    isPersistent: false,
-                    userData: userData);
-
-                var encTicket = FormsAuthentication.Encrypt(ticket);
-                var cookie = new System.Web.HttpCookie(FormsAuthentication.FormsCookieName, encTicket) { HttpOnly = true };
-                Response.Cookies.Add(cookie);
-
                 var redirectUrl = (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
                     ? Url.Action("AdminDashboardPage", "SolteiraAndBrands")
                     : Url.Action("SolteiraBrandsHome", "SolteiraAndBrands");
@@ -114,7 +127,7 @@ namespace Solteira_Brands.Controllers
                 return Json(new { success = false, message = "Not logged in." });
             using (var db = new SolteiraBrandsContext())
             {
-                var user = db.tbl_users.FirstOrDefault(u => u.Username == currentUsername);
+                var user = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == currentUsername);
                 if (user == null)
                     return Json(new { success = false, message = "User not found." });
                 if (avatarImageId.HasValue)
@@ -127,6 +140,9 @@ namespace Solteira_Brands.Controllers
                     user.Username = trimmed;
                 }
                 db.SaveChanges();
+
+                // Refresh auth cookie so User.Identity.Name and role reflect latest data
+                IssueAuthCookie(user);
             }
             return Json(new { success = true });
         }
@@ -175,35 +191,47 @@ namespace Solteira_Brands.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult Register(string email, string username, string password, string verifyPassword)
         {
-            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(username))
+            var errors = new System.Collections.Generic.Dictionary<string, string>();
+
+            if (string.IsNullOrWhiteSpace(email))
             {
-                return Json(new { success = false, message = "Email and username are required." });
+                errors["email"] = "Email is required.";
             }
 
             if (string.IsNullOrEmpty(password))
             {
-                return Json(new { success = false, message = "Password is required." });
+                errors["password"] = "Password is required.";
             }
 
             if (password != verifyPassword)
             {
-                return Json(new { success = false, message = "Passwords do not match." });
+                errors["verifyPassword"] = "Passwords do not match.";
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                errors["username"] = "Username is required.";
             }
 
             if (!PasswordValidation.IsValid(password, out string passwordError))
             {
-                return Json(new { success = false, message = passwordError });
+                errors["password"] = passwordError;
             }
 
             using (var db = new SolteiraBrandsContext())
             {
                 if (db.tbl_users.Any(u => u.Email == email))
                 {
-                    return Json(new { success = false, message = "An account with this email already exists." });
+                    errors["email"] = "Email already registered.";
                 }
                 if (db.tbl_users.Any(u => u.Username == username))
                 {
-                    return Json(new { success = false, message = "This username is already taken." });
+                    errors["username"] = "Username already taken.";
+                }
+
+                if (errors.Count > 0)
+                {
+                    return Json(new { success = false, errors });
                 }
 
                 var buyerRole = db.tbl_roles.FirstOrDefault(r => r.Name == "BUYER");
@@ -258,6 +286,122 @@ namespace Solteira_Brands.Controllers
             }
 
             return Content($"Trial passwords seeded. Updated {updated} account(s). Password for all: {trialPassword}. You can remove or protect this action in production.");
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public ActionResult IsEmailAvailable(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { available = false }, JsonRequestBehavior.AllowGet);
+
+            var trimmed = email.Trim();
+            using (var db = new SolteiraBrandsContext())
+            {
+                bool exists = db.tbl_users.Any(u => u.Email == trimmed);
+                return Json(new { available = !exists }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public ActionResult IsUsernameAvailable(string username, bool ignoreCurrent = false)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return Json(new { available = false }, JsonRequestBehavior.AllowGet);
+
+            var trimmed = username.Trim();
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var query = db.tbl_users.AsQueryable();
+
+                if (ignoreCurrent && User != null && User.Identity != null && User.Identity.IsAuthenticated)
+                {
+                    var current = db.tbl_users.FirstOrDefault(u => u.Username == User.Identity.Name);
+                    if (current != null)
+                    {
+                        query = query.Where(u => u.Id != current.Id);
+                    }
+                }
+
+                bool exists = query.Any(u => u.Username == trimmed);
+                return Json(new { available = !exists }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>
+        /// POST: Change password for a logged-in BUYER (no OTP).
+        /// Requires current password, validates strength of new password, and ensures new != old.
+        /// </summary>
+        [HttpPost]
+        [Authorize(Roles = "BUYER")]
+        [ValidateAntiForgeryToken]
+        public ActionResult ChangePassword(string currentPassword, string newPassword, string verifyPassword)
+        {
+            string FieldError(string field, string message)
+            {
+                // helper is inline; we just return once below with proper field name
+                return message;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentPassword) ||
+                string.IsNullOrWhiteSpace(newPassword) ||
+                string.IsNullOrWhiteSpace(verifyPassword))
+            {
+                return Json(new { success = false, field = "", message = "All fields are required." });
+            }
+
+            if (newPassword != verifyPassword)
+            {
+                return Json(new { success = false, field = "verifyPassword", message = "New password and confirmation do not match." });
+            }
+
+            if (string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+            {
+                return Json(new { success = false, field = "newPassword", message = "New password must be different from current password." });
+            }
+
+            if (!PasswordValidation.IsValid(newPassword, out string passwordError))
+            {
+                return Json(new { success = false, field = "newPassword", message = passwordError });
+            }
+
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+            {
+                return Json(new { success = false, field = "", message = "Not logged in." });
+            }
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == username && u.IsActive);
+                if (user == null)
+                {
+                    return Json(new { success = false, field = "", message = "User not found." });
+                }
+
+                if (user.PasswordHash == "SEEDME" || string.IsNullOrEmpty(user.PasswordSalt))
+                {
+                    return Json(new { success = false, field = "", message = "Account password is not initialized. Please contact support." });
+                }
+
+                if (!PasswordHasher.Verify(currentPassword, user.PasswordHash, user.PasswordSalt))
+                {
+                    return Json(new { success = false, field = "currentPassword", message = "Current password is incorrect." });
+                }
+
+                var (hash, salt) = PasswordHasher.HashPassword(newPassword);
+                user.PasswordHash = hash;
+                user.PasswordSalt = salt;
+                db.SaveChanges();
+
+                // Refresh auth cookie so identity stays valid after password rotation
+                IssueAuthCookie(user);
+
+                // TODO: send email notification for password change (once SMTP is configured)
+                return Json(new { success = true });
+            }
         }
     }
 }

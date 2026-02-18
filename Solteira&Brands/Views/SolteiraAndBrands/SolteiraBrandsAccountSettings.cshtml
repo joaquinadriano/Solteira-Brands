@@ -40,8 +40,14 @@
 
                     <div class="text-start mb-4 w-100">
                         <label for="name" class="form-label">Name</label>
-                        <input type="text" class="form-control custom-input" id="name" name="username"
-                               ng-model="profile.username" placeholder="Username" required />
+                        <input type="text"
+                               class="form-control custom-input"
+                               ng-class="{'input-error': profileErrors.username}"
+                               id="name" name="username"
+                               ng-model="profile.username"
+                               ng-blur="onProfileUsernameBlur()"
+                               placeholder="Username" required />
+                        <small class="text-danger" ng-if="profileErrors.username">{{profileErrors.username}}</small>
                     </div>
 
                     <div class="text-start mb-4 w-100">
@@ -52,12 +58,16 @@
 
                     <div class="text-start mb-4 w-100">
                         <label class="form-label">Password</label>
-                        <a href="@Url.Action("SolteiraBrandsForgotPassword", "SolteiraAndBrands")" class="change-password-link">
+                        <a href="@Url.Action("SolteiraBrandsChangePassword", "SolteiraAndBrands")" class="change-password-link">
                             Change Password (Optional)
                         </a>
                     </div>
 
-                    <button type="submit" class="save-changes">SAVE CHANGES</button>
+                    <button type="submit"
+                            class="save-changes"
+                            ng-disabled="profileErrors.username">
+                        SAVE CHANGES
+                    </button>
 
                 </form>
 

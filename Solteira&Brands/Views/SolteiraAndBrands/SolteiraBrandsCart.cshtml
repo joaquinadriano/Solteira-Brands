@@ -4,38 +4,31 @@
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/CartStyle.css" />
 
-<div ng-controller="SolteiraBrandsController">
+<div ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController">
+    
     <div class="shopping-cart-text">
         <span>Shopping Cart ({{cart.length}})</span>
     </div>
 
     <hr class="hr-line" />
 
-    <div class="empty-cart-message" ng-if="cart.length === 0" style="text-align: center; margin-top: 50px;">
-        <i class="bi bi-cart-x" style="font-size: 3rem; color: #ccc;"></i>
-        <p style="margin-top: 15px; font-size: 1.2rem; color: #666;">Your jewelry box is currently empty.</p>
-        <a href="/SolteiraAndBrands/SolteiraBrandsJewelries" class="btn btn-dark" style="margin-top: 10px;">
-            CONTINUE SHOPPING
-        </a>
+    <div class="empty-cart-wrapper" ng-if="cart.length === 0">
+        <div class="empty-cart-message">
+            <i class="bi bi-cart-x"></i>
+            <p>Your jewelry box is currently empty.</p>
+            <a href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")" class="btn shopping-btn">
+                CONTINUE SHOPPING
+            </a>
+        </div>
     </div>
 
     <div class="cart-page-wrapper">
-        <div class="select-all-container" style="padding: 10px 20px;" ng-show="cart.length > 0">
-            <label class="custom-checkbox">
-                <input type="checkbox"
-                       ng-model="selectAll"
-                       ng-change="toggleAll()" />
-                <span class="checkmark"></span>
-                <span style="margin-left: 35px; font-weight: bold;">SELECT ALL</span>
-            </label>
-        </div>
 
         <hr class="hr-line" ng-show="cart.length > 0" />
 
-        <hr class="hr-line" />
+        <div class="cart-list" ng-if="cart.length > 0">
+            <div class="cart-item" ng-repeat="item in cart">
 
-        <div class="cart-item-container" ng-repeat="item in cart">
-            <div class="cart-item">
                 <div class="item-selection">
                     <label class="custom-checkbox">
                         <input type="checkbox" ng-model="item.selected" />
@@ -43,26 +36,28 @@
                     </label>
                 </div>
 
-                <div class="item-info-group">
-                    <div class="item-image">
-                        <img ng-src="/Content/img/jewelry/{{item.img}}" />
+                <div class="item-image">
+                    <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
+                </div>
+
+                <div class="product-details">
+                    <h3 class="product-name">{{item.name}}</h3>
+                    <div class="product-price">&#8369; {{item.price | number:2}}</div>
+
+                    <div class="product-specs" ng-if="item.stones || item.material">
+                        <span ng-if="item.stones">{{item.stones}}</span>
+                        <span ng-if="item.material">{{item.material}}</span>
+                        <span ng-if="item.weight">{{item.weight}}<span ng-if="item.length">, {{item.length}}</span></span>
                     </div>
 
-                    <div class="product-details">
-                        <span class="product-name">{{item.name}}</span>
-                        <div class="product-price">&#8369; {{item.price | number:2}}</div>
-
-                        <div class="quantity-adjuster" style="margin-top: 10px;">
-                            <button class="btn-qty" ng-click="item.qty = (item.qty > 1 ? item.qty - 1 : 1)">-</button>
-                            <input type="text" ng-model="item.qty" style="width: 40px; text-align: center; border: 1px solid #ddd;" readonly>
-                            <button class="btn-qty" ng-click="item.qty = item.qty + 1">+</button>
-                        </div>
+                    <div class="product-qty-display">
+                        Quantity: {{item.qty}}
                     </div>
                 </div>
 
                 <div class="item-actions">
                     <button class="remove-btn" ng-click="removeFromCart($index)">
-                        <i class="bi bi-x-lg"></i>
+                        <i class="bi bi-x"></i>
                     </button>
                 </div>
             </div>
@@ -70,15 +65,32 @@
     </div>
 
     <div class="cart-summary-footer" ng-if="cart.length > 0">
-        <div class="total-display">
-            <span class="total-label">TOTAL:</span>
-            <span class="total-amount">&#8369; {{getCartTotal() | number:2}}</span>
+
+        <div class="footer-left-actions">
+
+            <label class="custom-checkbox select-all-container">
+                <input type="checkbox" ng-model="selectAll" ng-change="toggleAll()" />
+                <span class="checkmark"></span>
+                <span class="select-all-label">Select All</span>
+            </label>
+
         </div>
-        <button ng-click="proceedToCheckout()"
-                class="checkout-btn"
-                ng-disabled="(cart | filter:{selected: true}).length === 0">
-            CHECK OUT ({{ (cart | filter:{selected: true}).length }} ITEMS)
-        </button>
+
+        <div class="footer-right-actions">
+
+            <div class="total-display"> 
+                <span class="total-label">Total:</span>
+                <span class="total-amount">&#8369; {{getCartTotal() | number:2}}</span>
+            </div>
+
+            <button ng-click="proceedToCheckout('@Url.Action("SolteiraBrandsCheckout", "SolteiraAndBrands")')"
+                    class="checkout-btn"
+                    ng-disabled="(cart | filter:{selected: true}).length === 0">
+                CHECK OUT
+            </button>
+
+        </div>
+
     </div>
 
 </div>

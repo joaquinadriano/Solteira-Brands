@@ -4,407 +4,69 @@
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/MyOrders.css" />
 
-<div class="my-orders-text">
-    <span>MY ORDERS (1)</span>
-</div>
+<div class="my-orders-main-wrapper" ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController" ng-init="loadMyOrders()">
 
-<hr class="hr-line" />
-
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
-
-        <div class="search-container">
-            <div class="search-wrapper">
-                <input type="text" placeholder="Search by Order ID, Product Name" class="order-search-input" />
-                <span class="search-icon-btn">
-                    <i class="bi bi-search"></i>
-                </span>
-            </div>
-        </div>
-
-        <div class="orders-section">
-            <div class="order-status">
-                <span>Order: <span class="status-weight">Pending</span></span>
-            </div>
-
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
-        </div>
+    <div class="my-orders-text">
+        <span>MY ORDERS ({{orders.length}})</span>
     </div>
-</div>
 
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
+    <hr class="hr-line" />
 
-        <div class="orders-section">
+    <div class="my-orders-page-wrapper">
+        <div class="my-orders-container">
 
-            <div class="order-header">
-
-                <div class="order-status">
-                    <span>Order: <span class="status-weight">Approved</span></span>
-                </div>
-
-                <div class="delivery-info">
-                    <div class="delivery-status">
-                        Delivery Status: <span class="status-weight">Pending</span>
-                    </div>
-                    <a href="" class="track-link">Track Delivery</a>
-                </div>
-
-            </div>
-
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <input type="text" ng-model="searchOrder" placeholder="Search by Order ID, Product Name" class="order-search-input" />
+                    <span class="search-icon-btn"><i class="bi bi-search"></i></span>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
+            <div class="orders-section"
+                 ng-repeat="order in orders | filter:searchOrder"
+                 ng-click="viewOrderDetails(order.orderId)"
+                 style="cursor: pointer; margin-bottom: 30px;">
 
-        <div class="orders-section">
-
-            <div class="order-header">
-
-                <div class="order-status">
-                    <span>Order: <span class="status-weight">Approved</span></span>
-                </div>
-
-                <div class="delivery-info">
-                    <div class="delivery-status">
-                        Delivery Status: <span class="status-weight">In Transit</span>
+                <div class="order-header">
+                    <div class="order-status">
+                        <span>Order Status: <span class="status-weight">{{order.status}}</span></span>
                     </div>
-                    <a href="" class="track-link">Track Delivery</a>
+                    <div class="delivery-info" ng-if="order.status !== 'Cancelled'">
+                        <div class="delivery-status">
+                            Delivery Status: <span class="status-weight">{{order.deliveryStatus}}</span>
+                        </div>
+                        <a href="" class="track-link">Track Delivery</a>
+                    </div>
                 </div>
 
+                <div class="order-card-white">
+                    <div class="order-products">
+                        <div class="product-row" ng-repeat="item in order.items">
+                            <div class="product-info">
+                                <img ng-src="{{item.img || defaultProductImageUrl}}" class="product-img" alt="{{item.name}}" />
+                                <div class="product-details">
+                                    <span class="product-name">{{item.name}}</span>
+                                    <span class="product-desc">{{item.stones}}</span>
+                                    <span class="product-desc">{{item.material}}</span>
+                                    <span class="product-qty">Qty: {{item.qty}}</span>
+                                </div>
+                            </div>
+                            <div class="product-price">&#8369; {{item.price | number:2}}</div>
+                        </div>
+                    </div>
+
+                    <div class="order-total-section">
+                        <span class="total-label">Total: </span>
+                        <span class="total-amount">&#8369; {{order.total | number:2}}</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
-
-        <div class="orders-section">
-
-            <div class="order-header">
-
-                <div class="order-status">
-                    <span>Order: <span class="status-weight">Approved</span></span>
-                </div>
-
-                <div class="delivery-info">
-                    <div class="delivery-status">
-                        Delivery Status: <span class="status-weight">Delivered 02/10/2026</span>
-                    </div>
-                    <a href="" class="track-link">Track Delivery</a>
-                </div>
-
+            <div ng-if="orders.length === 0" style="text-align:center; padding: 50px; color: #888;">
+                <i class="bi bi-bag-x" style="font-size: 3rem;"></i>
+                <p>You haven't placed any orders yet.</p>
             </div>
 
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
-
-        <div class="orders-section">
-
-            <div class="order-header">
-
-                <div class="order-status">
-                    <span>Order: <span class="status-weight">Awaiting Meetup</span></span>
-                </div>
-
-            </div>
-
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
-
-        <div class="orders-section">
-
-            <div class="order-header">
-
-                <div class="order-status">
-                    <span>Order: <span class="status-weight">Fully Paid</span></span>
-                </div>
-
-                <div class="delivery-info">
-                    <div class="delivery-status">
-                        Delivery Status: <span class="status-weight">Meet-up Successful 02/08/2026</span>
-                    </div>
-                    <a href="" class="track-link">Track Delivery</a>
-                </div>
-
-            </div>
-
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="my-orders-page-wrapper">
-    <div class="my-orders-container">
-
-        <div class="orders-section">
-            <div class="order-status">
-                <span>Order: <span class="status-weight">Cancelled</span></span>
-            </div>
-
-            <div class="order-card-white">
-                <div class="order-products">
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/many-shape-bracelet.png")" alt="Tennis Bracelet" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Many Shape Tennis Bracelet</span>
-                                <span class="product-desc">5 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">9.6 grams, 18cm</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 55, 790.00</div>
-                    </div>
-
-                    <div class="product-row">
-                        <div class="product-info">
-                            <img src="@Url.Content("~/Content/img/jewelry/tiara-ring-whitegold.png")" alt="Tiara Ring" class="product-img" />
-                            <div class="product-details">
-                                <span class="product-name">Tiara Ring - White Gold</span>
-                                <span class="product-desc">1 Total Carat Diamond</span>
-                                <span class="product-desc">18K - White Gold</span>
-                                <span class="product-desc">4.5 grams</span>
-                                <span class="product-qty">Qty: 1</span>
-                            </div>
-                        </div>
-                        <div class="product-price">P 34, 478.00</div>
-                    </div>
-                </div>
-
-                <div class="order-total-section">
-                    <span class="total-label">Total: </span>
-                    <span class="total-amount">P 90, 468.00</span>
-                </div>
-            </div>
         </div>
     </div>
 </div>

@@ -66,9 +66,6 @@ CREATE TABLE IF NOT EXISTS tbl_verification_tokens (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ----------------------------------------------------------------------------
--- 4. tbl_images (metadata only; files on disk at ~/Content/images/productsupload/)
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_images (
     id              INT             NOT NULL AUTO_INCREMENT,
     image_path      VARCHAR(255)    NOT NULL,
@@ -79,7 +76,83 @@ CREATE TABLE IF NOT EXISTS tbl_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
--- 5. Idempotent changes for EXISTING databases (run each time; no-op if already applied)
+-- 5. tbl_products (storefront products; soft delete via is_archived)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_products (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(150)    NOT NULL,
+    category        VARCHAR(100)    NOT NULL,
+    description     VARCHAR(255)    NULL,
+    price           DECIMAL(10,2)   NOT NULL,
+    material        VARCHAR(150)    NULL,
+    stones          VARCHAR(255)    NULL,
+    weight          VARCHAR(50)     NULL,
+    length          VARCHAR(50)     NULL,
+    stock_quantity  INT             NOT NULL DEFAULT 0,
+    image_id        INT             NULL,
+    is_best_seller  TINYINT(1)      NOT NULL DEFAULT 0,
+    is_archived     TINYINT(1)      NOT NULL DEFAULT 0,
+    created_at      DATETIME        NOT NULL,
+    updated_at      DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_tbl_products_image
+        FOREIGN KEY (image_id)
+        REFERENCES tbl_images (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5b. tbl_orders (buyer checkout orders)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_orders (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    user_id         INT             NOT NULL,
+    order_number    VARCHAR(50)     NOT NULL,
+    customer_name   VARCHAR(150)    NOT NULL,
+    contact_number  VARCHAR(50)     NOT NULL,
+    delivery_address VARCHAR(500)  NOT NULL,
+    payment_method  VARCHAR(100)   NOT NULL,
+    total_amount    DECIMAL(12,2)   NOT NULL,
+    order_status    VARCHAR(50)     NOT NULL DEFAULT 'Pending',
+    created_at      DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_orders_user_id (user_id),
+    INDEX idx_tbl_orders_created_at (created_at),
+    CONSTRAINT fk_tbl_orders_user
+        FOREIGN KEY (user_id)
+        REFERENCES tbl_users (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5c. tbl_order_items (line items per order)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_order_items (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    order_id        INT             NOT NULL,
+    product_id      INT             NULL,
+    product_name    VARCHAR(200)    NOT NULL,
+    quantity        INT             NOT NULL,
+    unit_price      DECIMAL(10,2)   NOT NULL,
+    image_url       VARCHAR(500)    NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_order_items_order_id (order_id),
+    CONSTRAINT fk_tbl_order_items_order
+        FOREIGN KEY (order_id)
+        REFERENCES tbl_orders (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_order_items_product
+        FOREIGN KEY (product_id)
+        REFERENCES tbl_products (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 6. Idempotent changes for EXISTING databases (run each time; no-op if already applied)
 -- ----------------------------------------------------------------------------
 SET @dbname := DATABASE();
 
@@ -119,7 +192,7 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ----------------------------------------------------------------------------
--- 6. Seed roles
+-- 7. Seed roles
 -- ----------------------------------------------------------------------------
 INSERT INTO tbl_roles (name, description, created_at) VALUES
 ('ADMIN',   'Technical authority',    NOW()),
@@ -129,7 +202,7 @@ INSERT INTO tbl_roles (name, description, created_at) VALUES
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- ----------------------------------------------------------------------------
--- 7. Trial accounts (SystemAdmin, Manager, Staff, Buyer — password: Password123@)
+-- 8. Trial accounts (SystemAdmin, Manager, Staff, Buyer — password: Password123@) !!!!!!!!!!!!!!
 --    Hash/salt = SEEDME until you visit /Account/SeedTrialPasswords
 -- ----------------------------------------------------------------------------
 INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)

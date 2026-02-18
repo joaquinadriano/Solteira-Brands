@@ -1,4 +1,4 @@
-﻿body {
+body {
     margin: 0;
     font-family: "Nunito", sans-serif;
 }
@@ -52,7 +52,14 @@
     font-size: 1.5rem;
     text-decoration: none;
     border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
 }
+
+    .icon-link.nav-item-align:hover {
+        color: #87AE73;
+        border-bottom-color: #87AE73;
+    }
 
 .bi::before {
     display: block !important;
@@ -86,8 +93,14 @@
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    line-height: 1; 
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
 }
+
+    .icon-link:hover {
+        color: #87AE73;
+    }
 
 footer {
     background-color: #ffffff;

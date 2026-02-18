@@ -1,4 +1,4 @@
-﻿.faq-title {
+.faq-title {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -57,20 +57,20 @@
     display: block;
 }
 
-.content {
+.faq-container .content {
     padding: 1.5vw 0;
     font-size: 1.25rem;
     line-height: 1.5;
 }
 
-.table {
+.faq-container .table {
     border-color: #87ae73;
     width: fit-content;
     margin: 1vw auto;
     border-collapse: collapse;
 }
 
-    .table th,
-    .table td {
+    .faq-container .table th,
+    .faq-container .table td {
         padding: .8vw 0.5vw;
     }

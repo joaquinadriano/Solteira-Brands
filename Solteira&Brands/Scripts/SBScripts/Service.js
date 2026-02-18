@@ -51,6 +51,13 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    this.getStorefrontProducts = function () {
+        return $http({
+            method: "GET",
+            url: "/SolteiraAndBrands/GetStorefrontProducts"
+        });
+    };
+
     this.login = function (username, password) {
         var params = new URLSearchParams();
         params.append("username", username || "");
@@ -76,6 +83,35 @@ app.service("SolteiraBrandsService", function ($http) {
             data: params.toString(),
             headers: { "Content-Type": "application/x-www-form-urlencoded" }
         });
+    };
+
+    this.isEmailAvailable = function (email) {
+        return $http({
+            method: "GET",
+            url: "/Account/IsEmailAvailable",
+            params: { email: email || "" }
+        });
+    };
+
+    this.isUsernameAvailable = function (username, ignoreCurrent) {
+        return $http({
+            method: "GET",
+            url: "/Account/IsUsernameAvailable",
+            params: { username: username || "", ignoreCurrent: !!ignoreCurrent }
+        });
+    };
+
+    this.createOrder = function (payload) {
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/CreateOrder",
+            data: payload,
+            headers: { "Content-Type": "application/json" }
+        });
+    };
+
+    this.getMyOrders = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetMyOrders" });
     };
 
 });

@@ -36,14 +36,21 @@
 
                     <div class="text-start mb-4 w-100">
                         <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control custom-input" id="username" ng-model="loginData.username"
+                        <input type="text" class="form-control custom-input"
+                               ng-class="{'is-invalid': loginErrors.username}"
+                               id="username" ng-model="loginData.username"
+                               ng-change="onLoginFieldChange('username')"
                                placeholder="Username" required />
                     </div>
 
                     <div class="text-start mb-4 w-100 position-relative">
                         <label for="password" class="form-label">Password</label>
                         <div class="input-group custom-input-group">
-                            <input type="{{showPassword ? 'text' : 'password'}}" class="form-control custom-input border-end-0" id="password" ng-model="loginData.password"
+                            <input type="{{showPassword ? 'text' : 'password'}}"
+                                   class="form-control custom-input border-end-0"
+                                   ng-class="{'is-invalid': loginErrors.password}"
+                                   id="password" ng-model="loginData.password"
+                                   ng-change="onLoginFieldChange('password')"
                                    placeholder="********" required />
                             <span class="input-group-text bg-transparent border-start-0"
                                   style="cursor : pointer;"
