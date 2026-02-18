@@ -519,8 +519,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return selected.reduce(function (total, item) { return total + (item.price * item.qty); }, 0);
     };
 
-    $scope.orders = JSON.parse(localStorage.getItem('sb_orders')) || [];
-
+    $scope.orders = [];
+    $scope.loadMyOrders = function () {
+        if (!isBuyer) return;
+        SolteiraBrandsService.getMyOrders().then(function (r) {
+            if (r.data && r.data.success && angular.isArray(r.data.data)) {
+                $scope.orders = r.data.data;
+            } else {
+                $scope.orders = [];
+            }
+        }, function () {
+            $scope.orders = [];
+        });
+    };
     $scope.viewOrderDetails = function (orderId) {
         if (orderId) {
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders?orderId=' + encodeURIComponent(orderId);
@@ -528,32 +539,62 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.placeOrder = function () {
+        var selected = $scope.getSelectedItems();
+        if (!selected || selected.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Empty order', text: 'Select at least one item to order.' });
+            return;
+        }
+        var name = ($scope.customerName || '').trim();
+        var contact = ($scope.contactNumber || '').trim();
+        var address = ($scope.deliveryAddress || '').trim();
+        var payment = ($scope.paymentMethod || '').trim();
+        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your full name.' }); return; }
+        if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
+        if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
+        if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
+
+        var payload = {
+            CustomerName: name,
+            ContactNumber: contact,
+            DeliveryAddress: address,
+            PaymentMethod: payment,
+            TotalAmount: $scope.getCheckoutSubtotal(),
+            Items: selected.map(function (item) {
+                return {
+                    ProductId: item.id,
+                    ProductName: item.name,
+                    Quantity: item.qty,
+                    UnitPrice: item.price,
+                    ImageUrl: item.img || null
+                };
+            })
+        };
+
         Swal.fire({
             title: 'Processing Order...',
             text: 'Please wait while we verify your transaction.',
             allowOutsideClick: false,
             didOpen: function () { Swal.showLoading(); }
         });
-        var selected = $scope.getSelectedItems();
-        var orderId = 'ORD-' + Date.now();
-        var newOrder = {
-            orderId: orderId,
-            status: 'Pending',
-            deliveryStatus: 'Preparing',
-            items: selected,
-            total: $scope.getCheckoutSubtotal()
-        };
-        $scope.orders.push(newOrder);
-        localStorage.setItem('sb_orders', JSON.stringify($scope.orders));
-        $scope.cart = $scope.cart.filter(function (item) { return !item.selected; });
-        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-        Swal.fire({
-            title: 'Order Placed!',
-            text: 'Order ' + orderId + ' has been submitted. You will receive confirmation via email.',
-            icon: 'success',
-            confirmButtonText: 'OK'
-        }).then(function () {
-            window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+
+        SolteiraBrandsService.createOrder(payload).then(function (r) {
+            if (r.data && r.data.success) {
+                $scope.cart = $scope.cart.filter(function (item) { return !item.selected; });
+                localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+                Swal.fire({
+                    title: 'Order Placed!',
+                    text: 'Order ' + (r.data.orderNumber || '') + ' has been submitted. You will receive confirmation via email.',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Order failed', text: (r.data && r.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Could not place order. Please try again.';
+            Swal.fire({ icon: 'error', title: 'Order failed', text: msg });
         });
     };
 

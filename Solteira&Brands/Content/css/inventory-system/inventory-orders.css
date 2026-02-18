@@ -1,4 +1,4 @@
-﻿html, body {
+html, body {
     overflow-x: hidden;
 }
 
@@ -19,6 +19,7 @@
 color: #87AE73;*/
 
 #ordersTable thead,
+#adminOrdersTable thead,
 #inventoryTable thead {
     font-weight: bold;
 }

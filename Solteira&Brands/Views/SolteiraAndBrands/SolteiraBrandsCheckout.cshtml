@@ -15,7 +15,7 @@
 
             <div class="checkout-item" ng-repeat="item in getSelectedItems()">
                 <div class="checkout-item-img">
-                    <img ng-src="/Content/img/jewelry/{{item.img}}"
+                    <img ng-src="{{item.img || defaultProductImageUrl}}"
                          alt="{{item.name}}" />
                 </div>
 

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 using System.Web.Mvc;
+using System.Web.Script.Serialization;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
 using Solteira_Brands.Security;
@@ -259,6 +261,202 @@ namespace Solteira_Brands.Controllers
                                 }).ToList();
 
                 return Json(new { success = true, data = products }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        // ----- ORDERS: Create (buyer checkout), List/Details/UpdateStatus (admin) -----
+        [BuyerAuthorize]
+        [HttpPost]
+        public JsonResult CreateOrder()
+        {
+            CreateOrderRequest request = null;
+            try
+            {
+                using (var reader = new StreamReader(Request.InputStream))
+                {
+                    var body = reader.ReadToEnd();
+                    if (!string.IsNullOrWhiteSpace(body))
+                        request = new JavaScriptSerializer().Deserialize<CreateOrderRequest>(body);
+                }
+            }
+            catch { }
+            if (request == null || request.Items == null || request.Items.Count == 0)
+                return Json(new { success = false, message = "No items in order." });
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated." });
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false, message = "User not found." });
+
+                var now = DateTime.Now;
+                var order = new tblOrdersModel
+                {
+                    UserId = user.Id,
+                    OrderNumber = "", // set after insert
+                    CustomerName = (request.CustomerName ?? "").Trim(),
+                    ContactNumber = (request.ContactNumber ?? "").Trim(),
+                    DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
+                    PaymentMethod = (request.PaymentMethod ?? "Full Payment").Trim(),
+                    TotalAmount = request.TotalAmount,
+                    OrderStatus = "Pending",
+                    CreatedAt = now
+                };
+                if (string.IsNullOrEmpty(order.CustomerName) || string.IsNullOrEmpty(order.ContactNumber) || string.IsNullOrEmpty(order.DeliveryAddress))
+                    return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+
+                db.tbl_orders.Add(order);
+                db.SaveChanges();
+
+                order.OrderNumber = "ORD-" + order.Id;
+                db.SaveChanges();
+
+                foreach (var item in request.Items)
+                {
+                    db.tbl_order_items.Add(new tblOrderItemsModel
+                    {
+                        OrderId = order.Id,
+                        ProductId = item.ProductId,
+                        ProductName = item.ProductName ?? "",
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        ImageUrl = item.ImageUrl
+                    });
+                }
+                db.SaveChanges();
+
+                return Json(new { success = true, orderId = order.Id, orderNumber = order.OrderNumber, message = "Order placed successfully." });
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetOrders()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var list = db.tbl_orders
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new
+                    {
+                        id = o.Id,
+                        orderNumber = o.OrderNumber,
+                        orderDate = o.CreatedAt,
+                        itemCount = o.OrderItems.Count,
+                        deliveryAddress = o.DeliveryAddress,
+                        totalAmount = o.TotalAmount,
+                        orderStatus = o.OrderStatus,
+                        customerName = o.CustomerName,
+                        contactNumber = o.ContactNumber,
+                        paymentMethod = o.PaymentMethod
+                    }).ToList()
+                    .Select(x => new
+                    {
+                        x.id,
+                        x.orderNumber,
+                        orderDateString = x.orderDate.ToString("MM/dd/yyyy"),
+                        itemCount = x.itemCount,
+                        x.deliveryAddress,
+                        x.totalAmount,
+                        x.orderStatus,
+                        x.customerName,
+                        x.contactNumber,
+                        x.paymentMethod
+                    });
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetOrderDetails(int id)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders
+                    .Include("OrderItems")
+                    .Include("User")
+                    .FirstOrDefault(o => o.Id == id);
+                if (order == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+
+                var items = order.OrderItems.Select(i => new
+                {
+                    productName = i.ProductName,
+                    quantity = i.Quantity,
+                    unitPrice = i.UnitPrice,
+                    imageUrl = i.ImageUrl
+                }).ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    order = new
+                    {
+                        id = order.Id,
+                        orderNumber = order.OrderNumber,
+                        orderStatus = order.OrderStatus,
+                        createdAt = order.CreatedAt,
+                        createdAtString = order.CreatedAt.ToString("MMM dd yyyy · hh:mm tt"),
+                        customerName = order.CustomerName,
+                        email = order.User != null ? order.User.Email : "",
+                        contactNumber = order.ContactNumber,
+                        deliveryAddress = order.DeliveryAddress,
+                        paymentMethod = order.PaymentMethod,
+                        totalAmount = order.TotalAmount,
+                        items = items
+                    }
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [BuyerAuthorize]
+        [HttpGet]
+        public JsonResult GetMyOrders()
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username)) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+
+                var list = db.tbl_orders
+                    .Where(o => o.UserId == user.Id)
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new
+                    {
+                        orderId = o.Id,
+                        orderNumber = o.OrderNumber,
+                        status = o.OrderStatus,
+                        deliveryStatus = "Preparing",
+                        createdAt = o.CreatedAt,
+                        total = o.TotalAmount,
+                        items = o.OrderItems.Select(i => new { name = i.ProductName, qty = i.Quantity, price = i.UnitPrice, img = i.ImageUrl }).ToList()
+                    }).ToList();
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdateOrderStatus(int id, string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                return Json(new { success = false, message = "Status is required." });
+            var allowed = new[] { "Pending", "Approved", "Rejected", "Fully Paid" };
+            if (!allowed.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Invalid status." });
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.FirstOrDefault(o => o.Id == id);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                order.OrderStatus = status.Trim();
+                db.SaveChanges();
+                return Json(new { success = true, message = "Order status updated.", orderStatus = order.OrderStatus });
             }
         }
 

@@ -149,11 +149,16 @@
     <Compile Include="Controllers\SolteiraAndBrandsController.cs" />
     <Compile Include="Models\Context\SolteiraBrandsContext.cs" />
     <Compile Include="Models\Maps\tblImagesMap.cs" />
+    <Compile Include="Models\Maps\tblOrderItemsMap.cs" />
+    <Compile Include="Models\Maps\tblOrdersMap.cs" />
     <Compile Include="Models\Maps\tblRolesMap.cs" />
     <Compile Include="Models\Maps\tblUsersMap.cs" />
     <Compile Include="Models\Maps\tblProductsMap.cs" />
+    <Compile Include="Models\CreateOrderRequest.cs" />
     <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\tblImagesModel.cs" />
+    <Compile Include="Models\tblOrderItemsModel.cs" />
+    <Compile Include="Models\tblOrdersModel.cs" />
     <Compile Include="Models\tblRolesModel.cs" />
     <Compile Include="Models\tblUsersModel.cs" />
     <Compile Include="Models\tblProductsModel.cs" />

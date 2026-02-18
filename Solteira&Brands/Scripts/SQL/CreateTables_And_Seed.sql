@@ -103,6 +103,55 @@ CREATE TABLE IF NOT EXISTS tbl_products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- 5b. tbl_orders (buyer checkout orders)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_orders (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    user_id         INT             NOT NULL,
+    order_number    VARCHAR(50)     NOT NULL,
+    customer_name   VARCHAR(150)    NOT NULL,
+    contact_number  VARCHAR(50)     NOT NULL,
+    delivery_address VARCHAR(500)  NOT NULL,
+    payment_method  VARCHAR(100)   NOT NULL,
+    total_amount    DECIMAL(12,2)   NOT NULL,
+    order_status    VARCHAR(50)     NOT NULL DEFAULT 'Pending',
+    created_at      DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_orders_user_id (user_id),
+    INDEX idx_tbl_orders_created_at (created_at),
+    CONSTRAINT fk_tbl_orders_user
+        FOREIGN KEY (user_id)
+        REFERENCES tbl_users (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5c. tbl_order_items (line items per order)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_order_items (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    order_id        INT             NOT NULL,
+    product_id      INT             NULL,
+    product_name    VARCHAR(200)    NOT NULL,
+    quantity        INT             NOT NULL,
+    unit_price      DECIMAL(10,2)   NOT NULL,
+    image_url       VARCHAR(500)    NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_order_items_order_id (order_id),
+    CONSTRAINT fk_tbl_order_items_order
+        FOREIGN KEY (order_id)
+        REFERENCES tbl_orders (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_order_items_product
+        FOREIGN KEY (product_id)
+        REFERENCES tbl_products (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- 6. Idempotent changes for EXISTING databases (run each time; no-op if already applied)
 -- ----------------------------------------------------------------------------
 SET @dbname := DATABASE();

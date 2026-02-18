@@ -44,4 +44,24 @@ app.service("SolteiraAndBrandsService", function ($http) {
             transformRequest: angular.identity
         });
     };
+
+    this.getOrders = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetOrders" });
+    };
+
+    this.getOrderDetails = function (orderId) {
+        return $http({
+            method: "GET",
+            url: "/SolteiraAndBrands/GetOrderDetails",
+            params: { id: orderId }
+        });
+    };
+
+    this.updateOrderStatus = function (orderId, status) {
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/UpdateOrderStatus",
+            params: { id: orderId, status: status }
+        });
+    };
 });
