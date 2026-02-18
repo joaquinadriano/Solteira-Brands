@@ -3,11 +3,7 @@
 <h3 align="center">MANAGED BY: Joaquin Adriano and Warren Chua<br>3rd year IT Students based in University of Santo Tomas, Manila 🐯</h3>
 
 ---
-
 ## 📌 Backend Development Task Board
-
-This section tracks backend responsibilities and progress for each team member.
-
 ---
 
 ### Warren Chua — Backend Development
