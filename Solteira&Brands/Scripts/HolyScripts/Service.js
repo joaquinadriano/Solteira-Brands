@@ -65,7 +65,18 @@ app.service("SolteiraAndBrandsService", function ($http) {
         });
     };
 
-    this.getDashboardData = function () {
-        return $http({ method: "GET", url: "/SolteiraAndBrands/GetDashboardData" });
+    this.getDashboardData = function (range, startDate, endDate) {
+        var params = { range: range || "lastmonth" };
+        if (range === "custom" && startDate) params.startDate = startDate;
+        if (range === "custom" && endDate) params.endDate = endDate;
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetDashboardData", params: params });
+    };
+
+    this.getSalesReport = function (range, startDate, endDate, category) {
+        var params = { range: range || "all" };
+        if (range === "custom" && startDate) params.startDate = startDate;
+        if (range === "custom" && endDate) params.endDate = endDate;
+        if (category) params.category = category;
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetSalesReport", params: params });
     };
 });

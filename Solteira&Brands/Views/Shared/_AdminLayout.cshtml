@@ -138,7 +138,7 @@
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#orderArchiveTable').length) $('#orderArchiveTable').DataTable();
             if ($('#activityLogsTable').length) $('#activityLogsTable').DataTable();
-            if ($('#salesReportTable').length) $('#salesReportTable').DataTable();
+            // salesReportTable is inited by Angular after Generate Report
             // inventoryTable is initialized/rebuilt by Angular controller after bindings
         });
     </script>
