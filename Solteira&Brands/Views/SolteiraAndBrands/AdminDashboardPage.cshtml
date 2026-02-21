@@ -6,6 +6,21 @@
         <div class="row px-4 pb-0 mb-0">
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Dashboard</p>
+                <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+                    <label class="text-muted small mb-0 me-1">Filter:</label>
+                    <select class="form-select form-select-sm" style="width: auto; max-width: 180px;" ng-model="dashboardRange" ng-change="onDashboardRangeChange()">
+                        <option value="today">Today</option>
+                        <option value="lastweek">Last week</option>
+                        <option value="lastmonth">Last month</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                    <div ng-if="dashboardRange === 'custom'" class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customStartDate" placeholder="From" />
+                        <span class="text-muted">to</span>
+                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customEndDate" placeholder="To" />
+                        <button type="button" class="btn btn-sm btn-outline-dark" ng-click="applyCustomRange()">Apply</button>
+                    </div>
+                </div>
             </div>
             <div class="col">
                 <p class="h1 h4 ps-0 ms-0 text-end">{{dashboardDate}}</p>
@@ -50,22 +65,23 @@
         @*----------Charts------------*@
         <div class="row p-5">
             <div class="col-6">
-                <p class="fw-bold text-center h4">Total Sales This Month (Daily Breakdown)</p>
+                <p class="fw-bold text-center h4">Total Sales (Daily Breakdown)</p>
                 @*----------Line Chart----------*@
                 <div class="chart-container">
                     <canvas id="line" class="chart chart-line" chart-data="lineData"
                             chart-labels="lineLabels" chart-series="series" chart-options="lineOptions"
-                            chart-dataset-override="datasetOverride" chart-click="onClick">
+                            chart-dataset-override="datasetOverride" chart-colors="lineChartColors" chart-click="onClick">
                     </canvas>
                 </div>
             </div>
             <div class="col-6">
                 <p class="fw-bold text-center h4">Sales by Category</p>
                 @*----------Pie Chart----------*@
-                <div class="chart-container">
-                    <canvas id="pie" class="chart chart-pie"
+                <div class="chart-container" style="min-height: 300px;">
+                    <canvas id="pie" class="chart chart-pie" ng-if="pieLabels.length && pieData.length"
                             chart-data="pieData" chart-labels="pieLabels" chart-options="pieOptions">
                     </canvas>
+                    <p ng-if="!pieLabels.length || !pieData.length" class="text-muted text-center py-5 mb-0">Loading chart...</p>
                 </div>
             </div>
         </div>
@@ -74,7 +90,7 @@
         @*----------Table----------*@
         <div class="row  px-5 pt-1">
             <div class="col">
-                <table class="table table-striped table-responsive text-center" id="userTable">
+                <table class="table table-striped table-responsive text-center" id="dashboardInventoryTable">
                     <thead>
                         <tr>
                             <th colspan=5 class="text-start h5">Inventory Stock</th>
@@ -87,36 +103,24 @@
                             <th>Status</th>
                         </tr>
                     </thead>
-
                     <tbody class="table-group-divider">
-
-                        @*Temporary Data *Please modify once the database is implemented**@
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-001</td>
-                            <td>Many Shape Tennis</td>
-                            <td>3</td>
-                            <td>Low Stock</td>
+                        <tr ng-repeat="item in dashboardInventoryStock">
+                            <td>
+                                <img ng-src="{{item.imageUrl || dashboardDefaultProductImage}}" alt="" style="max-width: 50px; max-height: 50px; object-fit: contain;" />
+                            </td>
+                            <td>P-{{item.id | numberPad:3}}</td>
+                            <td>{{item.name}}</td>
+                            <td>{{item.stockQuantity}}</td>
+                            <td>{{getStockStatus(item.stockQuantity)}}</td>
                         </tr>
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-002</td>
-                            <td>Heart Ring Tennis</td>
-                            <td>5</td>
-                            <td>Low Stock</td>
-                        </tr>
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-002</td>
-                            <td>Heart Ring Tennis</td>
-                            <td>5</td>
-                            <td>Low Stock</td>
+                        <tr ng-if="dashboardInventoryStock.length === 0">
+                            <td colspan="5" class="text-muted py-3">No products in inventory.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             <div class="col">
-                <table class="table table-responsive text-center" id="usersTable">
+                <table class="table table-responsive text-center" id="dashboardTopSellingTable">
                     <thead>
                         <tr>
                             <th colspan=4 class="text-center h5">Top Selling Products</th>
@@ -128,25 +132,17 @@
                             <th>Number of Sold</th>
                         </tr>
                     </thead>
-
                     <tbody class="table-group-divider">
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-002</td>
-                            <td>Heart Ring Tennis</td>
-                            <td>5</td>
+                        <tr ng-repeat="item in dashboardTopSelling">
+                            <td>
+                                <img ng-src="{{item.imageUrl || dashboardDefaultProductImage}}" alt="" style="max-width: 50px; max-height: 50px; object-fit: contain;" />
+                            </td>
+                            <td>P-{{item.id | numberPad:3}}</td>
+                            <td>{{item.name}}</td>
+                            <td>{{item.totalSold}}</td>
                         </tr>
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-002</td>
-                            <td>Heart Ring Tennis</td>
-                            <td>5</td>
-                        </tr>
-                        <tr>
-                            <td>Photo</td>
-                            <td>P-002</td>
-                            <td>Heart Ring Tennis</td>
-                            <td>5</td>
+                        <tr ng-if="dashboardTopSelling.length === 0">
+                            <td colspan="4" class="text-muted py-3">No sales yet.</td>
                         </tr>
                     </tbody>
                 </table>

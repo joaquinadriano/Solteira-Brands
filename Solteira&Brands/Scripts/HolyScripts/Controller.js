@@ -685,9 +685,29 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }]
         }
     };
+    // Green theme #87AE73 (rgb 135, 174, 115) for charts
+    $scope.lineChartColors = [{
+        backgroundColor: 'rgba(135, 174, 115, 0.25)',
+        borderColor: 'rgb(135, 174, 115)',
+        pointBackgroundColor: 'rgb(135, 174, 115)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: 'rgb(135, 174, 115)',
+        pointHoverBorderColor: '#fff'
+    }];
     $scope.pieLabels = [];
     $scope.pieData = [];
-    $scope.pieOptions = { responsive: true, maintainAspectRatio: true };
+    // Set Chart.js default pie segment colors so pie uses blue, green, orange, red (Ring, Earring, Necklace, Bracelet)
+    if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.global) {
+        Chart.defaults.global.datasets = Chart.defaults.global.datasets || {};
+        Chart.defaults.global.datasets.pie = Chart.defaults.global.datasets.pie || {};
+        Chart.defaults.global.datasets.pie.backgroundColor = [
+            'rgba(54, 162, 235, 0.85)',   // blue - Ring
+            'rgba(135, 174, 115, 0.85)',  // green - Earring
+            'rgba(255, 159, 64, 0.85)',   // orange - Necklace
+            'rgba(255, 99, 132, 0.85)'    // red - Bracelet
+        ];
+    }
+    $scope.pieOptions = { responsive: true, maintainAspectRatio: true, legend: { display: true } };
 
     // Dashboard stats (cards)
     $scope.dashboardStats = {
@@ -698,9 +718,15 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         shippedOrders: 0
     };
     $scope.dashboardDate = '';
+    $scope.dashboardRange = 'lastmonth';
+    $scope.customStartDate = '';
+    $scope.customEndDate = '';
 
     $scope.loadDashboardData = function () {
-        SolteiraAndBrandsService.getDashboardData().then(function (res) {
+        var range = $scope.dashboardRange || 'lastmonth';
+        var startDate = range === 'custom' ? $scope.customStartDate : null;
+        var endDate = range === 'custom' ? $scope.customEndDate : null;
+        SolteiraAndBrandsService.getDashboardData(range, startDate, endDate).then(function (res) {
             if (res.data && res.data.success) {
                 var stats = res.data.stats || {};
                 $scope.dashboardStats = {
@@ -716,6 +742,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var byCat = res.data.salesByCategory || {};
                 $scope.pieLabels = byCat.labels || [];
                 $scope.pieData = byCat.data || [];
+                $scope.dashboardInventoryStock = res.data.inventoryStock || [];
+                $scope.dashboardTopSelling = res.data.topSellingProducts || [];
                 var now = new Date();
                 $scope.dashboardDate = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             }
@@ -724,8 +752,36 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             $scope.lineData = [[]];
             $scope.pieLabels = [];
             $scope.pieData = [];
+            $scope.dashboardInventoryStock = [];
+            $scope.dashboardTopSelling = [];
         });
     };
+
+    $scope.onDashboardRangeChange = function () {
+        if ($scope.dashboardRange === 'custom') {
+            var today = new Date();
+            var lastMonth = new Date(today);
+            lastMonth.setDate(lastMonth.getDate() - 30);
+            $scope.customEndDate = today.toISOString().slice(0, 10);
+            $scope.customStartDate = lastMonth.toISOString().slice(0, 10);
+        } else {
+            $scope.loadDashboardData();
+        }
+    };
+
+    $scope.applyCustomRange = function () {
+        if ($scope.dashboardRange === 'custom' && $scope.customStartDate && $scope.customEndDate) {
+            $scope.loadDashboardData();
+        }
+    };
+
+    $scope.dashboardInventoryStock = [];
+    $scope.dashboardTopSelling = [];
+    $scope.getStockStatus = function (quantity) {
+        if (quantity == null || quantity === undefined) return 'In Stock';
+        return quantity < 3 ? 'Low Stock' : 'In Stock';
+    };
+    $scope.dashboardDefaultProductImage = '/Content/img/shared/default-product.svg';
     //----------Charts end---------
 
     //----------Dashboard Page----------

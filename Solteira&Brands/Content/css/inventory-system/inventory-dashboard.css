@@ -118,6 +118,17 @@ color: #87AE73;*/
     #userTable.dataTable tbody td, #usersTable.dataTable tbody td {
         background-color: #FFFBE8 !important;
     }
+
+/* Dashboard tables (Inventory Stock, Top Selling) - theme stripe instead of default blue/gray */
+#dashboardInventoryTable.table-striped > tbody > tr:nth-of-type(odd) > td,
+#dashboardTopSellingTable.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(255, 251, 232, 0.6);
+}
+
+#dashboardInventoryTable.table-striped > tbody > tr:nth-of-type(even) > td,
+#dashboardTopSellingTable.table-striped > tbody > tr:nth-of-type(even) > td {
+    background-color: #fff;
+}
 /*---------Charts----------------*/
 .chart-container {
     position: relative;

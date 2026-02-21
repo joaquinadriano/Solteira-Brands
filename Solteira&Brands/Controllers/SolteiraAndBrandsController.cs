@@ -442,36 +442,66 @@ namespace Solteira_Brands.Controllers
 
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
-        public JsonResult GetDashboardData()
+        public JsonResult GetDashboardData(string range = "lastmonth", string startDate = null, string endDate = null)
         {
-                var now = DateTime.Now;
-                var startOfMonth = new DateTime(now.Year, now.Month, 1);
-                var endOfMonth = startOfMonth.AddMonths(1);
-                var daysInMonth = DateTime.DaysInMonth(now.Year, now.Month);
+            var now = DateTime.Now;
+            DateTime startOfRange;
+            DateTime endOfRange;
 
-                using (var db = new SolteiraBrandsContext())
+            switch ((range ?? "").ToLowerInvariant())
+            {
+                case "today":
+                    startOfRange = now.Date;
+                    endOfRange = startOfRange.AddDays(1);
+                    break;
+                case "lastweek":
+                    endOfRange = now.Date.AddDays(1);
+                    startOfRange = endOfRange.AddDays(-7);
+                    break;
+                case "lastmonth":
+                    endOfRange = now.Date.AddDays(1);
+                    startOfRange = endOfRange.AddDays(-30);
+                    break;
+                case "custom":
+                    if (!DateTime.TryParse(startDate, out startOfRange)) startOfRange = now.Date.AddMonths(-1);
+                    if (!DateTime.TryParse(endDate, out endOfRange)) endOfRange = now.Date;
+                    startOfRange = startOfRange.Date;
+                    endOfRange = endOfRange.Date.AddDays(1);
+                    if (startOfRange > endOfRange) { var t = startOfRange; startOfRange = endOfRange.AddDays(-1); endOfRange = t.AddDays(1); }
+                    break;
+                default:
+                    endOfRange = now.Date.AddDays(1);
+                    startOfRange = endOfRange.AddDays(-30);
+                    break;
+            }
+
+            var daysInRange = (int)(endOfRange - startOfRange).TotalDays;
+            if (daysInRange <= 0) daysInRange = 1;
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var ordersInRange = db.tbl_orders.Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange).ToList();
+                var orderIdsInRange = ordersInRange.Select(o => o.Id).ToList();
+
+                var totalSales = ordersInRange.Sum(o => o.TotalAmount);
+                var productSold = db.tbl_order_items.Where(oi => orderIdsInRange.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
+                var pendingOrders = ordersInRange.Count(o => o.OrderStatus == "Pending");
+                var approvedOrders = ordersInRange.Count(o => o.OrderStatus == "Approved");
+                var shippedOrders = ordersInRange.Count(o => o.OrderStatus == "Shipped");
+
+                // Daily sales: one value per day in range
+                var lineLabels = new List<string>();
+                var lineData = new List<double>();
+                for (var i = 0; i < daysInRange; i++)
                 {
-                    var orders = db.tbl_orders.ToList();
+                    var dayStart = startOfRange.AddDays(i);
+                    var dayEnd = dayStart.AddDays(1);
+                    var dayTotal = ordersInRange.Where(o => o.CreatedAt >= dayStart && o.CreatedAt < dayEnd).Sum(o => o.TotalAmount);
+                    lineLabels.Add(dayStart.ToString("M/d"));
+                    lineData.Add((double)dayTotal);
+                }
 
-                    // Stats: total sales (sum of order totals), product sold (sum of order item quantities), counts by status
-                    var totalSales = orders.Sum(o => o.TotalAmount);
-                    var productSold = db.tbl_order_items.Sum(i => i.Quantity);
-                    var pendingOrders = orders.Count(o => o.OrderStatus == "Pending");
-                    var approvedOrders = orders.Count(o => o.OrderStatus == "Approved");
-                    var shippedOrders = orders.Count(o => o.OrderStatus == "Shipped");
-
-                    // Daily sales this month: one value per day (orders placed in current month)
-                    var ordersThisMonth = orders.Where(o => o.CreatedAt >= startOfMonth && o.CreatedAt < endOfMonth).ToList();
-                    var dailyTotals = new decimal[daysInMonth];
-                    for (var i = 0; i < daysInMonth; i++)
-                    {
-                        var day = i + 1;
-                        dailyTotals[i] = ordersThisMonth.Where(o => o.CreatedAt.Day == day).Sum(o => o.TotalAmount);
-                    }
-                var lineLabels = Enumerable.Range(1, daysInMonth).Select(d => d.ToString()).ToList();
-                var lineData = dailyTotals.Select(x => (double)x).ToList();
-
-                // Sales by category: Ring, Earring, Necklace, Bracelet (from order_items joined to products)
+                // Sales by category: only order items from orders in range
                 var categories = new[] { "Ring", "Earring", "Necklace", "Bracelet" };
                 var pieLabels = new List<string>();
                 var pieDataList = new List<double>();
@@ -479,11 +509,49 @@ namespace Solteira_Brands.Controllers
                 {
                     var total = (from oi in db.tbl_order_items
                                  join p in db.tbl_products on oi.ProductId equals p.Id
-                                 where p.Category == cat
-                                 select (decimal?) (oi.Quantity * oi.UnitPrice)).Sum() ?? 0;
+                                 where p.Category == cat && orderIdsInRange.Contains(oi.OrderId)
+                                 select (decimal?)(oi.Quantity * oi.UnitPrice)).Sum() ?? 0;
                     pieLabels.Add(cat);
                     pieDataList.Add((double)total);
                 }
+
+                // Inventory stock: non-archived products with id, name, stockQuantity, imageUrl (status = Low Stock if quantity < 3, computed on frontend)
+                var inventoryStock = (from p in db.tbl_products
+                                     where !p.IsArchived
+                                     join img in db.tbl_images on p.ImageId equals img.Id into imgs
+                                     from img in imgs.DefaultIfEmpty()
+                                     orderby p.Name
+                                     select new
+                                     {
+                                         id = p.Id,
+                                         name = p.Name,
+                                         stockQuantity = p.StockQuantity,
+                                         imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : (string)null
+                                     }).ToList();
+
+                // Top selling products: group order_items by ProductId, sum Quantity, then get product details
+                var topSold = db.tbl_order_items
+                    .Where(oi => oi.ProductId != null)
+                    .GroupBy(oi => oi.ProductId)
+                    .Select(g => new { ProductId = g.Key.Value, TotalSold = g.Sum(x => x.Quantity) })
+                    .OrderByDescending(x => x.TotalSold)
+                    .Take(10)
+                    .ToList();
+                var topProductIds = topSold.Select(x => x.ProductId).ToList();
+                var productDetails = (from p in db.tbl_products
+                                      where topProductIds.Contains(p.Id)
+                                      join img in db.tbl_images on p.ImageId equals img.Id into imgs
+                                      from img in imgs.DefaultIfEmpty()
+                                      select new { p.Id, p.Name, ImageUrl = img != null ? (img.ImagePath + img.ImageFileName) : (string)null }).ToDictionary(x => x.Id);
+                var topSellingProducts = topSold
+                    .Select(t => new
+                    {
+                        id = t.ProductId,
+                        name = productDetails.ContainsKey(t.ProductId) ? productDetails[t.ProductId].Name : "Unknown",
+                        imageUrl = productDetails.ContainsKey(t.ProductId) ? productDetails[t.ProductId].ImageUrl : (string)null,
+                        totalSold = t.TotalSold
+                    })
+                    .ToList();
 
                 return Json(new
                 {
@@ -497,7 +565,9 @@ namespace Solteira_Brands.Controllers
                         shippedOrders
                     },
                     dailySales = new { labels = lineLabels, data = lineData },
-                    salesByCategory = new { labels = pieLabels, data = pieDataList }
+                    salesByCategory = new { labels = pieLabels, data = pieDataList },
+                    inventoryStock,
+                    topSellingProducts
                 }, JsonRequestBehavior.AllowGet);
             }
         }

@@ -273,7 +273,7 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                var seedUsers = db.tbl_users.Where(u => u.PasswordHash == "SEEDME").ToList();
+                    var seedUsers = db.tbl_users.Where(u => u.PasswordHash == "SEEDME").ToList();
                 foreach (var u in seedUsers)
                 {
                     var (hash, salt) = PasswordHasher.HashPassword(trialPassword);
