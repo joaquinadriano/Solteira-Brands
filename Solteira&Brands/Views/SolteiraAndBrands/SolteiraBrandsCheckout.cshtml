@@ -54,19 +54,29 @@
         <div class="checkout-form-card">
             <h3>CHECKOUT</h3>
 
+            <form name="checkoutForm" novalidate>
             <div class="form-group">
-                <label>Name</label>
-                <input type="text" placeholder="Enter your full name" ng-model="customerName" required />
+                <label>Name <span class="text-danger">*</span></label>
+                <input type="text" name="customerName" placeholder="Enter your full name"
+                       ng-model="customerName" required ng-maxlength="100" maxlength="100" />
+                <span class="validation-error" ng-show="checkoutForm.customerName.$error.required && (checkoutForm.customerName.$dirty || checkoutForm.customerName.$touched)">This field is required.</span>
+                <span class="validation-error" ng-show="checkoutForm.customerName.$error.maxlength">Maximum 100 characters.</span>
             </div>
 
             <div class="form-group">
                 <label>Contact Number <span class="text-danger">*</span></label>
-                <input type="text" placeholder="09XXXXXXXXX" ng-model="contactNumber" required />
+                <input type="text" name="contactNumber" placeholder="09XXXXXXXXX"
+                       ng-model="contactNumber" required maxlength="11" ng-pattern="/^\d{11}$/" />
+                <span class="validation-error" ng-show="checkoutForm.contactNumber.$error.required && (checkoutForm.contactNumber.$dirty || checkoutForm.contactNumber.$touched)">This field is required.</span>
+                <span class="validation-error" ng-show="checkoutForm.contactNumber.$error.pattern && checkoutForm.contactNumber.$dirty">Must be exactly 11 digits (e.g. 09XXXXXXXXX).</span>
             </div>
 
             <div class="form-group">
                 <label>Delivery Address <span class="text-danger">*</span></label>
-                <input type="text" placeholder="Enter complete address" ng-model="deliveryAddress" required />
+                <input type="text" name="deliveryAddress" placeholder="Enter complete address"
+                       ng-model="deliveryAddress" required ng-maxlength="100" maxlength="100" />
+                <span class="validation-error" ng-show="checkoutForm.deliveryAddress.$error.required && (checkoutForm.deliveryAddress.$dirty || checkoutForm.deliveryAddress.$touched)">This field is required.</span>
+                <span class="validation-error" ng-show="checkoutForm.deliveryAddress.$error.maxlength">Maximum 100 characters.</span>
             </div>
 
             <div class="payment-options">
@@ -140,10 +150,11 @@
             <div class="order-btn-container">
                 <button type="button" class="order-btn"
                         ng-click="placeOrder()"
-                        ng-disabled="!paymentMethod || !agreeTerms">
+                        ng-disabled="checkoutForm.$invalid || !paymentMethod || !agreeTerms">
                     ORDER
                 </button>
             </div>
+            </form>
 
         </div>
     </div>
