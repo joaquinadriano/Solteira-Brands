@@ -592,6 +592,105 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        {
+            var now = DateTime.Now;
+            DateTime startOfRange;
+            DateTime endOfRange;
+            var rangeLower = (range ?? "all").ToLowerInvariant();
+
+            if (rangeLower == "all")
+            {
+                // No date filter: use a very wide range to include all orders
+                startOfRange = DateTime.MinValue;
+                endOfRange = DateTime.MaxValue;
+            }
+            else
+            {
+                switch (rangeLower)
+                {
+                    case "today":
+                        startOfRange = now.Date;
+                        endOfRange = startOfRange.AddDays(1);
+                        break;
+                    case "lastweek":
+                        endOfRange = now.Date.AddDays(1);
+                        startOfRange = endOfRange.AddDays(-7);
+                        break;
+                    case "lastmonth":
+                        endOfRange = now.Date.AddDays(1);
+                        startOfRange = endOfRange.AddDays(-30);
+                        break;
+                    case "custom":
+                        if (!DateTime.TryParse(startDate, out startOfRange)) startOfRange = now.Date.AddMonths(-1);
+                        if (!DateTime.TryParse(endDate, out endOfRange)) endOfRange = now.Date;
+                        startOfRange = startOfRange.Date;
+                        endOfRange = endOfRange.Date.AddDays(1);
+                        if (startOfRange > endOfRange) { var t = startOfRange; startOfRange = endOfRange.AddDays(-1); endOfRange = t.AddDays(1); }
+                        break;
+                    default:
+                        endOfRange = now.Date.AddDays(1);
+                        startOfRange = endOfRange.AddDays(-30);
+                        break;
+                }
+            }
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var orderIdsInRange = rangeLower == "all"
+                    ? db.tbl_orders.Select(o => o.Id).ToList()
+                    : db.tbl_orders
+                        .Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange)
+                        .Select(o => o.Id)
+                        .ToList();
+
+                var query = from oi in db.tbl_order_items
+                            join o in db.tbl_orders on oi.OrderId equals o.Id
+                            join p in db.tbl_products on oi.ProductId equals p.Id into prodJoin
+                            from p in prodJoin.DefaultIfEmpty()
+                            where orderIdsInRange.Contains(oi.OrderId)
+                            select new { oi, o, p };
+
+                if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))
+                {
+                    var cat = category.Trim();
+                    query = query.Where(x => x.p != null && x.p.Category == cat);
+                }
+
+                var rows = query
+                    .OrderBy(x => x.o.CreatedAt)
+                    .ThenBy(x => x.oi.Id)
+                    .Select(x => new
+                    {
+                        date = x.o.CreatedAt,
+                        orderNumber = x.o.OrderNumber,
+                        itemName = x.oi.ProductName ?? "",
+                        category = x.p != null ? x.p.Category : "N/A",
+                        qty = x.oi.Quantity,
+                        unitPrice = x.oi.UnitPrice,
+                        total = x.oi.Quantity * x.oi.UnitPrice
+                    })
+                    .ToList()
+                    .Select(x => new
+                    {
+                        date = x.date.ToString("yyyy-MM-dd"),
+                        orderNumber = x.orderNumber ?? "",
+                        itemName = x.itemName,
+                        category = x.category ?? "N/A",
+                        qty = x.qty,
+                        unitPrice = x.unitPrice,
+                        total = x.total
+                    })
+                    .ToList();
+
+                var grandTotal = rows.Any() ? rows.Sum(x => x.total) : 0m;
+
+                return Json(new { success = true, rows = rows, grandTotal = grandTotal }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
         // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images/productsupload/) -----
         [HttpPost]
         public JsonResult UploadProductImage(HttpPostedFileBase file)

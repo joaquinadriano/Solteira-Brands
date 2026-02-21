@@ -788,6 +788,344 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     //----------Dashboard Page End----------
 
+    //----------Sales Reports Page----------
+    $scope.salesReportRows = [];
+    $scope.salesReportGrandTotal = 0;
+    $scope.reportRange = 'all';
+    $scope.customReportStart = '';
+    $scope.customReportEnd = '';
+    $scope.reportCategory = 'All Categories';
+
+    $scope.loadSalesReport = function () {
+        var range = $scope.reportRange || 'all';
+        var startDate = range === 'custom' ? $scope.customReportStart : null;
+        var endDate = range === 'custom' ? $scope.customReportEnd : null;
+        var cat = $scope.reportCategory || 'All Categories';
+        SolteiraAndBrandsService.getSalesReport(range, startDate, endDate, cat === 'All Categories' ? null : cat).then(function (res) {
+            if (res.data && res.data.success) {
+                var raw = res.data.rows || [];
+                // Normalize keys so view works with either camelCase or PascalCase from API
+                $scope.salesReportRows = raw.map(function (r) {
+                    return {
+                        date: r.date != null ? r.date : (r.Date != null ? r.Date : ''),
+                        orderNumber: r.orderNumber != null ? r.orderNumber : (r.OrderNumber != null ? r.OrderNumber : ''),
+                        itemName: r.itemName != null ? r.itemName : (r.ItemName != null ? r.ItemName : ''),
+                        category: r.category != null ? r.category : (r.Category != null ? r.Category : ''),
+                        qty: r.qty != null ? r.qty : (r.Qty != null ? r.Qty : 0),
+                        unitPrice: r.unitPrice != null ? r.unitPrice : (r.UnitPrice != null ? r.UnitPrice : 0),
+                        total: r.total != null ? r.total : (r.Total != null ? r.Total : 0)
+                    };
+                });
+                $scope.salesReportGrandTotal = res.data.grandTotal != null ? res.data.grandTotal : 0;
+            }
+        }, function () {
+            $scope.salesReportRows = [];
+            $scope.salesReportGrandTotal = 0;
+        });
+    };
+
+    $scope.onReportRangeChange = function () {
+        if ($scope.reportRange === 'custom') {
+            var today = new Date();
+            var lastMonth = new Date(today);
+            lastMonth.setDate(lastMonth.getDate() - 30);
+            $scope.customReportEnd = today.toISOString().slice(0, 10);
+            $scope.customReportStart = lastMonth.toISOString().slice(0, 10);
+            $scope.loadSalesReport();
+        } else {
+            $scope.loadSalesReport();
+        }
+    };
+
+    $scope.formatReportCurrency = function (val) {
+        if (val == null) return 'P 0.00';
+        var n = parseFloat(val);
+        return 'P ' + (isNaN(n) ? '0.00' : n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    };
+
+    function formatPdfCurrency(val) {
+        if (val == null) return 'P 0.00';
+        var n = parseFloat(val);
+        return 'P ' + (isNaN(n) ? '0.00' : n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+
+    function getReportPeriodLabel() {
+        var range = ($scope.reportRange || 'all').toLowerCase();
+        if (range === 'all') return 'All time';
+        if (range === 'today') return 'Today';
+        if (range === 'lastweek') return 'Last week';
+        if (range === 'lastmonth') return 'Last month';
+        if (range === 'custom' && $scope.customReportStart && $scope.customReportEnd)
+            return $scope.customReportStart + ' to ' + $scope.customReportEnd;
+        return range === 'custom' ? 'Custom range' : 'All time';
+    }
+
+    $scope.exportSalesReportPdf = function () {
+        if (typeof pdfMake === 'undefined') {
+            alert('PDF library not loaded.');
+            return;
+        }
+        var rows = $scope.salesReportRows || [];
+        var grandTotal = $scope.salesReportGrandTotal != null ? $scope.salesReportGrandTotal : 0;
+        var generatedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+        var periodLabel = getReportPeriodLabel();
+        var categoryLabel = ($scope.reportCategory || 'All Categories') === 'All Categories' ? 'All Categories' : ($scope.reportCategory || 'All Categories');
+
+        var tableBody = [
+            [
+                { text: 'Date', style: 'tableHeader', alignment: 'center' },
+                { text: 'Order ID', style: 'tableHeader', alignment: 'center' },
+                { text: 'Item Name', style: 'tableHeader', alignment: 'left' },
+                { text: 'Category', style: 'tableHeader', alignment: 'center' },
+                { text: 'Qty', style: 'tableHeader', alignment: 'center' },
+                { text: 'Unit Price', style: 'tableHeader', alignment: 'right' },
+                { text: 'Total', style: 'tableHeader', alignment: 'right' }
+            ]
+        ];
+        rows.forEach(function (r) {
+            tableBody.push([
+                { text: r.date || '', alignment: 'center' },
+                { text: r.orderNumber || '', alignment: 'center' },
+                { text: (r.itemName || '').substring(0, 40), alignment: 'left' },
+                { text: r.category || '', alignment: 'center' },
+                { text: String(r.qty != null ? r.qty : ''), alignment: 'center' },
+                { text: formatPdfCurrency(r.unitPrice), alignment: 'right' },
+                { text: formatPdfCurrency(r.total), alignment: 'right' }
+            ]);
+        });
+
+        var docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [40, 90, 40, 60], // Increased top margin to comfortably fit the header
+
+            // --- CUSTOM CORPORATE HEADER ---
+            header: function (currentPage, pageCount, pageSize) {
+                return {
+                    margin: [40, 25, 40, 0],
+                    stack: [
+                        {
+                            columns: [
+                                {
+                                    text: 'S&B',
+                                    color: '#2D5A27',
+                                    fontSize: 22,
+                                    bold: true,
+                                    width: 60
+                                },
+                                {
+                                    stack: [
+                                        { text: 'SOLTEIRA & BRANDS', style: 'companyNameMain' },
+                                        { text: 'SALES PERFORMANCE REPORT', fontSize: 9, color: '#999999', letterSpacing: 1 }
+                                    ],
+                                    alignment: 'center',
+                                    width: '*'
+                                },
+                                {
+                                    text: 'CONFIDENTIAL',
+                                    color: '#2D5A27',
+                                    fontSize: 9,
+                                    bold: true,
+                                    alignment: 'right',
+                                    width: 80,
+                                    margin: [0, 10, 0, 0]
+                                }
+                            ]
+                        },
+                        // Beige Divider Line
+                        {
+                            canvas: [{ type: 'line', x1: 0, y1: 10, x2: pageSize.width - 80, y2: 10, lineWidth: 2, lineColor: '#F5F5DC' }]
+                        }
+                    ]
+                };
+            },
+
+            // --- CUSTOM CORPORATE FOOTER ---
+            footer: function (currentPage, pageCount) {
+                return {
+                    margin: [40, 10, 40, 0],
+                    stack: [
+                        // Beige Divider Line
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: '#F5F5DC' }] },
+                        {
+                            columns: [
+                                { text: 'Generated: ' + generatedAt, fontSize: 8, color: '#666', margin: [0, 8, 0, 0] },
+                                { text: 'Page ' + currentPage + ' of ' + pageCount, alignment: 'right', fontSize: 8, color: '#2D5A27', bold: true, margin: [0, 8, 0, 0] }
+                            ]
+                        }
+                    ]
+                };
+            },
+
+            content: [
+                // --- REPORT METADATA BOX ---
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            text: 'SALES SUMMARY',
+                            style: 'title'
+                        },
+                        {
+                            width: 220,
+                            style: 'metaBox',
+                            table: {
+                                widths: [60, '*'],
+                                body: [
+                                    [{ text: 'PERIOD:', style: 'metaLabel' }, { text: periodLabel, style: 'metaValue' }],
+                                    [{ text: 'CATEGORY:', style: 'metaLabel' }, { text: categoryLabel, style: 'metaValue' }]
+                                ]
+                            },
+                            layout: 'noBorders'
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+
+                // --- MAIN DATA TABLE ---
+                {
+                    style: 'salesTable',
+                    table: {
+                        headerRows: 1,
+                        // Make sure your widths match your tableBody column count!
+                        widths: [55, 65, '*', 52, 28, 65, 65],
+                        body: tableBody
+                    },
+                    layout: {
+                        // Custom table styling for a cleaner look
+                        hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 0.5; },
+                        vLineWidth: function (i, node) { return 0; }, // Removes vertical lines
+                        hLineColor: function (i, node) { return '#E0E0E0'; },
+                        fillColor: function (rowIndex, node, columnIndex) {
+                            return (rowIndex === 0) ? '#F5F5DC' : null; // Beige header row
+                        },
+                        paddingTop: function (i) { return 6; },
+                        paddingBottom: function (i) { return 6; }
+                    }
+                },
+
+                // --- GRAND TOTAL BLOCK ---
+                {
+                    columns: [
+                        { width: '*', text: '' }, // Pushes the total box to the right
+                        {
+                            width: 250,
+                            table: {
+                                widths: ['*', 'auto'],
+                                body: [
+                                    [
+                                        { text: 'GRAND TOTAL DUE', style: 'totalLabel' },
+                                        { text: formatPdfCurrency(grandTotal), style: 'totalValue' }
+                                    ]
+                                ]
+                            },
+                            layout: 'noBorders',
+                            fillColor: '#2D5A27', // Signature Green Background
+                            margin: [0, 15, 0, 0] // Spacing from the table
+                        }
+                    ]
+                }
+            ],
+
+            // --- TYPOGRAPHY & DESIGN SYSTEM ---
+            styles: {
+                companyNameMain: {
+                    fontSize: 16,
+                    bold: true,
+                    color: '#2D5A27',
+                    letterSpacing: 1.5
+                },
+                title: {
+                    fontSize: 18,
+                    bold: true,
+                    color: '#2D5A27',
+                    margin: [0, 5, 0, 0]
+                },
+                metaBox: {
+                    fillColor: '#FAFAFA',
+                    margin: [0, 0, 0, 0]
+                },
+                metaLabel: {
+                    fontSize: 8,
+                    color: '#999999',
+                    bold: true,
+                    alignment: 'right',
+                    margin: [0, 2, 0, 2]
+                },
+                metaValue: {
+                    fontSize: 9,
+                    color: '#333333',
+                    bold: true,
+                    margin: [0, 2, 0, 2]
+                },
+                salesTable: {
+                    margin: [0, 0, 0, 10]
+                },
+                tableHeader: {
+                    bold: true,
+                    fontSize: 9,
+                    color: '#2D5A27'
+                },
+                totalLabel: {
+                    color: 'white',
+                    fontSize: 11,
+                    bold: true,
+                    margin: [10, 8, 0, 8]
+                },
+                totalValue: {
+                    color: 'white',
+                    fontSize: 12,
+                    bold: true,
+                    alignment: 'right',
+                    margin: [0, 8, 10, 8]
+                }
+            }
+        };
+
+        var filename = 'SalesReport_' + (new Date().toISOString().slice(0, 10)) + '.pdf';
+        pdfMake.createPdf(docDefinition).download(filename);
+    };
+
+    function escapeCsvCell(val) {
+        if (val == null) return '';
+        var s = String(val);
+        if (/[",\r\n]/.test(s)) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    }
+
+    $scope.exportSalesReportCsv = function () {
+        var rows = $scope.salesReportRows || [];
+        var grandTotal = $scope.salesReportGrandTotal != null ? $scope.salesReportGrandTotal : 0;
+        var header = ['Date', 'Order ID', 'Item Name', 'Category', 'Qty', 'Unit Price', 'Total'];
+        var lines = [header.map(escapeCsvCell).join(',')];
+        rows.forEach(function (r) {
+            lines.push([
+                escapeCsvCell(r.date),
+                escapeCsvCell(r.orderNumber),
+                escapeCsvCell(r.itemName),
+                escapeCsvCell(r.category),
+                escapeCsvCell(r.qty),
+                escapeCsvCell(r.unitPrice),
+                escapeCsvCell(r.total)
+            ].join(','));
+        });
+        lines.push('');
+        lines.push(escapeCsvCell('Grand Total') + ',,,,,,' + escapeCsvCell($scope.formatReportCurrency(grandTotal)));
+        var csv = lines.join('\r\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement('a');
+        var url = URL.createObjectURL(blob);
+        var filename = 'SalesReport_' + (new Date().toISOString().slice(0, 10)) + '.csv';
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+    //----------Sales Reports Page End----------
 
     //----------Inventory Orders Page----------
     //----------Inventory Orders End----------

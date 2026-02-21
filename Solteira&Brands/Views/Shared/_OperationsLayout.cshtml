@@ -155,7 +155,7 @@
             if ($('#paymentTable').length) $('#paymentTable').DataTable();
             if ($('#deliveryShipmentsTable').length) $('#deliveryShipmentsTable').DataTable();
             if ($('#deliveryMeetupTable').length) $('#deliveryMeetupTable').DataTable();
-            if ($('#salesReportTable').length) $('#salesReportTable').DataTable();
+            // salesReportTable is plain Angular table (ng-repeat), do not init DataTables
             // inventoryTable is initialized/rebuilt by Angular controller after bindings
         });
     </script>
