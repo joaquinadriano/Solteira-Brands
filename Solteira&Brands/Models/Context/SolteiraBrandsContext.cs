@@ -19,6 +19,7 @@ namespace Solteira_Brands.Models.Context
         public virtual DbSet<tblProductsModel> tbl_products { get; set; }
         public virtual DbSet<tblOrdersModel> tbl_orders { get; set; }
         public virtual DbSet<tblOrderItemsModel> tbl_order_items { get; set; }
+        public virtual DbSet<tblActivityLogModel> tbl_activity_logs { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -29,6 +30,7 @@ namespace Solteira_Brands.Models.Context
             modelBuilder.Configurations.Add(new tblProductsMap());
             modelBuilder.Configurations.Add(new tblOrdersMap());
             modelBuilder.Configurations.Add(new tblOrderItemsMap());
+            modelBuilder.Configurations.Add(new tblActivityLogMap());
         }
     }
 }

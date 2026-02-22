@@ -354,6 +354,17 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     var isBuyer = !!(window.sbIsBuyer);
     $scope.cart = isBuyer ? (JSON.parse(localStorage.getItem('sb_cart')) || []) : [];
 
+    $scope.getCartCount = function () {
+        if (!$scope.cart || !$scope.cart.length) return 0;
+        return $scope.cart.reduce(function (sum, item) { return sum + (item.qty || 0); }, 0);
+    };
+
+    function syncCartCountToLayout() {
+        if (typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('sbCartUpdated', { detail: $scope.getCartCount() }));
+        }
+    }
+
     $scope.addToCart = function (product, quantity) {
         // Anonymous or non-BUYER user: redirect to login instead of storing a guest cart
         if (!isBuyer) {
@@ -381,6 +392,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
 
         localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+        syncCartCountToLayout();
 
         Swal.fire({
             icon: 'success',
@@ -394,6 +406,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.removeFromCart = function (index) {
         $scope.cart.splice(index, 1);
         localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+        syncCartCountToLayout();
     };
 
     $scope.removeFromCartByItem = function (item) {
@@ -401,6 +414,26 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (idx !== -1) {
             $scope.cart.splice(idx, 1);
             localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+        }
+    };
+
+    $scope.updateCartQty = function (item, delta) {
+        var qty = (item.qty || 0) + delta;
+        if (qty < 1) {
+            $scope.removeFromCartByItem(item);
+            return;
+        }
+        item.qty = qty;
+        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+        syncCartCountToLayout();
+    };
+
+    $scope.decrementOrRemoveFromCart = function (item, index) {
+        if ((item.qty || 0) <= 1) {
+            $scope.removeFromCart(index);
+        } else {
+            $scope.updateCartQty(item, -1);
         }
     };
 
@@ -497,12 +530,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
-    $scope.selectAll = true;
-    $scope.toggleAll = function () {
+    $scope.selectAll = false;
+    $scope.toggleSelectAll = function (event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        $scope.selectAll = !$scope.selectAll;
         angular.forEach($scope.cart, function (item) {
             item.selected = $scope.selectAll;
         });
     };
+    // Keep selectAll checkbox in sync when user ticks/unticks individual items
+    $scope.$watch('cart', function () {
+        if ($scope.cart && $scope.cart.length > 0) {
+            var allSelected = $scope.cart.every(function (item) { return item.selected === true; });
+            $scope.selectAll = allSelected;
+        }
+    }, true);
 
     $scope.proceedToCheckout = function (url) {
         if (!url) url = '/SolteiraAndBrands/SolteiraBrandsCheckout';

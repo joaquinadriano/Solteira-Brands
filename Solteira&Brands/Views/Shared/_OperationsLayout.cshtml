@@ -90,7 +90,24 @@
             <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1" title="Go to ordering system">
                 <i class="bi bi-shop"></i> Ordering
             </a>
-            <i class="bi bi-bell-fill inventory-navbar-icon"></i>
+            <div class="dropdown">
+                <button type="button" class="btn btn-link p-0 border-0 d-flex align-items-center position-relative text-dark inventory-navbar-icon-link" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                    <i class="bi bi-bell-fill inventory-navbar-icon"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger inventory-notification-badge" ng-show="getNotificationCount() > 0" ng-bind="getNotificationCount()"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end inventory-notification-dropdown p-0">
+                    <div class="inventory-notification-header py-2 px-3 border-bottom">Notifications</div>
+                    <div ng-repeat="item in notificationItemsDisplay track by item.id" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom">
+                        <img ng-src="{{item.imageUrl || '/Content/img/shared/default-product.svg'}}" alt="" class="inventory-notification-thumb" />
+                        <div class="inventory-notification-text flex-grow-1">
+                            <span ng-if="isOutOfStock(item)">{{item.name}} <span class="text-out-of-stock">is out of stock</span></span>
+                            <span ng-if="!isOutOfStock(item)">{{item.name}} stock level is <span class="text-low-stock">low</span></span>
+                        </div>
+                        <button type="button" class="btn btn-link p-0 border-0 text-secondary inventory-notification-dismiss" ng-click="dismissNotification($index); $event.stopPropagation();" title="Dismiss" aria-label="Dismiss"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div ng-if="getNotificationCount() === 0" class="py-3 px-3 text-muted small">No notifications.</div>
+                </div>
+            </div>
             <div class="dropdown me-3">
                 <a class="dropdown-toggle d-flex align-items-center gap-2" data-bs-toggle="dropdown">
                     <img id="inventoryNavProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="inventory-profile-img" alt="" />

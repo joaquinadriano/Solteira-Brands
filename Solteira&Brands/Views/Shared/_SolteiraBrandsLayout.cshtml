@@ -62,8 +62,9 @@
                     @* Cart icon: BUYER goes to cart; anonymous goes to login; backend roles see no cart *@
                     @if (isBuyer)
                     {
-                        <a href="@Url.Action("SolteiraBrandsCart", "SolteiraAndBrands")" class="icon-link nav-item-align" title="Cart" aria-label="View cart">
+                        <a href="@Url.Action("SolteiraBrandsCart", "SolteiraAndBrands")" class="icon-link nav-item-align position-relative sb-cart-link" title="Cart" aria-label="View cart">
                             <i class="bi bi-cart2"></i>
+                            <span id="sbCartCountBadge" class="badge rounded-pill bg-danger sb-cart-badge" style="display: none;">0</span>
                         </a>
                     }
                     else if (!isInventoryRole)
@@ -175,6 +176,33 @@
     <script>
         // Expose BUYER role flag to Angular so cart logic is buyer-only
         window.sbIsBuyer = @(isBuyer ? "true" : "false");
+        // Cart count badge (for BUYER): update from localStorage and from Angular via event
+        (function () {
+            function updateCartBadge() {
+                var count = 0;
+                try {
+                    var s = localStorage.getItem('sb_cart');
+                    if (s) {
+                        var cart = JSON.parse(s);
+                        for (var i = 0; i < cart.length; i++) count += (cart[i].qty || 0);
+                    }
+                } catch (e) { }
+                var el = document.getElementById('sbCartCountBadge');
+                if (el) {
+                    el.textContent = count > 99 ? '99+' : count;
+                    el.style.display = count > 0 ? 'block' : 'none';
+                }
+            }
+            document.addEventListener('DOMContentLoaded', updateCartBadge);
+            window.addEventListener('sbCartUpdated', function (e) {
+                var count = (e && e.detail != null) ? e.detail : 0;
+                var el = document.getElementById('sbCartCountBadge');
+                if (el) {
+                    el.textContent = count > 99 ? '99+' : count;
+                    el.style.display = count > 0 ? 'block' : 'none';
+                }
+            });
+        })();
     </script>
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
