@@ -103,19 +103,32 @@ CREATE TABLE IF NOT EXISTS tbl_products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- ORDER LIFECYCLE — Three status layers (order status is NEVER manually set)
+-- ----------------------------------------------------------------------------
+-- 1. tbl_orders.order_status (valid only): Pending | Approved | Rejected |
+--    Awaiting Payment Verification | Paid | In Delivery | Ready for Meetup | Completed | Cancelled
+-- 2. tbl_payments.payment_status: SUBMITTED | VERIFIED | REJECTED
+-- 3. tbl_deliveries.delivery_status: PENDING | IN_TRANSIT | DELIVERED
+-- ----------------------------------------------------------------------------
+
+-- ----------------------------------------------------------------------------
 -- 5b. tbl_orders (buyer checkout orders)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_orders (
-    id              INT             NOT NULL AUTO_INCREMENT,
-    user_id         INT             NOT NULL,
-    order_number    VARCHAR(50)     NOT NULL,
-    customer_name   VARCHAR(150)    NOT NULL,
-    contact_number  VARCHAR(50)     NOT NULL,
-    delivery_address VARCHAR(500)  NOT NULL,
-    payment_method  VARCHAR(100)   NOT NULL,
-    total_amount    DECIMAL(12,2)   NOT NULL,
-    order_status    VARCHAR(50)     NOT NULL DEFAULT 'Pending',
-    created_at      DATETIME        NOT NULL,
+    id                      INT             NOT NULL AUTO_INCREMENT,
+    user_id                 INT             NOT NULL,
+    order_number            VARCHAR(50)     NOT NULL,
+    customer_name           VARCHAR(150)    NOT NULL,
+    contact_number          VARCHAR(50)     NOT NULL,
+    delivery_address        VARCHAR(500)    NOT NULL,
+    payment_method          VARCHAR(100)    NOT NULL,
+    payment_type            VARCHAR(50)     NULL,
+    total_amount            DECIMAL(12,2)   NOT NULL,
+    remaining_balance       DECIMAL(12,2)   NOT NULL DEFAULT 0,
+    order_status            VARCHAR(50)     NOT NULL DEFAULT 'Pending',
+    rejection_reason        VARCHAR(500)    NULL,
+    created_at              DATETIME        NOT NULL,
+    last_status_update_at   DATETIME        NULL,
     PRIMARY KEY (id),
     INDEX idx_tbl_orders_user_id (user_id),
     INDEX idx_tbl_orders_created_at (created_at),
@@ -123,6 +136,61 @@ CREATE TABLE IF NOT EXISTS tbl_orders (
         FOREIGN KEY (user_id)
         REFERENCES tbl_users (id)
         ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5b2. tbl_payments (payment_status: SUBMITTED | VERIFIED | REJECTED only)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_payments (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    amount              DECIMAL(12,2)   NOT NULL,
+    payment_status      VARCHAR(50)     NOT NULL DEFAULT 'SUBMITTED',
+    rejection_reason    VARCHAR(500)    NULL,
+    proof_image_id      INT             NULL,
+    reference_number    VARCHAR(100)    NULL,
+    meetup_datetime     DATETIME        NULL,
+    verified_by_user_id INT             NULL,
+    created_at          DATETIME        NOT NULL,
+    verified_at         DATETIME        NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_payments_order_id (order_id),
+    CONSTRAINT fk_tbl_payments_order
+        FOREIGN KEY (order_id)
+        REFERENCES tbl_orders (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_payments_proof_image
+        FOREIGN KEY (proof_image_id)
+        REFERENCES tbl_images (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_payments_verified_by
+        FOREIGN KEY (verified_by_user_id)
+        REFERENCES tbl_users (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5b3. tbl_deliveries (delivery_status: PENDING | IN_TRANSIT | DELIVERED only)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_deliveries (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    delivery_type       VARCHAR(50)     NOT NULL,
+    tracking_number     VARCHAR(200)    NULL,
+    meetup_datetime     DATETIME        NULL,
+    delivery_status     VARCHAR(50)     NOT NULL DEFAULT 'PENDING',
+    created_at          DATETIME        NOT NULL,
+    updated_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_deliveries_order_id (order_id),
+    CONSTRAINT fk_tbl_deliveries_order
+        FOREIGN KEY (order_id)
+        REFERENCES tbl_orders (id)
+        ON DELETE CASCADE
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -149,6 +217,51 @@ CREATE TABLE IF NOT EXISTS tbl_order_items (
         REFERENCES tbl_products (id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5c2. tbl_payment_settings (one active per payment_type: GCASH | BANK_TRANSFER)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_payment_settings (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    payment_type        VARCHAR(50)     NOT NULL,
+    account_name        VARCHAR(150)    NULL,
+    account_number     VARCHAR(100)    NULL,
+    qr_image_id         INT             NULL,
+    is_active           TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at          DATETIME        NOT NULL,
+    updated_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_payment_settings_type_active (payment_type, is_active),
+    CONSTRAINT fk_payment_settings_qr_image
+        FOREIGN KEY (qr_image_id)
+        REFERENCES tbl_images (id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5c3. tbl_meetup_settings (one active location)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_meetup_settings (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    location_name       VARCHAR(150)    NOT NULL,
+    address             VARCHAR(500)    NOT NULL,
+    is_active           TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_meetup_settings_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5c4. tbl_layaway_settings (single config: downpayment %, months)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_layaway_settings (
+    id                      INT             NOT NULL AUTO_INCREMENT,
+    downpayment_percentage  DECIMAL(5,2)     NOT NULL DEFAULT 30,
+    months_allowed          INT             NOT NULL DEFAULT 3,
+    created_at              DATETIME        NOT NULL,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
@@ -214,6 +327,65 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add payment_type to tbl_orders (FULL | LAYAWAY | CASH_MEETUP)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_type');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_type VARCHAR(50) NULL AFTER payment_method;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add remaining_balance to tbl_orders
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'remaining_balance');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN remaining_balance DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER total_amount;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add last_status_update_at to tbl_orders
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'last_status_update_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN last_status_update_at DATETIME NULL AFTER created_at;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add rejection_reason to tbl_orders (admin reject order)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'rejection_reason');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN rejection_reason VARCHAR(500) NULL AFTER order_status;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add reference_number and meetup_datetime to tbl_payments (for proof-based and meetup submissions)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'reference_number');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_payments ADD COLUMN reference_number VARCHAR(100) NULL AFTER proof_image_id;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'meetup_datetime');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_payments ADD COLUMN meetup_datetime DATETIME NULL AFTER reference_number;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- ----------------------------------------------------------------------------
 -- 7. Seed roles
 -- ----------------------------------------------------------------------------
@@ -243,6 +415,18 @@ ON DUPLICATE KEY UPDATE email = VALUES(email);
 INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)
 SELECT r.id, 'buyer@solteira.local',      'Buyer',     'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'BUYER'   LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
+
+-- ----------------------------------------------------------------------------
+-- 9. Payment settings (GCASH and BANK_TRANSFER) – seed if none active
+--    Ensures GET payment settings returns at least one option for buyer payment page
+-- ----------------------------------------------------------------------------
+INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
+SELECT 'GCASH', 'GCash', '', NULL, 1, NOW(), NOW() FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'GCASH' AND is_active = 1);
+
+INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
+SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
 
 -- ============================================================================
 -- Next step: Run the app and open in browser:

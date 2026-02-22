@@ -19,7 +19,12 @@ namespace Solteira_Brands.Models.Context
         public virtual DbSet<tblProductsModel> tbl_products { get; set; }
         public virtual DbSet<tblOrdersModel> tbl_orders { get; set; }
         public virtual DbSet<tblOrderItemsModel> tbl_order_items { get; set; }
+        public virtual DbSet<tblPaymentsModel> tbl_payments { get; set; }
+        public virtual DbSet<tblDeliveriesModel> tbl_deliveries { get; set; }
         public virtual DbSet<tblActivityLogModel> tbl_activity_logs { get; set; }
+        public virtual DbSet<tblPaymentSettingsModel> tbl_payment_settings { get; set; }
+        public virtual DbSet<tblMeetupSettingsModel> tbl_meetup_settings { get; set; }
+        public virtual DbSet<tblLayawaySettingsModel> tbl_layaway_settings { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -30,7 +35,12 @@ namespace Solteira_Brands.Models.Context
             modelBuilder.Configurations.Add(new tblProductsMap());
             modelBuilder.Configurations.Add(new tblOrdersMap());
             modelBuilder.Configurations.Add(new tblOrderItemsMap());
+            modelBuilder.Configurations.Add(new tblPaymentsMap());
+            modelBuilder.Configurations.Add(new tblDeliveriesMap());
             modelBuilder.Configurations.Add(new tblActivityLogMap());
+            modelBuilder.Configurations.Add(new tblPaymentSettingsMap());
+            modelBuilder.Configurations.Add(new tblMeetupSettingsMap());
+            modelBuilder.Configurations.Add(new tblLayawaySettingsMap());
         }
     }
 }

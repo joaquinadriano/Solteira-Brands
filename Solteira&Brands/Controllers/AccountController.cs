@@ -117,6 +117,7 @@ namespace Solteira_Brands.Controllers
 
         /// <summary>
         /// GET: Current user profile (username, email, avatarUrl). Use default avatar when no picture.
+        /// Avatars stored under ~/Content/images_uploaded/avatar/ (same pattern as QR and payment proof).
         /// </summary>
         [HttpGet]
         [Authorize]
@@ -125,21 +126,28 @@ namespace Solteira_Brands.Controllers
             var username = User.Identity.Name;
             if (string.IsNullOrEmpty(username))
                 return Json(new { success = false }, JsonRequestBehavior.AllowGet);
-            using (var db = new SolteiraBrandsContext())
+            try
             {
-                var user = db.tbl_users.Include("AvatarImage").FirstOrDefault(u => u.Username == username);
-                if (user == null)
-                    return Json(new { success = false }, JsonRequestBehavior.AllowGet);
-                var avatarUrl = user.AvatarImage != null
-                    ? (user.AvatarImage.ImagePath + user.AvatarImage.ImageFileName)
-                    : DefaultAvatarUrl;
-                return Json(new { success = true, username = user.Username, email = user.Email, avatarUrl },
-                    JsonRequestBehavior.AllowGet);
+                using (var db = new SolteiraBrandsContext())
+                {
+                    var user = db.tbl_users.Include("AvatarImage").FirstOrDefault(u => u.Username == username);
+                    if (user == null)
+                        return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+                    var avatarUrl = DefaultAvatarUrl;
+                    if (user.AvatarImage != null && !string.IsNullOrEmpty(user.AvatarImage.ImagePath) && !string.IsNullOrEmpty(user.AvatarImage.ImageFileName))
+                        avatarUrl = user.AvatarImage.ImagePath + user.AvatarImage.ImageFileName;
+                    return Json(new { success = true, username = user.Username, email = user.Email, avatarUrl },
+                        JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Unable to load profile." }, JsonRequestBehavior.AllowGet);
             }
         }
 
         /// <summary>
-        /// POST: Update profile (avatar image ID and/or username).
+        /// POST: Update profile (avatar image ID and/or username). Avatar image stored under images_uploaded/avatar.
         /// </summary>
         [HttpPost]
         [Authorize]
@@ -148,30 +156,35 @@ namespace Solteira_Brands.Controllers
             var currentUsername = User.Identity.Name;
             if (string.IsNullOrEmpty(currentUsername))
                 return Json(new { success = false, message = "Not logged in." });
-            using (var db = new SolteiraBrandsContext())
+            try
             {
-                var user = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == currentUsername);
-                if (user == null)
-                    return Json(new { success = false, message = "User not found." });
-                if (avatarImageId.HasValue)
-                    user.AvatarImageId = avatarImageId.Value;
-                if (!string.IsNullOrWhiteSpace(username))
+                using (var db = new SolteiraBrandsContext())
                 {
-                    var trimmed = username.Trim();
-                    if (db.tbl_users.Any(u => u.Username == trimmed && u.Id != user.Id))
-                        return Json(new { success = false, message = "Username already taken." });
-                    user.Username = trimmed;
+                    var user = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == currentUsername);
+                    if (user == null)
+                        return Json(new { success = false, message = "User not found." });
+                    if (avatarImageId.HasValue)
+                        user.AvatarImageId = avatarImageId.Value;
+                    if (!string.IsNullOrWhiteSpace(username))
+                    {
+                        var trimmed = username.Trim();
+                        if (db.tbl_users.Any(u => u.Username == trimmed && u.Id != user.Id))
+                            return Json(new { success = false, message = "Username already taken." });
+                        user.Username = trimmed;
+                    }
+                    db.SaveChanges();
+                    IssueAuthCookie(user);
                 }
-                db.SaveChanges();
-
-                // Refresh auth cookie so User.Identity.Name and role reflect latest data
-                IssueAuthCookie(user);
+                return Json(new { success = true });
             }
-            return Json(new { success = true });
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Unable to save profile. Please try again." });
+            }
         }
 
         /// <summary>
-        /// POST: Upload profile picture. Saves to ~/Content/images/useravatars/, inserts tbl_images, returns imageID.
+        /// POST: Upload profile picture. Saves to ~/Content/images_uploaded/avatar/, inserts tbl_images, returns imageID.
         /// </summary>
         [HttpPost]
         [Authorize]
@@ -180,17 +193,18 @@ namespace Solteira_Brands.Controllers
             if (file == null || file.ContentLength == 0)
                 return Json(new { success = false, message = "No file uploaded." });
             var fileName = file.FileName ?? "";
-            if (!fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            var ext = Path.GetExtension(fileName) ?? "";
+            if (!ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".png", StringComparison.OrdinalIgnoreCase))
                 return Json(new { success = false, message = "Only JPG, JPEG, or PNG allowed." });
             if (file.ContentLength > 5 * 1024 * 1024)
                 return Json(new { success = false, message = "File size exceeds 5MB." });
 
-            var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(fileName);
-            var uploadPath = Server.MapPath("~/Content/images/useravatars");
+            var uniqueFileName = Guid.NewGuid().ToString() + ext;
+            var uploadPath = Server.MapPath("~/Content/images_uploaded/avatar");
             if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
             file.SaveAs(Path.Combine(uploadPath, uniqueFileName));
 
-            const string imagePath = "/Content/images/useravatars/";
+            const string imagePath = "/Content/images_uploaded/avatar/";
             var now = DateTime.Now;
             using (var db = new SolteiraBrandsContext())
             {
@@ -362,12 +376,6 @@ namespace Solteira_Brands.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult ChangePassword(string currentPassword, string newPassword, string verifyPassword)
         {
-            string FieldError(string field, string message)
-            {
-                // helper is inline; we just return once below with proper field name
-                return message;
-            }
-
             if (string.IsNullOrWhiteSpace(currentPassword) ||
                 string.IsNullOrWhiteSpace(newPassword) ||
                 string.IsNullOrWhiteSpace(verifyPassword))

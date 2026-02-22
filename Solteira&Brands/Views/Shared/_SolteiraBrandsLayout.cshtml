@@ -13,7 +13,7 @@
     <style type="text/css">[ng\:cloak], [ng-cloak], [data-ng-cloak], .ng-cloak { display: none !important; }</style>
 </head>
 
-<body ng-app="SolteiraBrandsApplication">
+<body id="sb-angular-root">
 
     @{
         var actionVal = ViewContext.RouteData.Values["action"];
@@ -208,6 +208,15 @@
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
     <script src="~/Scripts/SBScripts/Controller.js"></script>
+    <script>
+        // Bootstrap Angular after our app is loaded so Cart/Checkout work on first visit
+        (function () {
+            var root = document.getElementById('sb-angular-root');
+            if (root && window.angular && !angular.element(root).scope()) {
+                angular.bootstrap(root, ['SolteiraBrandsApplication']);
+            }
+        })();
+    </script>
     @if (isLoggedIn)
     {
         <script>

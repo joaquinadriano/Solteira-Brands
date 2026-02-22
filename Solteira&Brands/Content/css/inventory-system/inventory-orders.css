@@ -53,6 +53,22 @@ color: #87AE73;*/
     color: #FFFBE8;
 }
 
+/* Fully Paid / Shipped: shown but not clickable — set automatically by payment/delivery flow */
+.order-status-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+.order-status-disabled:hover {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+/* Order status: display-only (never manually set) */
+.order-status-display {
+    font-weight: 500;
+    color: #374151;
+}
 
 /*---------Sweet Alert Status Dialogue Box----------*/
 .status-button {

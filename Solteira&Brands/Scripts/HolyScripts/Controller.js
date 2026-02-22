@@ -110,7 +110,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     // ----- Orders (Admin): list, details modal, status update -----
     $scope.ordersList = [];
     $scope.selectedOrderDetails = null;
-    $scope.orderStatusOptions = ['Pending', 'Approved', 'Rejected', 'Fully Paid'];
+    $scope.orderStatusOptions = ['Pending', 'Approved', 'Rejected', 'Awaiting Payment Verification', 'Paid', 'In Delivery', 'Ready for Meetup', 'Completed', 'Cancelled'];
 
     $scope.loadOrders = function () {
         SolteiraAndBrandsService.getOrders().then(function (res) {
@@ -139,9 +139,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
-    $scope.updateOrderStatusFor = function (orderId, newStatus) {
+    $scope.updateOrderStatusFor = function (orderId, newStatus, rejectionReason) {
         if (!orderId || !newStatus) return;
-        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus).then(function (res) {
+        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus, rejectionReason).then(function (res) {
             if (res.data && res.data.success) {
                 var order = $scope.ordersList.find(function (o) { return o.id === orderId; });
                 if (order) order.orderStatus = res.data.orderStatus || newStatus;
@@ -165,7 +165,372 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.statusChange = function (orderId, newStatus) {
-        $scope.updateOrderStatusFor(orderId, newStatus);
+        if (newStatus === 'Rejected') {
+            Swal.fire({
+                title: 'Reject order',
+                input: 'textarea',
+                inputLabel: 'Rejection reason (required)',
+                inputPlaceholder: 'Enter reason for rejection...',
+                inputAttributes: { 'aria-label': 'Rejection reason', rows: 4 },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Reject order',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                inputValidator: function (value) {
+                    if (!value || !value.trim()) return 'Please enter a rejection reason.';
+                    return null;
+                }
+            }).then(function (result) {
+                if (result.isConfirmed && result.value) {
+                    $scope.updateOrderStatusFor(orderId, 'Rejected', result.value.trim());
+                }
+            });
+        } else {
+            $scope.updateOrderStatusFor(orderId, newStatus);
+        }
+    };
+
+    $scope.refreshSelectedOrderDetails = function () {
+        if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id) {
+            SolteiraAndBrandsService.getOrderDetails($scope.selectedOrderDetails.id).then(function (res) {
+                if (res.data && res.data.success && res.data.order) {
+                    $scope.selectedOrderDetails = res.data.order;
+                }
+            });
+            SolteiraAndBrandsService.getOrders().then(function (res) {
+                if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                    $scope.ordersList = res.data.data;
+                }
+            });
+        }
+    };
+
+    $scope.revokeApproval = function (orderId) {
+        if (!orderId) return;
+        SolteiraAndBrandsService.revokeApproval(orderId).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.refreshSelectedOrderDetails();
+                Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Cannot revoke (e.g. payment already submitted).' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.openCreateDelivery = function (order) {
+        var orderId = order.id || order.Id;
+        if (!orderId) return;
+        Swal.fire({
+            title: 'Create Delivery',
+            html: '<label class="text-start d-block mb-1">Delivery type *</label><select id="delivery-type" class="form-control mb-3"><option value="COURIER">Courier</option><option value="MEETUP">Meetup</option></select><label class="text-start d-block mb-1">Tracking number (optional)</label><input id="delivery-tracking" class="form-control" placeholder="e.g. 1234567890" />',
+            showCancelButton: true,
+            confirmButtonText: 'Create',
+            confirmButtonColor: '#87AE73'
+        }).then(function (result) {
+            if (result.isConfirmed) {
+                var typeEl = document.getElementById('delivery-type');
+                var trackEl = document.getElementById('delivery-tracking');
+                var deliveryType = typeEl ? typeEl.value : 'COURIER';
+                var trackingNumber = trackEl && trackEl.value ? trackEl.value.trim() : null;
+                SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber).then(function (res) {
+                    if (res.data && res.data.success) {
+                        $scope.refreshSelectedOrderDetails();
+                        Swal.fire({ title: 'Delivery created', icon: 'success', confirmButtonText: 'OK' });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                    }
+                }, function (err) {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+                });
+            }
+        });
+    };
+
+    $scope.updateDeliveryStatus = function (deliveryId, status) {
+        if (!deliveryId || !status) return;
+        SolteiraAndBrandsService.updateDeliveryStatus(deliveryId, status).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadOrders();
+                $scope.refreshSelectedOrderDetails();
+                Swal.fire({ title: 'Delivery status updated', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.markReadyForMeetup = function (orderId) {
+        if (!orderId) return;
+        SolteiraAndBrandsService.markReadyForMeetup(orderId).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadOrders();
+                $scope.refreshSelectedOrderDetails();
+                Swal.fire({ title: 'Ready for Meetup', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.completeMeetup = function (orderId) {
+        if (!orderId) return;
+        SolteiraAndBrandsService.completeMeetup(orderId).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadOrders();
+                $scope.refreshSelectedOrderDetails();
+                Swal.fire({ title: 'Order completed', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.verifyPayment = function (paymentId) {
+        if (!paymentId) return;
+        SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'VERIFIED').then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.refreshSelectedOrderDetails();
+                Swal.fire({ title: 'Payment verified', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.rejectPayment = function (paymentId) {
+        if (!paymentId) return;
+        Swal.fire({
+            title: 'Reject payment',
+            input: 'textarea',
+            inputLabel: 'Rejection reason (required)',
+            inputPlaceholder: 'Enter reason...',
+            inputAttributes: { 'aria-label': 'Rejection reason', rows: 4 },
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Reject',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc3545',
+            inputValidator: function (value) {
+                if (!value || !value.trim()) return 'Please enter a rejection reason.';
+                return null;
+            }
+        }).then(function (result) {
+            if (result.isConfirmed && result.value) {
+                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim()).then(function (res) {
+                    if (res.data && res.data.success) {
+                        $scope.refreshSelectedOrderDetails();
+                        if ($scope.loadPayments) $scope.loadPayments();
+                        $scope.closePaymentProofModal();
+                        Swal.fire({ title: 'Payment rejected', icon: 'success', confirmButtonText: 'OK' });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                    }
+                }, function (err) {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+                });
+            }
+        });
+    };
+
+    $scope.paymentsList = [];
+    $scope.selectedPayment = null;
+    $scope.loadPayments = function () {
+        SolteiraAndBrandsService.getPaymentsForAdmin().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                $scope.paymentsList = res.data.data;
+            } else {
+                $scope.paymentsList = [];
+            }
+        }, function () {
+            $scope.paymentsList = [];
+        });
+    };
+    $scope.paymentRefreshInterval = null;
+    $scope.startPaymentRefresh = function () {
+        if ($scope.paymentRefreshInterval) return;
+        $scope.paymentRefreshInterval = $interval(function () { $scope.loadPayments(); }, 30000);
+    };
+    $scope.$on('$destroy', function () {
+        if ($scope.paymentRefreshInterval) { $interval.cancel($scope.paymentRefreshInterval); $scope.paymentRefreshInterval = null; }
+    });
+    $scope.paymentRejectionReason = '';
+    $scope.openPaymentProofModal = function (payment) {
+        $scope.selectedPayment = payment;
+        $scope.paymentRejectionReason = '';
+        var el = document.getElementById('paymentDetailModal');
+        if (el && window.bootstrap) {
+            var m = new bootstrap.Modal(el);
+            m.show();
+        }
+    };
+    $scope.closePaymentProofModal = function () {
+        var el = document.getElementById('paymentDetailModal');
+        if (el && window.bootstrap) {
+            var m = bootstrap.Modal.getInstance(el);
+            if (m) m.hide();
+        }
+        $scope.selectedPayment = null;
+        $scope.paymentRejectionReason = '';
+    };
+    $scope.verifyPaymentFromModal = function () {
+        if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
+        var paymentId = $scope.selectedPayment.paymentId;
+        SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'VERIFIED').then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadPayments();
+                $scope.closePaymentProofModal();
+                Swal.fire({ title: 'Payment verified', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+    $scope.rejectPaymentFromModal = function () {
+        if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
+        var reason = ($scope.paymentRejectionReason || '').trim();
+        if (!reason) {
+            Swal.fire({ icon: 'warning', title: 'Rejection reason required', text: 'Please enter a reason for rejecting this payment.' });
+            return;
+        }
+        var paymentId = $scope.selectedPayment.paymentId;
+        SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.paymentRejectionReason = '';
+                $scope.loadPayments();
+                $scope.closePaymentProofModal();
+                Swal.fire({ title: 'Payment rejected', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.paymentSettingsForm = {
+        gcashAccountName: '', gcashAccountNumber: '', gcashQrImageId: null, gcashQrImageUrl: null,
+        bankAccountName: '', bankAccountNumber: '', bankQrImageId: null, bankQrImageUrl: null,
+        downpaymentPercentage: 30, monthsAllowed: 3,
+        meetupLocationName: '', meetupAddress: ''
+    };
+    $scope.pendingQrType = null;
+    $scope.openPaymentSettingsModal = function () {
+        SolteiraAndBrandsService.getPaymentSettingsForAdmin().then(function (res) {
+            if (res.data && res.data.success) {
+                var g = res.data.gcash, b = res.data.bankTransfer;
+                $scope.paymentSettingsForm.gcashAccountName = g ? (g.accountName || '') : '';
+                $scope.paymentSettingsForm.gcashAccountNumber = g ? (g.accountNumber || '') : '';
+                $scope.paymentSettingsForm.gcashQrImageId = g ? g.qrImageId : null;
+                $scope.paymentSettingsForm.gcashQrImageUrl = g && g.qrImageUrl ? g.qrImageUrl : null;
+                $scope.paymentSettingsForm.bankAccountName = b ? (b.accountName || '') : '';
+                $scope.paymentSettingsForm.bankAccountNumber = b ? (b.accountNumber || '') : '';
+                $scope.paymentSettingsForm.bankQrImageId = b ? b.qrImageId : null;
+                $scope.paymentSettingsForm.bankQrImageUrl = b && b.qrImageUrl ? b.qrImageUrl : null;
+            }
+        });
+        SolteiraAndBrandsService.getLayawaySettingsForAdmin().then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.paymentSettingsForm.downpaymentPercentage = res.data.downpaymentPercentage != null ? res.data.downpaymentPercentage : 30;
+                $scope.paymentSettingsForm.monthsAllowed = res.data.monthsAllowed != null ? res.data.monthsAllowed : 3;
+            }
+        });
+        SolteiraAndBrandsService.getMeetupSettingsForAdmin().then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.paymentSettingsForm.meetupLocationName = res.data.locationName || '';
+                $scope.paymentSettingsForm.meetupAddress = res.data.address || '';
+            }
+        });
+    };
+    $scope.triggerQrUpload = function (type) {
+        $scope.pendingQrType = type;
+        var id = type === 'gcash' ? 'gcashQrUpload' : 'bankQrUpload';
+        var el = document.getElementById(id);
+        if (el) el.click();
+    };
+    $scope.onQrFileSelected = function (file, type) {
+        if (!file || !type) return;
+        SolteiraAndBrandsService.uploadQrImage(file).then(function (res) {
+            if (res.data && res.data.success && res.data.imageID) {
+                if (type === 'gcash') {
+                    $scope.paymentSettingsForm.gcashQrImageId = res.data.imageID;
+                    $scope.paymentSettingsForm.gcashQrImageUrl = (res.data.imagePath && res.data.imagePath.indexOf('/') === 0) ? res.data.imagePath : ('/Content/images_uploaded/qr/' + (res.data.imageFileName || ''));
+                } else {
+                    $scope.paymentSettingsForm.bankQrImageId = res.data.imageID;
+                    $scope.paymentSettingsForm.bankQrImageUrl = (res.data.imagePath && res.data.imagePath.indexOf('/') === 0) ? res.data.imagePath : ('/Content/images_uploaded/qr/' + (res.data.imageFileName || ''));
+                }
+                $scope.$apply();
+            } else {
+                Swal.fire({ icon: 'error', title: 'Upload failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Upload failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+    $scope.savePaymentSetting = function (paymentType) {
+        var isGcash = paymentType === 'GCASH';
+        var accountName = isGcash ? $scope.paymentSettingsForm.gcashAccountName : $scope.paymentSettingsForm.bankAccountName;
+        var accountNumber = isGcash ? $scope.paymentSettingsForm.gcashAccountNumber : $scope.paymentSettingsForm.bankAccountNumber;
+        var qrImageId = isGcash ? $scope.paymentSettingsForm.gcashQrImageId : $scope.paymentSettingsForm.bankQrImageId;
+        SolteiraAndBrandsService.updatePaymentSetting(paymentType, accountName, accountNumber, qrImageId).then(function (res) {
+            if (res.data && res.data.success) {
+                Swal.fire({ title: (res.data.message || 'Saved'), icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+    $scope.saveMeetupSetting = function () {
+        var locationName = ($scope.paymentSettingsForm.meetupLocationName || '').trim();
+        var address = ($scope.paymentSettingsForm.meetupAddress || '').trim();
+        if (!locationName) {
+            Swal.fire({ icon: 'warning', title: 'Required', text: 'Location name is required.' });
+            return;
+        }
+        SolteiraAndBrandsService.updateMeetupSetting(locationName, address).then(function (res) {
+            if (res.data && res.data.success) {
+                Swal.fire({ title: 'Meetup location saved', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+    $scope.saveLayawaySettings = function () {
+        var pct = parseFloat($scope.paymentSettingsForm.downpaymentPercentage, 10);
+        var months = parseInt($scope.paymentSettingsForm.monthsAllowed, 10);
+        if (isNaN(pct) || pct < 1 || pct > 100) {
+            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Downpayment % must be 1–100.' });
+            return;
+        }
+        if (isNaN(months) || months < 1 || months > 24) {
+            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Months allowed must be 1–24.' });
+            return;
+        }
+        SolteiraAndBrandsService.updateLayawaySettings(pct, months).then(function (res) {
+            if (res.data && res.data.success) {
+                Swal.fire({ title: 'Layaway settings saved', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
     };
 
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
@@ -743,7 +1108,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         shippedOrders: 0
     };
     $scope.dashboardDate = '';
-    $scope.dashboardRange = 'lastmonth';
+    $scope.dashboardRange = 'today';
     $scope.customStartDate = '';
     $scope.customEndDate = '';
 

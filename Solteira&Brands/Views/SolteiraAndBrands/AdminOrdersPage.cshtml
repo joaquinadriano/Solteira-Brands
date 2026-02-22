@@ -31,18 +31,26 @@
                             <td>{{order.deliveryAddress}}</td>
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>
-                                <div class="dropdown">
-                                    <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
-                                        <span>{{order.orderStatus || 'Status'}}</span>
-                                    </a>
-                                    <ul class="dropdown-menu order-dropdown-menu py-0">
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Pending')">Pending</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Approved')">Approved</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Rejected')">Rejected</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Fully Paid')">Fully Paid</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="statusChange(order.id, 'Shipped')">Shipped</a></li>
-                                    </ul>
-                                </div>
+                                <span class="order-status-display">{{order.orderStatus || '—'}}</span>
+                                <span ng-if="order.orderStatus === 'Pending'" class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
+                                    <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
+                                </span>
+                                <span ng-if="order.orderStatus === 'Approved'" class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
+                                    <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
+                                </span>
+                                <span ng-if="order.orderStatus === 'Paid'" class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-primary me-1" ng-click="openCreateDelivery(order)">Create Delivery</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" ng-click="markReadyForMeetup(order.id)">Mark Ready for Meetup</button>
+                                </span>
+                                <span ng-if="order.orderStatus === 'In Delivery' && order.deliveryId" class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" ng-click="updateDeliveryStatus(order.deliveryId, 'IN_TRANSIT')">Mark In Transit</button>
+                                    <button type="button" class="btn btn-sm btn-success" ng-click="updateDeliveryStatus(order.deliveryId, 'DELIVERED')">Mark Delivered</button>
+                                </span>
+                                <span ng-if="order.orderStatus === 'Ready for Meetup'" class="ms-2">
+                                    <button type="button" class="btn btn-sm btn-success" ng-click="completeMeetup(order.id)">Complete Meetup</button>
+                                </span>
                             </td>
                             <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
@@ -151,6 +159,44 @@
                                     </div>
                                 </div>
 
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="selectedOrderDetails.payments && selectedOrderDetails.payments.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3">
+                                            <i class="bi bi-cash-stack me-2 orderDetails-icon"></i>
+                                            Payment Proofs
+                                        </h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom">
+                                                    <tr class="text-muted small text-uppercase">
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Proof</th>
+                                                        <th class="text-end">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="p in selectedOrderDetails.payments">
+                                                        <td class="fw-bold">&#8369; {{p.amount | number:2}}</td>
+                                                        <td><span class="badge" ng-class="{'bg-warning': p.paymentStatus === 'SUBMITTED', 'bg-success': p.paymentStatus === 'VERIFIED', 'bg-danger': p.paymentStatus === 'REJECTED'}">{{p.paymentStatus}}</span></td>
+                                                        <td>
+                                                            <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
+                                                            <span ng-if="!p.proofImageUrl" class="text-muted">—</span>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <span ng-if="p.paymentStatus === 'SUBMITTED'">
+                                                                <button type="button" class="btn btn-sm btn-success me-1" ng-click="verifyPayment(p.id)">Verify</button>
+                                                                <button type="button" class="btn btn-sm btn-danger" ng-click="rejectPayment(p.id)">Reject</button>
+                                                            </span>
+                                                            <span ng-if="p.rejectionReason" class="text-muted small">Reason: {{p.rejectionReason}}</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="card border-0 shadow-sm rounded-4">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
@@ -171,19 +217,27 @@
                         </div>
                     </div>
 
-                    <div class="modal-footer border-0 p-4">
-                        <div class="dropdown me-2">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                {{selectedOrderDetails.orderStatus}}
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Pending')">Pending</a></li>
-                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Approved')">Approved</a></li>
-                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Rejected')">Rejected</a></li>
-                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Fully Paid')">Fully Paid</a></li>
-                                <li><a class="dropdown-item" ng-click="updateOrderStatusFor(selectedOrderDetails.id, 'Shipped')">Shipped</a></li>
-                            </ul>
-                        </div>
+                    <div class="modal-footer border-0 p-4 flex-wrap">
+                        <span class="order-status-display me-2">Order status: <strong>{{selectedOrderDetails.orderStatus}}</strong></span>
+                        <span ng-if="selectedOrderDetails.orderStatus === 'Pending'">
+                            <button type="button" class="btn btn-success me-2" ng-click="statusChange(selectedOrderDetails.id, 'Approved')">Approve</button>
+                            <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')">Reject</button>
+                        </span>
+                        <span ng-if="selectedOrderDetails.orderStatus === 'Approved'">
+                            <button type="button" class="btn btn-outline-secondary me-2" ng-click="revokeApproval(selectedOrderDetails.id)" ng-if="!selectedOrderDetails.hasPayments">Revoke Approval</button>
+                            <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')">Reject</button>
+                        </span>
+                        <span ng-if="selectedOrderDetails.orderStatus === 'Paid'">
+                            <button type="button" class="btn btn-primary me-2" ng-click="openCreateDelivery(selectedOrderDetails)">Create Delivery</button>
+                            <button type="button" class="btn btn-outline-primary me-2" ng-click="markReadyForMeetup(selectedOrderDetails.id)">Mark Ready for Meetup</button>
+                        </span>
+                        <span ng-if="selectedOrderDetails.orderStatus === 'In Delivery' && selectedOrderDetails.deliveryId">
+                            <button type="button" class="btn btn-outline-primary me-2" ng-click="updateDeliveryStatus(selectedOrderDetails.deliveryId, 'IN_TRANSIT')">Mark In Transit</button>
+                            <button type="button" class="btn btn-success me-2" ng-click="updateDeliveryStatus(selectedOrderDetails.deliveryId, 'DELIVERED')">Mark Delivered</button>
+                        </span>
+                        <span ng-if="selectedOrderDetails.orderStatus === 'Ready for Meetup'">
+                            <button type="button" class="btn btn-success me-2" ng-click="completeMeetup(selectedOrderDetails.id)">Complete Meetup</button>
+                        </span>
                         <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
                             <span>CLOSE</span>
                         </button>

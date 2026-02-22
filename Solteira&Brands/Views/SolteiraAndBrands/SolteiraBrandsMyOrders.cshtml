@@ -4,7 +4,7 @@
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/MyOrders.css" />
 
-<div class="my-orders-main-wrapper" ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController" ng-init="loadMyOrders()">
+<div class="my-orders-main-wrapper" ng-controller="SolteiraBrandsController" ng-init="loadMyOrders()">
 
     <div class="my-orders-text">
         <span>MY ORDERS ({{orders.length}})</span>
@@ -22,24 +22,41 @@
                 </div>
             </div>
 
-            <div class="orders-section"
-                 ng-repeat="order in orders | filter:searchOrder"
-                 ng-click="viewOrderDetails(order.orderId)"
-                 style="cursor: pointer; margin-bottom: 30px;">
+            <div class="order-summary-header" ng-if="orders.length > 0">
+                <span class="order-summary-cell order-number">Order Number</span>
+                <span class="order-summary-cell order-date">Order Date</span>
+                <span class="order-summary-cell order-total">Total</span>
+                <span class="order-summary-cell payment-type">Payment Type</span>
+                <span class="order-summary-cell order-status">Order Status</span>
+                <span class="order-summary-cell delivery-status">Delivery Status</span>
+                <span class="order-summary-cell order-action">Action</span>
+            </div>
 
-                <div class="order-header">
-                    <div class="order-status">
-                        <span>Order Status: <span class="status-weight">{{order.status}}</span></span>
-                    </div>
-                    <div class="delivery-info" ng-if="order.status !== 'Cancelled'">
-                        <div class="delivery-status">
-                            Delivery Status: <span class="status-weight">{{order.deliveryStatus}}</span>
-                        </div>
-                        <a href="" class="track-link">Track Delivery</a>
+            <div class="orders-section" ng-repeat="order in orders | filter:searchOrder" style="margin-bottom: 30px;">
+
+                <div class="order-summary-row">
+                    <div class="order-summary-cell order-number">{{order.orderNumber}}</div>
+                    <div class="order-summary-cell order-date">{{order.orderDate | date:'MMM d, y'}}</div>
+                    <div class="order-summary-cell order-total">&#8369; {{order.total | number:2}}</div>
+                    <div class="order-summary-cell payment-type">{{order.paymentType}}</div>
+                    <div class="order-summary-cell order-status"><span class="status-weight">{{order.status}}</span></div>
+                    <div class="order-summary-cell delivery-status"><span class="status-weight">{{order.deliveryStatus}}</span></div>
+                    <div class="order-summary-cell order-action">
+                        <button type="button" class="btn-order-action" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
                     </div>
                 </div>
 
-                <div class="order-card-white">
+                <div class="order-rejection-message" ng-if="order.status === 'Rejected' && order.rejectionReason">
+                    <strong>Rejection reason:</strong> {{order.rejectionReason}}
+                </div>
+                <div class="order-rejection-message" ng-if="order.status === 'Approved' && order.latestPaymentRejectionReason">
+                    <strong>Payment was rejected:</strong> {{order.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.
+                </div>
+                <div class="order-rejection-message text-muted" ng-if="order.status === 'Cancelled'">
+                    This order was cancelled (e.g. payment not received within the deadline). View details for more information.
+                </div>
+
+                <div class="order-card-white" ng-click="handleOrderAction(order)" style="cursor: pointer;">
                     <div class="order-products">
                         <div class="product-row" ng-repeat="item in order.items">
                             <div class="product-info">
@@ -59,6 +76,9 @@
                         <span class="total-label">Total: </span>
                         <span class="total-amount">&#8369; {{order.total | number:2}}</span>
                     </div>
+                    <div class="order-view-proof" ng-if="order.latestPaymentProofUrl">
+                        <a ng-href="{{order.latestPaymentProofUrl}}" target="_blank" class="btn-view-proof" ng-click="$event.stopPropagation();">View payment proof</a>
+                    </div>
                 </div>
             </div>
 
@@ -67,6 +87,57 @@
                 <p>You haven't placed any orders yet.</p>
             </div>
 
+        </div>
+    </div>
+
+    @* Buyer-side Order Details modal (order summary) *@
+    <div class="modal fade" id="buyerOrderDetailsModal" tabindex="-1" aria-labelledby="buyerOrderDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content buyer-order-details-modal" ng-if="selectedOrderForDetails">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title buyer-order-details-title" id="buyerOrderDetailsModalLabel">Order Summary</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closeOrderDetailsModal()"></button>
+                </div>
+                <div class="modal-body buyer-order-details-body">
+                    <p class="buyer-order-status-line">
+                        <span class="buyer-order-status-label">Order:</span>
+                        <span class="buyer-order-status-value">{{selectedOrderForDetails.status}}</span>
+                    </p>
+                    <div class="buyer-order-summary-card">
+                        <div class="buyer-order-item" ng-repeat="item in selectedOrderForDetails.items">
+                            <img ng-src="{{item.img || defaultProductImageUrl}}" class="buyer-order-item-img" alt="{{item.name}}" />
+                            <div class="buyer-order-item-details">
+                                <span class="buyer-order-item-name">{{item.name}}</span>
+                                <span class="buyer-order-item-specs" ng-if="item.stones">{{item.stones}}</span>
+                                <span class="buyer-order-item-specs" ng-if="item.material">{{item.material}}</span>
+                                <span class="buyer-order-item-specs" ng-if="item.weight">{{item.weight}}</span>
+                                <span class="buyer-order-item-qty">Qty: {{item.qty}}</span>
+                            </div>
+                            <div class="buyer-order-item-price">&#8369; {{(item.price * item.qty) | number:2}}</div>
+                        </div>
+                        <div class="buyer-order-total-row">
+                            <span class="buyer-order-total-label">Total</span>
+                            <span class="buyer-order-total-value">&#8369; {{selectedOrderForDetails.total | number:2}}</span>
+                        </div>
+                    </div>
+                    <div class="buyer-order-meta mt-3">
+                        <p class="mb-1"><strong>Order #</strong> {{selectedOrderForDetails.orderNumber}}</p>
+                        <p class="mb-1"><strong>Date</strong> {{selectedOrderForDetails.orderDate | date:'MMM d, y'}}</p>
+                        <p class="mb-1"><strong>Payment</strong> {{selectedOrderForDetails.paymentType}}</p>
+                        <p ng-if="selectedOrderForDetails.latestPaymentProofUrl" class="mb-1">
+                            <a ng-href="{{selectedOrderForDetails.latestPaymentProofUrl}}" target="_blank" class="btn-view-proof">View payment proof</a>
+                        </p>
+                        <p ng-if="selectedOrderForDetails.status === 'Rejected' && selectedOrderForDetails.rejectionReason" class="text-danger mb-0"><strong>Rejection reason:</strong> {{selectedOrderForDetails.rejectionReason}}</p>
+                        <p ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.latestPaymentRejectionReason" class="text-warning mb-0"><strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.</p>
+                        <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">This order was cancelled (e.g. payment not received within the deadline).</p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-click="closeOrderDetailsModal()">Close</button>
+                    <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved'" ng-click="closeOrderDetailsModal(); goToPayment(selectedOrderForDetails.orderId)">Pay Now</button>
+                    <button type="button" class="btn btn-primary" ng-if="selectedOrderForDetails.status === 'In Delivery'" ng-click="goToTracking(selectedOrderForDetails.trackingNumber)">Track Now</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

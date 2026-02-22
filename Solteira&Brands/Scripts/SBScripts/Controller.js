@@ -374,8 +374,40 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     // Only BUYERs should have a persisted cart. Anonymous or non-buyer roles see an empty cart.
+    // Keep a single array reference so ng-repeat and bindings stay in sync.
     var isBuyer = !!(window.sbIsBuyer);
-    $scope.cart = isBuyer ? (JSON.parse(localStorage.getItem('sb_cart')) || []) : [];
+    $scope.cart = [];
+    try {
+        if (isBuyer) {
+            var raw = localStorage.getItem('sb_cart');
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    for (var i = 0; i < parsed.length; i++) $scope.cart.push(parsed[i]);
+                }
+            }
+        }
+    } catch (e) {
+        $scope.cart = [];
+    }
+
+    // Re-load cart from localStorage (e.g. on Cart page) so list and badge always show current data.
+    $scope.refreshCartFromStorage = function () {
+        if (!isBuyer) return;
+        try {
+            var raw = localStorage.getItem('sb_cart');
+            var next = [];
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    for (var j = 0; j < parsed.length; j++) next.push(parsed[j]);
+                }
+            }
+            $scope.cart.length = 0;
+            for (var k = 0; k < next.length; k++) $scope.cart.push(next[k]);
+            syncCartCountToLayout();
+        } catch (err) { }
+    };
 
     $scope.getCartCount = function () {
         if (!$scope.cart || !$scope.cart.length) return 0;
@@ -502,21 +534,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.validateCartAgainstStock = function () {
-        if (!$scope.cart || $scope.cart.length === 0) return;
+        if (!$scope.cart || !$scope.cart.length) return;
         var ids = $scope.cart.map(function (i) { return i.id; });
+        if (!ids.length) return;
         SolteiraBrandsService.getProductStocks(ids).then(function (r) {
-            if (!r.data || !r.data.success || !r.data.stocks) return;
+            if (!r.data || !r.data.success) return;
+            var stocks = r.data.stocks;
+            if (!stocks || !Array.isArray(stocks)) return;
             var byId = {};
-            (r.data.stocks || []).forEach(function (s) { byId[s.productId] = s.stockQuantity; });
+            stocks.forEach(function (s) { byId[s.productId] = parseInt(s.stockQuantity, 10) || 0; });
             var messages = [];
             for (var i = $scope.cart.length - 1; i >= 0; i--) {
                 var item = $scope.cart[i];
-                var stock = byId[item.id] !== undefined ? parseInt(byId[item.id], 10) : 0;
-                item.maxStock = stock;
-                if (stock < 1) {
+                var stock = byId[item.id] !== undefined ? byId[item.id] : -1;
+                item.maxStock = stock >= 0 ? stock : (item.maxStock || 999);
+                if (stock === 0) {
                     $scope.cart.splice(i, 1);
                     messages.push(item.name + ' is no longer available and was removed.');
-                } else if ((item.qty || 0) > stock) {
+                } else if (stock > 0 && (item.qty || 0) > stock) {
                     item.qty = stock;
                     messages.push(item.name + ': quantity adjusted to ' + stock + ' (max available).');
                 }
@@ -526,6 +561,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (messages.length > 0) {
                 Swal.fire({ icon: 'info', title: 'Cart updated', text: messages.join(' ') });
             }
+        }, function () {
+            // API error (e.g. after DB reset): keep cart as-is so user still sees items
         });
     };
 
@@ -695,6 +732,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             } else {
                 $scope.orders = [];
             }
+            $scope.checkOpenOrderDetailsFromQuery();
         }, function () {
             $scope.orders = [];
         });
@@ -703,6 +741,304 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (orderId) {
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders?orderId=' + encodeURIComponent(orderId);
         }
+    };
+
+    $scope.goToPayment = function (orderId) {
+        if (orderId) {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsPayment?orderId=' + encodeURIComponent(orderId);
+        }
+    };
+
+    $scope.getOrderActionLabel = function (order) {
+        if (!order) return 'View Details';
+        var status = (order.status || '').toLowerCase();
+        var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
+        if (status === 'rejected' || status === 'cancelled') return 'View Details';
+        if (status === 'approved') return 'Pay Now';
+        if (status === 'awaiting payment verification') return 'Under Review';
+        if (status === 'paid' || status === 'ready for meetup') return 'View Details';
+        if (status === 'in delivery') return 'Track Now';
+        if (status === 'completed') return 'View Details';
+        if (status === 'pending' || status.indexOf('pending') >= 0) return 'View / Pay';
+        if (deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'Track Now';
+        return 'View Details';
+    };
+
+    $scope.goToTracking = function (trackingNumber) {
+        if (trackingNumber && (trackingNumber + '').trim()) {
+            window.open('https://www.lbcexpress.com/track/?trackingNo=' + encodeURIComponent((trackingNumber + '').trim()), '_blank');
+        } else {
+            Swal.fire({ icon: 'info', title: 'Tracking', text: 'Tracking number is not yet available. It will appear when the order is in transit.' });
+        }
+    };
+
+    $scope.selectedOrderForDetails = null;
+    $scope.openOrderDetailsModal = function (order) {
+        if (!order) return;
+        $scope.selectedOrderForDetails = order;
+        var el = document.getElementById('buyerOrderDetailsModal');
+        if (el && window.bootstrap) {
+            var m = new bootstrap.Modal(el);
+            m.show();
+        }
+    };
+    $scope.closeOrderDetailsModal = function () {
+        var el = document.getElementById('buyerOrderDetailsModal');
+        if (el && window.bootstrap) {
+            var m = bootstrap.Modal.getInstance(el);
+            if (m) m.hide();
+        }
+        $scope.selectedOrderForDetails = null;
+    };
+
+    $scope.handleOrderAction = function (order) {
+        if (!order) return;
+        var label = $scope.getOrderActionLabel(order);
+        if (label === 'Pay Now') $scope.goToPayment(order.orderId);
+        else if (label === 'Track Now') $scope.goToTracking(order.trackingNumber);
+        else $scope.openOrderDetailsModal(order);
+    };
+
+    $scope.checkOpenOrderDetailsFromQuery = function () {
+        var params = new URLSearchParams(window.location.search);
+        var orderIdParam = params.get('orderId');
+        if (!orderIdParam || !$scope.orders || !$scope.orders.length) return;
+        var orderId = parseInt(orderIdParam, 10);
+        var order = $scope.orders.find(function (o) { return o.orderId === orderId; });
+        if (order) $scope.openOrderDetailsModal(order);
+    };
+
+    $scope.paymentOrder = null;
+    $scope.paymentLoadError = null;
+    $scope.proofFileName = '';
+    $scope.proofImageId = null;
+    $scope.paymentError = '';
+    $scope.paymentValidation = { reference: '', proof: '', file: '' };
+    $scope.submitting = false;
+    $scope.paymentSettings = { gcash: null, bankTransfer: null };
+    $scope.meetupSettings = null;
+    $scope.paymentMode = 'Full Payment';
+    $scope.paymentChannel = 'GCash';
+    $scope.paymentForm = { referenceNumber: '' };
+    $scope.meetupDate = null;
+    $scope.meetupTime = null;
+    $scope.meetupTimeOptions = ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM'];
+    $scope.minMeetupDate = new Date().toISOString().split('T')[0];
+
+    $scope.initPaymentPage = function () {
+        var params = new URLSearchParams(window.location.search);
+        var orderId = parseInt(params.get('orderId'), 10);
+        if (!orderId) {
+            $scope.paymentLoadError = 'No order specified.';
+            return;
+        }
+        SolteiraBrandsService.getPaymentSettings().then(function (r) {
+            if (r.data) {
+                $scope.paymentSettings = { gcash: r.data.gcash || null, bankTransfer: r.data.bankTransfer || null };
+            }
+        });
+        SolteiraBrandsService.getMeetupSettings().then(function (r) {
+            if (r.data && (r.data.locationName || r.data.address)) {
+                $scope.meetupSettings = { locationName: r.data.locationName || '', address: r.data.address || '' };
+            } else {
+                $scope.meetupSettings = { locationName: '', address: '' };
+            }
+        });
+        SolteiraBrandsService.getOrderForPayment(orderId).then(function (r) {
+            if (r.data && r.data.success && r.data.data) {
+                $scope.paymentOrder = r.data.data;
+                $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
+                $scope.paymentLoadError = null;
+                var os = $scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus;
+                console.log('[PAYMENT DEBUG] Order loaded:', { order_status: os, order_status_Approved: os === 'Approved', hasExistingPayment: $scope.paymentOrder.hasExistingPayment, orderId: $scope.paymentOrder.orderId });
+            } else {
+                $scope.paymentOrder = null;
+                $scope.paymentLoadError = (r.data && r.data.message) || 'Could not load order.';
+            }
+        }, function (err) {
+            $scope.paymentOrder = null;
+            $scope.paymentLoadError = (err.data && err.data.message) || 'Could not load order.';
+        });
+    };
+
+    $scope.reloadPaymentOrder = function () {
+        if (!$scope.paymentOrder || !$scope.paymentOrder.orderId) return;
+        $scope.paymentLoadError = null;
+        SolteiraBrandsService.getOrderForPayment($scope.paymentOrder.orderId).then(function (r) {
+            if (r.data && r.data.success && r.data.data) {
+                $scope.paymentOrder = r.data.data;
+                $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
+            }
+        });
+    };
+
+    $scope.triggerProofUpload = function () {
+        document.getElementById('proofUpload').click();
+    };
+
+    $scope.onProofFileSelected = function (file) {
+        if (!file) return;
+        $scope.paymentError = '';
+        $scope.paymentValidation.proof = '';
+        $scope.paymentValidation.file = '';
+        $scope.proofFileName = file.name || 'Selected file';
+        $scope.proofImageId = null;
+        var fn = (file.name || '').toLowerCase();
+        if (fn.indexOf('.jpg') === -1 && fn.indexOf('.jpeg') === -1 && fn.indexOf('.png') === -1) {
+            $scope.paymentValidation.file = 'Only JPG or PNG allowed. PDF is not accepted.';
+            Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Only JPG or PNG allowed. PDF is not accepted.' });
+            $scope.proofFileName = '';
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            $scope.paymentValidation.file = 'File must be under 5MB.';
+            Swal.fire({ icon: 'warning', title: 'File too large', text: 'File must be under 5MB. Please choose a smaller image.' });
+            $scope.proofFileName = '';
+            return;
+        }
+        SolteiraBrandsService.uploadPaymentProof(file).then(function (r) {
+            var rawId = (r.data && (r.data.imageID !== undefined ? r.data.imageID : r.data.imageId));
+            var id = rawId != null && rawId !== '' ? (typeof rawId === 'number' ? rawId : parseInt(rawId, 10)) : null;
+            if (r.data && r.data.success && id > 0) {
+                $timeout(function () {
+                    $scope.proofImageId = id;
+                    $scope.proofFileName = file.name || 'Uploaded';
+                    $scope.paymentError = '';
+                    $scope.paymentValidation.proof = '';
+                    $scope.paymentValidation.file = '';
+                }, 0);
+                Swal.fire({ icon: 'success', title: 'Uploaded', text: 'Proof uploaded. Enter reference number (max 20 chars) and click PAY.', timer: 2500, showConfirmButton: false });
+            } else {
+                var msg = (r.data && r.data.message) || 'Upload failed.';
+                $scope.paymentError = msg;
+                $scope.paymentValidation.file = msg;
+                Swal.fire({ icon: 'error', title: 'Upload failed', text: msg });
+            }
+        }, function (err) {
+            var msg = (err.data && err.data.message) || 'Upload failed. Please try again.';
+            $scope.paymentError = msg;
+            $scope.paymentValidation.file = msg;
+            Swal.fire({ icon: 'error', title: 'Upload failed', text: msg });
+        });
+    };
+
+    $scope.canShowPayForm = function () {
+        if (!$scope.paymentOrder) return false;
+        var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
+        if (!status || String(status).toUpperCase() !== 'APPROVED') return false;
+        if ($scope.paymentOrder.hasExistingPayment) return false;
+        return true;
+    };
+
+    $scope.hasValidProof = function () {
+        var p = $scope.proofImageId;
+        if (p == null || p === '') return false;
+        var n = typeof p === 'number' ? p : parseInt(p, 10);
+        return !isNaN(n) && n >= 1;
+    };
+
+    function logPaymentButtonState(reason) {
+        var order = $scope.paymentOrder;
+        var orderStatus = order ? (order.order_status != null ? order.order_status : order.orderStatus) : null;
+        var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
+        var payload = {
+            reason: reason,
+            selectedPaymentMethod: $scope.paymentMode,
+            selectedChannel: $scope.paymentChannel,
+            referenceNumber: ref,
+            referenceLength: ref.length,
+            proofFile: $scope.proofImageId,
+            proofFileName: $scope.proofFileName,
+            order_order_status: orderStatus,
+            order_status_Approved: orderStatus ? String(orderStatus).toUpperCase() === 'APPROVED' : false,
+            hasExistingPayment: order ? !!order.hasExistingPayment : null,
+            submitting: $scope.submitting
+        };
+        console.log('[PAYMENT DEBUG]', payload);
+        return payload;
+    }
+
+    $scope.isPayButtonEnabled = function () {
+        if ($scope.submitting) return false;
+        if (!$scope.paymentMode || !$scope.paymentChannel) return false;
+        if (!$scope.hasValidProof()) return false;
+        var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
+        if (ref.length < 1 || ref.length > 20) return false;
+        return true;
+    };
+
+    $scope.isScheduleButtonEnabled = function () {
+        if ($scope.submitting) return false;
+        if (!$scope.paymentMode || !$scope.paymentChannel) return false;
+        if ($scope.paymentChannel !== 'Cash through Meetup') return false;
+        if (!$scope.meetupDate || !$scope.meetupTime) return false;
+        return true;
+    };
+    $scope.clearProofSelection = function () {
+        $scope.paymentError = '';
+        $scope.proofFileName = '';
+        $scope.proofImageId = null;
+    };
+
+    $scope.submitPayment = function () {
+        if (!$scope.paymentOrder) return;
+        var isMeetup = $scope.paymentChannel === 'Cash through Meetup';
+        $scope.paymentError = '';
+        $scope.paymentValidation.reference = '';
+        $scope.paymentValidation.proof = '';
+        if (!isMeetup) {
+            if (!$scope.hasValidProof()) {
+                $scope.paymentValidation.proof = 'Please upload proof of payment.';
+                $scope.paymentError = $scope.paymentValidation.proof;
+                Swal.fire({ icon: 'warning', title: 'Proof required', text: 'Please upload proof of payment first.' });
+                return;
+            }
+            var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
+            if (ref.length < 1) {
+                $scope.paymentValidation.reference = 'Reference number is required.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference number (max 20 characters).' });
+                return;
+            }
+            if (ref.length > 20) {
+                $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                return;
+            }
+        } else {
+            if (!$scope.meetupDate || !$scope.meetupTime) {
+                $scope.paymentError = 'Please select meetup date and time.';
+                Swal.fire({ icon: 'warning', title: 'Required', text: 'Please select meetup date and time.' });
+                return;
+            }
+        }
+        $scope.submitting = true;
+        var proofId = isMeetup ? null : $scope.proofImageId;
+        var refNum = isMeetup ? null : (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
+        var mDate = isMeetup ? $scope.meetupDate : null;
+        var mTime = isMeetup ? $scope.meetupTime : null;
+        logPaymentButtonState('Submitting payment');
+        console.log('[PAYMENT DEBUG] Submit payload:', { orderId: $scope.paymentOrder.orderId, amount: $scope.paymentOrder.amountDue, proofImageId: proofId, referenceNumber: refNum, isMeetup: isMeetup });
+        SolteiraBrandsService.submitPayment($scope.paymentOrder.orderId, $scope.paymentOrder.amountDue, proofId, refNum, mDate, mTime).then(function (r) {
+            $scope.submitting = false;
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: isMeetup ? 'Meetup scheduled' : 'Payment submitted', text: r.data.message || 'We will verify and update your order status.', confirmButtonText: 'OK' }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+                });
+            } else {
+                var msg = (r.data && r.data.message) || 'Submission failed.';
+                $scope.paymentError = msg;
+                console.warn('[PAYMENT DEBUG] Server returned non-success:', r.data);
+                Swal.fire({ icon: 'error', title: 'Payment failed', text: msg });
+            }
+        }, function (err) {
+            $scope.submitting = false;
+            var msg = (err.data && err.data.message) || (err.status && ('Server error ' + err.status)) || 'Submission failed. Please try again.';
+            $scope.paymentError = msg;
+            console.error('[PAYMENT DEBUG] Submit error:', err.status, err.data, err);
+            Swal.fire({ icon: 'error', title: 'Payment failed', text: msg });
+        });
     };
 
     $scope.placeOrder = function () {

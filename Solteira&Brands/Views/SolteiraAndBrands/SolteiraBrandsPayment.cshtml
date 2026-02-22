@@ -1,0 +1,161 @@
+@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/css/ordering-system/PaymentStyle.css" />
+
+<div class="payment-page-container" ng-controller="SolteiraBrandsController" ng-init="initPaymentPage()">
+    <input type="file" id="proofUpload" accept=".jpg,.jpeg,.png" style="display:none;" />
+
+    <div class="payment-card" ng-if="paymentOrder">
+        <h2 class="payment-title">PAYMENT</h2>
+
+        <div ng-if="paymentOrder && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() !== 'APPROVED' && !paymentOrder.hasExistingPayment" class="alert alert-warning mb-3">
+            <strong>Order not yet approved.</strong> Your order is pending admin approval. After approval you can pay here.
+            <button type="button" class="btn btn-sm btn-outline-dark ms-2" ng-click="reloadPaymentOrder()">Refresh</button>
+        </div>
+        <div ng-if="paymentOrder && paymentOrder.hasExistingPayment" class="alert alert-info mb-3">
+            <strong>Payment already submitted.</strong> This order already has a payment. We will verify and update the status.
+            <a href="@Url.Action("SolteiraBrandsMyOrders", "SolteiraAndBrands")" class="btn btn-sm btn-outline-dark ms-2">Back to My Orders</a>
+        </div>
+
+        <div class="customer-info-box">
+            <div class="info-details">
+                <p class="cust-name">{{paymentOrder.customerName}}</p>
+                <p class="cust-phoneNum">{{paymentOrder.contactNumber}}</p>
+                <p class="cust-address">{{paymentOrder.deliveryAddress}}</p>
+            </div>
+            <div class="payment-order-summary">
+                <p class="section-label">Order summary</p>
+                <div class="payment-order-item" ng-repeat="item in paymentOrder.items">
+                    <span>{{item.name}} x {{item.qty}}</span>
+                    <span>&#8369; {{(item.price * item.qty) | number:2}}</span>
+                </div>
+            </div>
+            <div class="price-display">
+                <p ng-if="paymentOrder.paymentType === 'FULL'"><strong>Price:</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
+                <div ng-if="paymentOrder.paymentType === 'LAYAWAY'" class="layaway-price-grid">
+                    <p><strong>Total Price:</strong> <span>&#8369; {{paymentOrder.totalAmount | number:2}}</span></p>
+                    <p><strong>{{paymentOrder.downpaymentPercentage || 30}}% Down Payment:</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
+                    <p><strong>To Pay:</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
+                    <p><strong>Remaining Balance:</strong> <span>&#8369; {{(paymentOrder.totalAmount - paymentOrder.amountDue) | number:2}}</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="payment-methods-box" ng-if="canShowPayForm()">
+            <label class="section-label">Payment Method <span class="text-danger">*</span></label>
+            <div class="form-check mb-1">
+                <input type="radio" name="paymentMode" id="pmFull" value="Full Payment" ng-model="paymentMode" class="form-check-input" />
+                <label for="pmFull" class="form-check-label">Full Payment</label>
+            </div>
+            <div class="form-check mb-2">
+                <input type="radio" name="paymentMode" id="pmLayaway" value="Layaway" ng-model="paymentMode" class="form-check-input" ng-disabled="paymentOrder.paymentType !== 'LAYAWAY'" />
+                <label for="pmLayaway" class="form-check-label">Layaway</label>
+            </div>
+
+            <label class="section-label mt-2">Channel <span class="text-danger">*</span></label>
+            <div class="form-check mb-1">
+                <input type="radio" name="paymentChannel" id="chGcash" value="GCash" ng-model="paymentChannel" class="form-check-input" />
+                <label for="chGcash" class="form-check-label">GCash</label>
+            </div>
+            <div class="form-check mb-1">
+                <input type="radio" name="paymentChannel" id="chBank" value="Bank Transfer" ng-model="paymentChannel" class="form-check-input" />
+                <label for="chBank" class="form-check-label">Bank Transfer</label>
+            </div>
+            <div class="form-check mb-2">
+                <input type="radio" name="paymentChannel" id="chMeetup" value="Cash through Meetup" ng-model="paymentChannel" class="form-check-input" />
+                <label for="chMeetup" class="form-check-label">Cash through Meetup</label>
+            </div>
+
+            <div ng-if="paymentChannel === 'GCash' && paymentSettings.gcash" class="mb-3">
+                <img ng-src="{{paymentSettings.gcash.qrImageUrl}}" alt="GCash QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.gcash.qrImageUrl" />
+                <p class="mb-0 small mt-1" ng-if="paymentSettings.gcash.accountName"><strong>Account:</strong> {{paymentSettings.gcash.accountName}}</p>
+                <p class="mb-0 small" ng-if="paymentSettings.gcash.accountNumber"><strong>Number:</strong> {{paymentSettings.gcash.accountNumber}}</p>
+            </div>
+            <div ng-if="paymentChannel === 'Bank Transfer' && paymentSettings.bankTransfer" class="mb-3">
+                <img ng-src="{{paymentSettings.bankTransfer.qrImageUrl}}" alt="Bank QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.bankTransfer.qrImageUrl" />
+                <p class="mb-0 small mt-1" ng-if="paymentSettings.bankTransfer.accountName"><strong>Bank / Account:</strong> {{paymentSettings.bankTransfer.accountName}}</p>
+                <p class="mb-0 small" ng-if="paymentSettings.bankTransfer.accountNumber"><strong>Number:</strong> {{paymentSettings.bankTransfer.accountNumber}}</p>
+            </div>
+            <div ng-if="paymentChannel === 'Cash through Meetup' && meetupSettings" class="mb-3 p-2 rounded" style="background:#f8f9fa;">
+                <p class="mb-1"><strong>Location:</strong> <span class="amount-to-pay">{{meetupSettings.locationName}}</span></p>
+                <p class="mb-2 small text-muted">{{meetupSettings.address}}</p>
+                <div class="mb-2">
+                    <label class="form-label small mb-0">Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control form-control-sm" ng-model="meetupDate" min="{{minMeetupDate}}" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small mb-0">Time <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" ng-model="meetupTime">
+                    <option value="">-- Select time --</option>
+                    <option ng-repeat="t in meetupTimeOptions" value="{{t}}">{{t}}</option>
+                </select>
+                </div>
+            </div>
+
+            <div ng-if="paymentChannel !== 'Cash through Meetup'">
+                <label class="section-label">Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
+                <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
+                <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
+                <p class="text-muted small mb-2" ng-if="hasValidProof() && !(paymentForm.referenceNumber && paymentForm.referenceNumber.trim()) && !paymentValidation.reference">Enter your reference number above to enable the PAY button.</p>
+                <label class="section-label">Proof of Payment <span class="text-danger">*</span></label>
+                <div class="form-group">
+                    <div class="upload-wrapper">
+                        <label for="proofUpload" class="custom-upload-btn" ng-click="triggerProofUpload(); $event.preventDefault();">
+                            <i class="bi bi-upload"></i>
+                            <span>Upload</span>
+                        </label>
+                        <small class="file-name-display">{{proofFileName || 'No file chosen'}}</small>
+                    </div>
+                    <small class="text-muted photo-limit">JPG or PNG only. Maximum size: 5MB. PDF is not accepted.</small>
+                    <p class="text-danger small mt-1 mb-0" ng-if="paymentValidation.proof">{{paymentValidation.proof}}</p>
+                    <p class="text-danger small mt-1 mb-0" ng-if="paymentValidation.file">{{paymentValidation.file}}</p>
+                </div>
+            </div>
+            <p class="payment-error mt-1" ng-if="paymentError">{{paymentError}}</p>
+        </div>
+
+        <div class="pay-btn-container" ng-if="canShowPayForm()">
+            <button ng-if="paymentChannel !== 'Cash through Meetup'" class="pay-now-btn" ng-click="submitPayment()" ng-disabled="!isPayButtonEnabled()">
+                <span ng-if="!submitting">PAY</span>
+                <span ng-if="submitting">Submitting...</span>
+            </button>
+            <button ng-if="paymentChannel === 'Cash through Meetup'" class="pay-now-btn" ng-click="submitPayment()" ng-disabled="!isScheduleButtonEnabled()">
+                <span ng-if="!submitting">SCHEDULE</span>
+                <span ng-if="submitting">Submitting...</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="payment-card" ng-if="!paymentOrder && !paymentLoadError">
+        <p class="text-center text-white">Loading order...</p>
+    </div>
+    <div class="payment-card" ng-if="paymentLoadError">
+        <p class="text-center text-white">{{paymentLoadError}}</p>
+        <div class="text-center mt-3">
+            <a href="@Url.Action("SolteiraBrandsMyOrders", "SolteiraAndBrands")" class="btn btn-light">Back to My Orders</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var input = document.getElementById('proofUpload');
+        if (input) {
+            input.addEventListener('change', function (e) {
+                var file = e.target.files[0];
+                if (file && window.angular && window.angular.element) {
+                    var el = document.querySelector('[ng-controller="SolteiraBrandsController"]');
+                    if (el) {
+                        var scope = window.angular.element(el).scope();
+                        if (scope && scope.onProofFileSelected) {
+                            scope.$apply(function () { scope.onProofFileSelected(file); });
+                        }
+                    }
+                }
+                input.value = '';
+            });
+        }
+    })();
+</script>

@@ -131,4 +131,46 @@ app.service("SolteiraBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetMyOrders" });
     };
 
+    this.getOrderForPayment = function (orderId) {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetOrderForPayment", params: { orderId: orderId } });
+    };
+
+    this.uploadPaymentProof = function (file) {
+        var formData = new FormData();
+        formData.append("file", file);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/UploadPaymentProof",
+            data: formData,
+            headers: { "Content-Type": undefined },
+            transformRequest: angular.identity
+        });
+    };
+
+    this.getPaymentSettings = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetPaymentSettings" });
+    };
+    this.getMeetupSettings = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetMeetupSettings" });
+    };
+    this.getLayawaySettings = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetLayawaySettings" });
+    };
+    // Same pattern as avatar/QR: upload proof first (UploadPaymentProof), then submit with proofImageId in body.
+    this.submitPayment = function (orderId, amount, proofImageId, referenceNumber, meetupDate, meetupTime) {
+        var form = new URLSearchParams();
+        form.append("OrderId", orderId);
+        form.append("Amount", amount);
+        if (proofImageId != null && proofImageId !== '') form.append("ProofImageId", proofImageId);
+        if (referenceNumber != null && referenceNumber !== '') form.append("ReferenceNumber", referenceNumber);
+        if (meetupDate != null && meetupDate !== '') form.append("MeetupDate", meetupDate);
+        if (meetupTime != null && meetupTime !== '') form.append("MeetupTime", meetupTime);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/SubmitPayment",
+            data: form.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
 });

@@ -16,6 +16,11 @@ namespace Solteira_Brands.Controllers
 {
     public class SolteiraAndBrandsController : Controller
     {
+        // ----- Order lifecycle: three status layers (order status is NEVER manually set) -----
+        // Order status: Pending | Approved | Rejected | Awaiting Payment Verification | Paid | In Delivery | Ready for Meetup | Completed | Cancelled (action-driven only)
+        // Payment status: SUBMITTED | VERIFIED | REJECTED
+        // Delivery status: PENDING | IN_TRANSIT | DELIVERED
+
         /// <summary>Hash password with SHA256; returns hex string. Use when registering or comparing password.</summary>
         private static string HashPassword(string password)
         {
@@ -125,6 +130,13 @@ namespace Solteira_Brands.Controllers
         }
         [BuyerAuthorize]
         public ActionResult SolteiraBrandsMyOrders()
+        {
+            return View();
+        }
+
+        /// <summary>Buyer payment page for an approved order. Query: orderId.</summary>
+        [BuyerAuthorize]
+        public ActionResult SolteiraBrandsPayment()
         {
             return View();
         }
@@ -395,6 +407,10 @@ namespace Solteira_Brands.Controllers
                 }
 
                 var now = DateTime.Now;
+                var paymentMethod = (request.PaymentMethod ?? "Full Payment").Trim();
+                var paymentType = paymentMethod.IndexOf("Layaway", StringComparison.OrdinalIgnoreCase) >= 0 ? "LAYAWAY"
+                    : paymentMethod.IndexOf("meetup", StringComparison.OrdinalIgnoreCase) >= 0 ? "CASH_MEETUP"
+                    : "FULL";
                 var order = new tblOrdersModel
                 {
                     UserId = user.Id,
@@ -402,10 +418,13 @@ namespace Solteira_Brands.Controllers
                     CustomerName = (request.CustomerName ?? "").Trim(),
                     ContactNumber = (request.ContactNumber ?? "").Trim(),
                     DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
-                    PaymentMethod = (request.PaymentMethod ?? "Full Payment").Trim(),
+                    PaymentMethod = paymentMethod,
+                    PaymentType = paymentType,
                     TotalAmount = request.TotalAmount,
+                    RemainingBalance = request.TotalAmount,
                     OrderStatus = "Pending",
-                    CreatedAt = now
+                    CreatedAt = now,
+                    LastStatusUpdateAt = now
                 };
                 db.tbl_orders.Add(order);
                 db.SaveChanges();
@@ -441,34 +460,35 @@ namespace Solteira_Brands.Controllers
         {
             using (var db = new SolteiraBrandsContext())
             {
-                var list = db.tbl_orders
+                var orders = db.tbl_orders
+                    .Include("OrderItems")
+                    .Include("Payments")
+                    .Include("Deliveries")
                     .OrderByDescending(o => o.CreatedAt)
-                    .Select(o => new
+                    .ToList();
+                var list = orders.Select(o =>
+                {
+                    var latestDelivery = o.Deliveries != null && o.Deliveries.Any()
+                        ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First()
+                        : null;
+                    return new
                     {
                         id = o.Id,
                         orderNumber = o.OrderNumber,
-                        orderDate = o.CreatedAt,
-                        itemCount = o.OrderItems.Count,
+                        orderDateString = o.CreatedAt.ToString("MM/dd/yyyy"),
+                        itemCount = o.OrderItems != null ? o.OrderItems.Count : 0,
                         deliveryAddress = o.DeliveryAddress,
                         totalAmount = o.TotalAmount,
                         orderStatus = o.OrderStatus,
                         customerName = o.CustomerName,
                         contactNumber = o.ContactNumber,
-                        paymentMethod = o.PaymentMethod
-                    }).ToList()
-                    .Select(x => new
-                    {
-                        x.id,
-                        x.orderNumber,
-                        orderDateString = x.orderDate.ToString("MM/dd/yyyy"),
-                        itemCount = x.itemCount,
-                        x.deliveryAddress,
-                        x.totalAmount,
-                        x.orderStatus,
-                        x.customerName,
-                        x.contactNumber,
-                        x.paymentMethod
-                    });
+                        paymentMethod = o.PaymentMethod,
+                        hasPayments = o.Payments != null && o.Payments.Any(),
+                        deliveryId = latestDelivery != null ? (int?)latestDelivery.Id : null,
+                        deliveryStatus = latestDelivery != null ? latestDelivery.DeliveryStatus : null,
+                        deliveryTrackingNumber = latestDelivery != null ? latestDelivery.TrackingNumber : null
+                    };
+                });
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
             }
         }
@@ -482,8 +502,16 @@ namespace Solteira_Brands.Controllers
                 var order = db.tbl_orders
                     .Include("OrderItems")
                     .Include("User")
+                    .Include("Payments")
+                    .Include("Payments.ProofImage")
+                    .Include("Deliveries")
                     .FirstOrDefault(o => o.Id == id);
                 if (order == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+
+                var latestDelivery = order.Deliveries != null && order.Deliveries.Any()
+                    ? order.Deliveries.OrderByDescending(d => d.CreatedAt).First()
+                    : null;
+                var hasPayments = order.Payments != null && order.Payments.Any();
 
                 var items = order.OrderItems.Select(i => new
                 {
@@ -491,6 +519,17 @@ namespace Solteira_Brands.Controllers
                     quantity = i.Quantity,
                     unitPrice = i.UnitPrice,
                     imageUrl = i.ImageUrl
+                }).ToList();
+
+                var payments = (order.Payments ?? new List<tblPaymentsModel>()).OrderByDescending(p => p.CreatedAt).Select(p => new
+                {
+                    id = p.Id,
+                    amount = p.Amount,
+                    paymentStatus = p.PaymentStatus,
+                    rejectionReason = p.RejectionReason,
+                    proofImageUrl = p.ProofImage != null ? (p.ProofImage.ImagePath + p.ProofImage.ImageFileName) : null,
+                    createdAt = p.CreatedAt,
+                    verifiedAt = p.VerifiedAt
                 }).ToList();
 
                 return Json(new
@@ -509,7 +548,12 @@ namespace Solteira_Brands.Controllers
                         deliveryAddress = order.DeliveryAddress,
                         paymentMethod = order.PaymentMethod,
                         totalAmount = order.TotalAmount,
-                        items = items
+                        items = items,
+                        payments = payments,
+                        hasPayments = hasPayments,
+                        deliveryId = latestDelivery != null ? (int?)latestDelivery.Id : null,
+                        deliveryTrackingNumber = latestDelivery != null ? latestDelivery.TrackingNumber : null,
+                        deliveryStatus = latestDelivery != null ? latestDelivery.DeliveryStatus : null
                     }
                 }, JsonRequestBehavior.AllowGet);
             }
@@ -527,20 +571,470 @@ namespace Solteira_Brands.Controllers
                 var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
                 if (user == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
 
-                var list = db.tbl_orders
+                var orders = db.tbl_orders
                     .Where(o => o.UserId == user.Id)
                     .OrderByDescending(o => o.CreatedAt)
-                    .Select(o => new
+                    .Include(o => o.Deliveries)
+                    .Include(o => o.OrderItems)
+                    .Include("Payments")
+                    .Include("Payments.ProofImage")
+                    .ToList();
+
+                var list = orders.Select(o =>
+                {
+                    var paymentsList = o.Payments ?? new List<tblPaymentsModel>();
+                    var latestPaymentWithProof = paymentsList
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefault(p => p.ProofImageId.HasValue && p.ProofImage != null);
+                    var latestPaymentProofUrl = latestPaymentWithProof?.ProofImage != null
+                        ? (latestPaymentWithProof.ProofImage.ImagePath + latestPaymentWithProof.ProofImage.ImageFileName)
+                        : (string)null;
+                    var latestRejectedPayment = paymentsList
+                        .Where(p => string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefault();
+                    var latestPaymentRejectionReason = latestRejectedPayment?.RejectionReason;
+                    return new
                     {
                         orderId = o.Id,
                         orderNumber = o.OrderNumber,
-                        status = o.OrderStatus,
-                        deliveryStatus = "Preparing",
-                        createdAt = o.CreatedAt,
+                        orderDate = o.CreatedAt.ToString("o"),
                         total = o.TotalAmount,
+                        paymentType = o.PaymentType ?? "FULL",
+                        status = o.OrderStatus,
+                        rejectionReason = o.RejectionReason,
+                        latestPaymentRejectionReason = latestPaymentRejectionReason,
+                        deliveryStatus = o.Deliveries != null && o.Deliveries.Any()
+                            ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().DeliveryStatus
+                            : "PENDING",
+                        trackingNumber = o.Deliveries != null && o.Deliveries.Any()
+                            ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().TrackingNumber
+                            : null,
+                        createdAt = o.CreatedAt,
+                        latestPaymentProofUrl = latestPaymentProofUrl,
                         items = o.OrderItems.Select(i => new { name = i.ProductName, qty = i.Quantity, price = i.UnitPrice, img = i.ImageUrl }).ToList()
-                    }).ToList();
+                    };
+                }).ToList();
+
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>GET: Single order for buyer payment page. Buyer only; returns order with order_status (exact case). Pay Now only when order_status === "Approved" and no existing payment.</summary>
+        [BuyerAuthorize]
+        [HttpGet]
+        public JsonResult GetOrderForPayment(int orderId)
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username)) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
+                var order = db.tbl_orders.Include("OrderItems").FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
+                if (order == null) return Json(new { success = false, message = "Order not found." }, JsonRequestBehavior.AllowGet);
+                bool hasExistingPayment = db.tbl_payments.Any(p => p.OrderId == order.Id);
+                var orderStatus = order.OrderStatus ?? "";
+                var paymentType = order.PaymentType ?? "FULL";
+                decimal amountDue;
+                decimal downpaymentPct = 30m;
+                var layawayRow = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
+                if (layawayRow != null) downpaymentPct = layawayRow.DownpaymentPercentage;
+                if (paymentType == "LAYAWAY")
+                    amountDue = order.TotalAmount * (downpaymentPct / 100m);
+                else
+                    amountDue = order.RemainingBalance;
+                var data = new
+                {
+                    order_id = order.Id,
+                    orderId = order.Id,
+                    order_status = orderStatus,
+                    order_number = order.OrderNumber,
+                    orderNumber = order.OrderNumber,
+                    payment_method = order.PaymentMethod ?? "",
+                    customerName = order.CustomerName,
+                    contactNumber = order.ContactNumber,
+                    deliveryAddress = order.DeliveryAddress,
+                    totalAmount = order.TotalAmount,
+                    remainingBalance = order.RemainingBalance,
+                    paymentType = paymentType,
+                    amountDue = amountDue,
+                    downpaymentPercentage = paymentType == "LAYAWAY" ? (double)downpaymentPct : (double?)null,
+                    hasExistingPayment = hasExistingPayment,
+                    items = order.OrderItems.Select(i => new { name = i.ProductName, qty = i.Quantity, price = i.UnitPrice, img = i.ImageUrl }).ToList()
+                };
+                return Json(new { success = true, data }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>GET: Active payment settings for buyer (GCASH and BANK_TRANSFER with QR URL, account name/number).</summary>
+        [AllowAnonymous]
+        [HttpGet]
+        public JsonResult GetPaymentSettings()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var settings = db.tbl_payment_settings
+                    .Include("QrImage")
+                    .Where(s => s.IsActive)
+                    .ToList();
+                var gcash = settings.FirstOrDefault(s => string.Equals(s.PaymentType, "GCASH", StringComparison.OrdinalIgnoreCase));
+                var bank = settings.FirstOrDefault(s => string.Equals(s.PaymentType, "BANK_TRANSFER", StringComparison.OrdinalIgnoreCase));
+                var result = new
+                {
+                    gcash = gcash == null ? null : new
+                    {
+                        accountName = gcash.AccountName,
+                        accountNumber = gcash.AccountNumber,
+                        qrImageUrl = gcash.QrImage != null ? (gcash.QrImage.ImagePath + gcash.QrImage.ImageFileName) : null
+                    },
+                    bankTransfer = bank == null ? null : new
+                    {
+                        accountName = bank.AccountName,
+                        accountNumber = bank.AccountNumber,
+                        qrImageUrl = bank.QrImage != null ? (bank.QrImage.ImagePath + bank.QrImage.ImageFileName) : null
+                    }
+                };
+                return Json(result, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>GET: Active meetup setting (location name and address).</summary>
+        [AllowAnonymous]
+        [HttpGet]
+        public JsonResult GetMeetupSettings()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var m = db.tbl_meetup_settings.OrderByDescending(x => x.Id).FirstOrDefault(x => x.IsActive);
+                if (m == null)
+                    return Json(new { locationName = "", address = "" }, JsonRequestBehavior.AllowGet);
+                return Json(new { locationName = m.LocationName, address = m.Address }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>GET: Layaway settings (downpayment %, months). Default 30, 3 if none.</summary>
+        [AllowAnonymous]
+        [HttpGet]
+        public JsonResult GetLayawaySettings()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var row = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
+                if (row == null)
+                    return Json(new { downpaymentPercentage = 30, monthsAllowed = 3 }, JsonRequestBehavior.AllowGet);
+                return Json(new { downpaymentPercentage = (double)row.DownpaymentPercentage, monthsAllowed = row.MonthsAllowed }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>POST: Upload payment proof image (JPG or PNG only, same as avatar/QR). Saves to ~/Content/images_uploaded/paymentproof/, inserts tbl_images, returns imageID. Max 5MB. No PDF.</summary>
+        [BuyerAuthorize]
+        [HttpPost]
+        public ActionResult UploadPaymentProof(HttpPostedFileBase file)
+        {
+            if (file == null && Request.Files != null && Request.Files.Count > 0)
+                file = Request.Files["file"] ?? Request.Files[0];
+            if (file == null || file.ContentLength == 0)
+                return Json(new { success = false, message = "No file uploaded." });
+            var fileName = file.FileName ?? "";
+            var ext = (Path.GetExtension(fileName) ?? "").ToLowerInvariant();
+            var allowedExts = new[] { ".jpg", ".jpeg", ".png" };
+            if (!allowedExts.Contains(ext))
+                return Json(new { success = false, message = "Only JPG or PNG allowed. PDF is not accepted." });
+            if (file.ContentLength > 5 * 1024 * 1024)
+                return Json(new { success = false, message = "File size exceeds 5MB. Please use a smaller image." });
+            var uniqueFileName = Guid.NewGuid().ToString() + ext;
+            var uploadPath = Server.MapPath("~/Content/images_uploaded/paymentproof");
+            if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
+            file.SaveAs(Path.Combine(uploadPath, uniqueFileName));
+            const string imagePath = "/Content/images_uploaded/paymentproof/";
+            var now = DateTime.Now;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var newImage = new tblImagesModel { ImagePath = imagePath, ImageFileName = uniqueFileName, CreatedAt = now, UpdatedAt = now };
+                db.tbl_images.Add(newImage);
+                db.SaveChanges();
+                return Json(new { success = true, imageID = newImage.Id, imageId = newImage.Id, imageFileName = uniqueFileName, imagePath = imagePath });
+            }
+        }
+
+        /// <summary>POST: Submit payment (same pattern as avatar/QR: upload proof to images_uploaded/paymentproof first, then submit with proofImageId). Non-meetup: referenceNumber + proofImageId required. Meetup: meetupDate + meetupTime required.</summary>
+        [BuyerAuthorize]
+        [HttpPost]
+        public JsonResult SubmitPayment(SubmitPaymentRequest request)
+        {
+            if (request == null)
+                return Json(new { success = false, message = "Invalid request." });
+            var orderId = request.OrderId;
+            var amount = request.Amount;
+            var proofImageId = request.ProofImageId;
+            var referenceNumber = request.ReferenceNumber;
+            var meetupDate = request.MeetupDate;
+            var meetupTime = request.MeetupTime;
+
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username)) return Json(new { success = false, message = "Not authenticated." });
+            if (orderId <= 0 || amount <= 0)
+                return Json(new { success = false, message = "Invalid order or amount." });
+            bool isMeetup = !string.IsNullOrWhiteSpace(meetupDate) && !string.IsNullOrWhiteSpace(meetupTime);
+            string refTrimmed = null;
+            if (!isMeetup)
+            {
+                if (!proofImageId.HasValue || proofImageId.Value <= 0)
+                    return Json(new { success = false, message = "Proof of payment is required. Please upload your payment proof first." });
+                refTrimmed = (referenceNumber ?? "").Trim();
+                if (string.IsNullOrEmpty(refTrimmed))
+                    return Json(new { success = false, message = "Reference number is required." });
+                if (refTrimmed.Length > 20)
+                    return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+            }
+            DateTime? meetupDt = null;
+            if (isMeetup)
+            {
+                if (!DateTime.TryParse(meetupDate, out var d) || !DateTime.TryParse(meetupTime, out var t))
+                    return Json(new { success = false, message = "Valid meetup date and time are required." });
+                meetupDt = d.Date.Add(t.TimeOfDay);
+            }
+            try
+            {
+                using (var db = new SolteiraBrandsContext())
+                {
+                    var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                    if (user == null) return Json(new { success = false, message = "User not found." });
+                    var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
+                    if (order == null) return Json(new { success = false, message = "Order not found." });
+                    if (!string.Equals(order.OrderStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+                        return Json(new { success = false, message = "Order is not available for payment." });
+                    var now = DateTime.Now;
+                    var payment = new tblPaymentsModel
+                    {
+                        OrderId = order.Id,
+                        Amount = amount,
+                        PaymentStatus = "SUBMITTED",
+                        ProofImageId = isMeetup ? null : proofImageId,
+                        ReferenceNumber = isMeetup ? null : refTrimmed,
+                        MeetupDatetime = meetupDt,
+                        CreatedAt = now
+                    };
+                    db.tbl_payments.Add(payment);
+                    order.OrderStatus = "Awaiting Payment Verification";
+                    order.LastStatusUpdateAt = now;
+                    db.SaveChanges();
+                    var msg = isMeetup ? "Meetup scheduled. We will verify and update your order status." : "Payment submitted. We will verify and update your order status.";
+                    return Json(new { success = true, message = msg });
+                }
+            }
+            catch (Exception ex)
+            {
+                var errMsg = ex.Message ?? "Unable to submit payment. Please try again.";
+                return Json(new { success = false, message = errMsg });
+            }
+        }
+
+        /// <summary>GET: Admin list of payments (for Payments page). Returns payments with order and proof details.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetPaymentsForAdmin()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var payments = db.tbl_payments
+                    .Include("Order")
+                    .Include("ProofImage")
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToList();
+                var list = payments.Select(p => new
+                {
+                    paymentId = p.Id,
+                    orderId = p.OrderId,
+                    orderNumber = p.Order != null ? p.Order.OrderNumber : null,
+                    customerName = p.Order != null ? p.Order.CustomerName : null,
+                    paymentDate = p.CreatedAt.ToString("o"),
+                    paymentDateString = p.CreatedAt.ToString("MMM dd, yyyy hh:mm tt"),
+                    paymentOption = p.Order != null ? (p.Order.PaymentType ?? "FULL") : null,
+                    paymentMethod = p.Order != null ? p.Order.PaymentMethod : null,
+                    amount = p.Amount,
+                    paymentStatus = p.PaymentStatus,
+                    proofImageUrl = p.ProofImage != null ? (p.ProofImage.ImagePath + p.ProofImage.ImageFileName) : null,
+                    rejectionReason = p.RejectionReason,
+                    createdAt = p.CreatedAt
+                }).ToList();
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>GET: Admin — current payment settings (active GCASH and BANK_TRANSFER) for Manage Payment Settings modal.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetPaymentSettingsForAdmin()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var settings = db.tbl_payment_settings.Include("QrImage").Where(s => s.IsActive).ToList();
+                var gcash = settings.FirstOrDefault(s => string.Equals(s.PaymentType, "GCASH", StringComparison.OrdinalIgnoreCase));
+                var bank = settings.FirstOrDefault(s => string.Equals(s.PaymentType, "BANK_TRANSFER", StringComparison.OrdinalIgnoreCase));
+                object toObj(tblPaymentSettingsModel s)
+                {
+                    if (s == null) return null;
+                    return new
+                    {
+                        id = s.Id,
+                        paymentType = s.PaymentType,
+                        accountName = s.AccountName ?? "",
+                        accountNumber = s.AccountNumber ?? "",
+                        qrImageId = s.QrImageId,
+                        qrImageUrl = s.QrImage != null ? (s.QrImage.ImagePath + s.QrImage.ImageFileName) : null
+                    };
+                }
+                return Json(new { success = true, gcash = toObj(gcash), bankTransfer = toObj(bank) }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>POST: Admin — upload QR image for payment settings. Saves to ~/Content/images_uploaded/qr/, returns imageID.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public ActionResult UploadQrImage(HttpPostedFileBase file)
+        {
+            if (file == null && Request.Files != null && Request.Files.Count > 0)
+                file = Request.Files["file"] ?? Request.Files[0];
+            if (file == null || file.ContentLength == 0)
+                return Json(new { success = false, message = "No file uploaded." });
+            var fileName = file.FileName ?? "";
+            var ext = (Path.GetExtension(fileName) ?? "").ToLowerInvariant();
+            var allowed = new[] { ".jpg", ".jpeg", ".png" };
+            if (!allowed.Contains(ext))
+                return Json(new { success = false, message = "Only JPG, JPEG, or PNG allowed for QR." });
+            if (file.ContentLength > 5 * 1024 * 1024)
+                return Json(new { success = false, message = "File size exceeds 5MB." });
+            var uniqueFileName = Guid.NewGuid().ToString() + ext;
+            var uploadPath = Server.MapPath("~/Content/images_uploaded/qr");
+            if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
+            file.SaveAs(Path.Combine(uploadPath, uniqueFileName));
+            const string imagePath = "/Content/images_uploaded/qr/";
+            var now = DateTime.Now;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var img = new tblImagesModel { ImagePath = imagePath, ImageFileName = uniqueFileName, CreatedAt = now, UpdatedAt = now };
+                db.tbl_images.Add(img);
+                db.SaveChanges();
+                return Json(new { success = true, imageID = img.Id, imagePath = imagePath + uniqueFileName, imageFileName = uniqueFileName });
+            }
+        }
+
+        /// <summary>POST: Admin — replace active config for GCASH or BANK_TRANSFER. Deactivates previous, inserts new, logs.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdatePaymentSetting(string paymentType, string accountName, string accountNumber, int? qrImageId)
+        {
+            var typeTrim = (paymentType ?? "").Trim().ToUpperInvariant();
+            if (typeTrim != "GCASH" && typeTrim != "BANK_TRANSFER")
+                return Json(new { success = false, message = "Payment type must be GCASH or BANK_TRANSFER." });
+            using (var db = new SolteiraBrandsContext())
+            {
+                foreach (var s in db.tbl_payment_settings.Where(s => s.PaymentType == typeTrim && s.IsActive))
+                    s.IsActive = false;
+                var now = DateTime.Now;
+                var newSetting = new tblPaymentSettingsModel
+                {
+                    PaymentType = typeTrim,
+                    AccountName = (accountName ?? "").Trim(),
+                    AccountNumber = (accountNumber ?? "").Trim(),
+                    QrImageId = qrImageId > 0 ? qrImageId : null,
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                db.tbl_payment_settings.Add(newSetting);
+                db.SaveChanges();
+                LogActivity(db, "Payment setting updated", "PaymentSettings", newSetting.Id, typeTrim);
+                return Json(new { success = true, message = typeTrim + " settings saved." });
+            }
+        }
+
+        /// <summary>GET: Admin — active meetup setting.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetMeetupSettingsForAdmin()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var m = db.tbl_meetup_settings.OrderByDescending(x => x.Id).FirstOrDefault(x => x.IsActive);
+                if (m == null)
+                    return Json(new { success = true, locationName = "", address = "" }, JsonRequestBehavior.AllowGet);
+                return Json(new { success = true, locationName = m.LocationName, address = m.Address }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>POST: Admin — replace active meetup config. Deactivates previous, inserts new, logs.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdateMeetupSetting(string locationName, string address)
+        {
+            if (string.IsNullOrWhiteSpace(locationName))
+                return Json(new { success = false, message = "Location name is required." });
+            using (var db = new SolteiraBrandsContext())
+            {
+                foreach (var m in db.tbl_meetup_settings.Where(x => x.IsActive))
+                    m.IsActive = false;
+                var now = DateTime.Now;
+                var newM = new tblMeetupSettingsModel
+                {
+                    LocationName = locationName.Trim(),
+                    Address = (address ?? "").Trim(),
+                    IsActive = true,
+                    CreatedAt = now
+                };
+                db.tbl_meetup_settings.Add(newM);
+                db.SaveChanges();
+                LogActivity(db, "Meetup setting updated", "MeetupSettings", newM.Id, newM.LocationName);
+                return Json(new { success = true, message = "Meetup location saved." });
+            }
+        }
+
+        /// <summary>GET: Admin — layaway settings (single config).</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetLayawaySettingsForAdmin()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var row = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
+                if (row == null)
+                    return Json(new { success = true, downpaymentPercentage = 30, monthsAllowed = 3 }, JsonRequestBehavior.AllowGet);
+                return Json(new { success = true, downpaymentPercentage = (double)row.DownpaymentPercentage, monthsAllowed = row.MonthsAllowed }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>POST: Admin — update layaway config (single row: update or insert), log.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdateLayawaySettings(double downpaymentPercentage, int monthsAllowed)
+        {
+            if (downpaymentPercentage <= 0 || downpaymentPercentage > 100)
+                return Json(new { success = false, message = "Downpayment percentage must be between 1 and 100." });
+            if (monthsAllowed < 1 || monthsAllowed > 24)
+                return Json(new { success = false, message = "Months allowed must be 1–24." });
+            using (var db = new SolteiraBrandsContext())
+            {
+                var row = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
+                var now = DateTime.Now;
+                if (row != null)
+                {
+                    row.DownpaymentPercentage = (decimal)downpaymentPercentage;
+                    row.MonthsAllowed = monthsAllowed;
+                }
+                else
+                {
+                    db.tbl_layaway_settings.Add(new tblLayawaySettingsModel
+                    {
+                        DownpaymentPercentage = (decimal)downpaymentPercentage,
+                        MonthsAllowed = monthsAllowed,
+                        CreatedAt = now
+                    });
+                }
+                db.SaveChanges();
+                LogActivity(db, "Layaway settings updated", "LayawaySettings", null, downpaymentPercentage + "% down, " + monthsAllowed + " months");
+                return Json(new { success = true, message = "Layaway settings saved." });
             }
         }
 
@@ -591,7 +1085,8 @@ namespace Solteira_Brands.Controllers
                 var productSold = db.tbl_order_items.Where(oi => orderIdsInRange.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
                 var pendingOrders = ordersInRange.Count(o => o.OrderStatus == "Pending");
                 var approvedOrders = ordersInRange.Count(o => o.OrderStatus == "Approved");
-                var shippedOrders = ordersInRange.Count(o => o.OrderStatus == "Shipped");
+                // Count Completed (and legacy Shipped if any) for dashboard Orders card
+                var shippedOrders = ordersInRange.Count(o => o.OrderStatus == "Completed" || o.OrderStatus == "Shipped");
 
                 // Daily sales: one value per day in range
                 var lineLabels = new List<string>();
@@ -676,25 +1171,252 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        /// <summary>Order status only via allowed transitions: Pending→Approved/Rejected; Approved→Rejected.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult UpdateOrderStatus(int id, string status)
+        public JsonResult UpdateOrderStatus(int id, string status, string rejectionReason = null)
         {
             if (string.IsNullOrWhiteSpace(status))
                 return Json(new { success = false, message = "Status is required." });
-            var allowed = new[] { "Pending", "Approved", "Rejected", "Fully Paid", "Shipped" };
-            if (!allowed.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Invalid status." });
+            var statusTrim = status.Trim();
+            if (!statusTrim.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !statusTrim.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Only Approve or Reject is allowed." });
 
             using (var db = new SolteiraBrandsContext())
             {
-                var order = db.tbl_orders.FirstOrDefault(o => o.Id == id);
+                var order = db.tbl_orders.Include("OrderItems").FirstOrDefault(o => o.Id == id);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
-                order.OrderStatus = status.Trim();
+                var current = order.OrderStatus ?? "";
+
+                if (string.Equals(statusTrim, "Rejected", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase) && !current.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                        return Json(new { success = false, message = "Only Pending or Approved orders can be rejected." });
+                    if (string.IsNullOrWhiteSpace(rejectionReason))
+                        return Json(new { success = false, message = "Rejection reason is required when rejecting an order." });
+                    order.OrderStatus = "Rejected";
+                    order.RejectionReason = rejectionReason.Trim();
+                    order.LastStatusUpdateAt = DateTime.Now;
+                    foreach (var item in order.OrderItems)
+                    {
+                        if (!item.ProductId.HasValue) continue;
+                        var product = db.tbl_products.Find(item.ProductId.Value);
+                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                    }
+                    LogActivity(db, "Order Rejected", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + "; reason: " + (order.RejectionReason ?? ""));
+                }
+                else
+                {
+                    if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                        return Json(new { success = false, message = "Only Pending orders can be approved." });
+                    order.OrderStatus = "Approved";
+                    order.RejectionReason = null;
+                    order.LastStatusUpdateAt = DateTime.Now;
+                    LogActivity(db, "Order Approved", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
+                }
+
                 db.SaveChanges();
-                LogActivity(db, "Order " + order.OrderStatus, "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
                 return Json(new { success = true, message = "Order status updated.", orderStatus = order.OrderStatus });
             }
+        }
+
+        /// <summary>POST: Admin verify or reject payment. Only when payment is SUBMITTED. VERIFIED → order_status = Paid; REJECTED → order_status = Approved, save rejection reason.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null)
+        {
+            var statusTrim = (status ?? "").Trim();
+            if (statusTrim != "VERIFIED" && statusTrim != "REJECTED")
+                return Json(new { success = false, message = "Status must be VERIFIED or REJECTED." });
+            if (statusTrim == "REJECTED" && string.IsNullOrWhiteSpace(rejectionReason))
+                return Json(new { success = false, message = "Rejection reason is required when rejecting payment." });
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username)) return Json(new { success = false, message = "Not authenticated." });
+            using (var db = new SolteiraBrandsContext())
+            {
+                var adminUser = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (adminUser == null) return Json(new { success = false, message = "User not found." });
+                var payment = db.tbl_payments.Include("Order").FirstOrDefault(p => p.Id == paymentId);
+                if (payment == null) return Json(new { success = false, message = "Payment not found." });
+                if (payment.Order == null) return Json(new { success = false, message = "Order not found." });
+                if (!string.Equals(payment.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Only SUBMITTED payments can be verified or rejected." });
+                var now = DateTime.Now;
+                payment.PaymentStatus = statusTrim;
+                payment.VerifiedByUserId = adminUser.Id;
+                payment.VerifiedAt = now;
+                if (statusTrim == "REJECTED")
+                {
+                    payment.RejectionReason = rejectionReason.Trim();
+                    payment.Order.OrderStatus = "Approved";
+                    LogActivity(db, "Payment Rejected", "Payments", payment.Id, "Order #" + (payment.Order.OrderNumber ?? payment.OrderId.ToString()) + "; reason: " + (payment.RejectionReason ?? ""));
+                }
+                else
+                {
+                    payment.RejectionReason = null;
+                    payment.Order.OrderStatus = "Paid";
+                    LogActivity(db, "Payment Verified", "Payments", payment.Id, "Order #" + (payment.Order.OrderNumber ?? payment.OrderId.ToString()));
+                }
+                payment.Order.LastStatusUpdateAt = now;
+                db.SaveChanges();
+                return Json(new { success = true, message = "Payment " + statusTrim.ToLowerInvariant() + ".", orderStatus = payment.Order.OrderStatus });
+            }
+        }
+
+        /// <summary>POST: Revoke Approval. Approved → Pending only if no payment record exists.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult RevokeApproval(int orderId)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.Include("OrderItems").Include("Payments").FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (!order.OrderStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Only Approved orders can be revoked." });
+                var hasPayments = order.Payments != null && order.Payments.Any();
+                if (hasPayments)
+                    return Json(new { success = false, message = "Cannot revoke: payment has already been submitted for this order." });
+                order.OrderStatus = "Pending";
+                order.LastStatusUpdateAt = DateTime.Now;
+                db.SaveChanges();
+                LogActivity(db, "Revoke Approval", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+                return Json(new { success = true, message = "Approval revoked. Order is Pending again.", orderStatus = order.OrderStatus });
+            }
+        }
+
+        /// <summary>POST: Create delivery. Paid → In Delivery. One delivery per order.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult CreateDelivery(int orderId, string deliveryType, string trackingNumber = null)
+        {
+            if (string.IsNullOrWhiteSpace(deliveryType)) return Json(new { success = false, message = "Delivery type is required." });
+            var now = DateTime.Now;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.Include("Deliveries").FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (!order.OrderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Only Paid orders can have delivery created." });
+                if (order.Deliveries != null && order.Deliveries.Any())
+                    return Json(new { success = false, message = "Delivery already exists for this order." });
+                var delivery = new tblDeliveriesModel
+                {
+                    OrderId = order.Id,
+                    DeliveryType = deliveryType.Trim(),
+                    TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim(),
+                    DeliveryStatus = "PENDING",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                db.tbl_deliveries.Add(delivery);
+                order.OrderStatus = "In Delivery";
+                order.LastStatusUpdateAt = now;
+                db.SaveChanges();
+                LogActivity(db, "Delivery Created", "Deliveries", delivery.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; " + delivery.DeliveryType);
+                return Json(new { success = true, message = "Delivery created.", orderStatus = order.OrderStatus, deliveryId = delivery.Id });
+            }
+        }
+
+        /// <summary>POST: Update delivery status. In Transit or Delivered. Delivered → order Completed.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult UpdateDeliveryStatus(int deliveryId, string status)
+        {
+            var statusTrim = (status ?? "").Trim();
+            if (statusTrim != "IN_TRANSIT" && statusTrim != "DELIVERED")
+                return Json(new { success = false, message = "Status must be IN_TRANSIT or DELIVERED." });
+            var now = DateTime.Now;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var delivery = db.tbl_deliveries.Include("Order").FirstOrDefault(d => d.Id == deliveryId);
+                if (delivery == null || delivery.Order == null) return Json(new { success = false, message = "Delivery not found." });
+                if (!delivery.Order.OrderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Order is not In Delivery." });
+                delivery.DeliveryStatus = statusTrim;
+                delivery.UpdatedAt = now;
+                if (statusTrim == "DELIVERED")
+                {
+                    delivery.Order.OrderStatus = "Completed";
+                    delivery.Order.LastStatusUpdateAt = now;
+                    LogActivity(db, "Order Completed", "Orders", delivery.Order.Id, "Order #" + (delivery.Order.OrderNumber ?? delivery.OrderId.ToString()));
+                }
+                db.SaveChanges();
+                LogActivity(db, "Delivery Status " + statusTrim, "Deliveries", delivery.Id, "Order #" + (delivery.Order.OrderNumber ?? delivery.OrderId.ToString()));
+                return Json(new { success = true, message = "Delivery status updated.", orderStatus = delivery.Order.OrderStatus, deliveryStatus = delivery.DeliveryStatus });
+            }
+        }
+
+        /// <summary>POST: Paid → Ready for Meetup (no delivery record). Only when order is Paid.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult MarkReadyForMeetup(int orderId)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (!order.OrderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Only Paid orders can be marked Ready for Meetup." });
+                order.OrderStatus = "Ready for Meetup";
+                order.LastStatusUpdateAt = DateTime.Now;
+                db.SaveChanges();
+                LogActivity(db, "Ready for Meetup", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+                return Json(new { success = true, message = "Order is Ready for Meetup.", orderStatus = order.OrderStatus });
+            }
+        }
+
+        /// <summary>POST: Ready for Meetup → Completed.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult CompleteMeetup(int orderId)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (!order.OrderStatus.Equals("Ready for Meetup", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Only Ready for Meetup orders can be completed." });
+                order.OrderStatus = "Completed";
+                order.LastStatusUpdateAt = DateTime.Now;
+                db.SaveChanges();
+                LogActivity(db, "Meetup Completed", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+                return Json(new { success = true, message = "Order completed.", orderStatus = order.OrderStatus });
+            }
+        }
+
+        /// <summary>GET: Cancel orders that are Approved or Awaiting Payment Verification and older than 24h with no verified payment. Restore stock. Call from scheduler or manually.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult CheckAndCancelOverdueOrders()
+        {
+            var cutoff = DateTime.Now.AddHours(-24);
+            var cancelled = 0;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var orders = db.tbl_orders
+                    .Include("OrderItems")
+                    .Include("Payments")
+                    .Where(o => (o.OrderStatus == "Approved" || o.OrderStatus == "Awaiting Payment Verification") && o.CreatedAt < cutoff)
+                    .ToList();
+                foreach (var order in orders)
+                {
+                    var hasVerified = order.Payments != null && order.Payments.Any(p => p.PaymentStatus == "VERIFIED");
+                    if (hasVerified) continue;
+                    order.OrderStatus = "Cancelled";
+                    order.LastStatusUpdateAt = DateTime.Now;
+                    foreach (var item in order.OrderItems)
+                    {
+                        if (!item.ProductId.HasValue) continue;
+                        var product = db.tbl_products.Find(item.ProductId.Value);
+                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                    }
+                    LogActivity(db, "Order Cancelled (deadline)", "Orders", order.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + "; payment deadline exceeded.");
+                    cancelled++;
+                }
+                db.SaveChanges();
+            }
+            return Json(new { success = true, cancelled = cancelled }, JsonRequestBehavior.AllowGet);
         }
 
         [Authorize(Roles = "ADMIN")]
@@ -831,7 +1553,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images/productsupload/) -----
+        // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images_uploaded/products/) -----
         [HttpPost]
         public JsonResult UploadProductImage(HttpPostedFileBase file)
         {
@@ -848,12 +1570,12 @@ namespace Solteira_Brands.Controllers
             if (file.ContentLength > 5 * 1024 * 1024)
                 return Json(new { success = false, message = "File size exceeds 5MB limit." });
 
-            string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(fileName);
-            string uploadPath = Server.MapPath("~/Content/images/productsupload");
+            string uniqueFileName = Guid.NewGuid().ToString() + ext;
+            string uploadPath = Server.MapPath("~/Content/images_uploaded/products");
             if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
             file.SaveAs(Path.Combine(uploadPath, uniqueFileName));
 
-            const string imagePath = "/Content/images/productsupload/";
+            const string imagePath = "/Content/images_uploaded/products/";
             var now = DateTime.Now;
             using (var db = new SolteiraBrandsContext())
             {

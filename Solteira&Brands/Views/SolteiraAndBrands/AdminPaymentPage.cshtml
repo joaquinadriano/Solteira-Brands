@@ -1,102 +1,226 @@
 @{
     Layout = "~/Views/Shared/_OperationsLayout.cshtml";
 }
-<div class="main-content">
+<div class="main-content" ng-init="loadPayments(); startPaymentRefresh()">
     <div class="container-fluid payment-container px-1">
-        <div class="row px-4 pb-0 mb-0">
+        <div class="row px-4 pb-0 mb-0 align-items-center">
             <div class="col">
-                <p class="h1 fw-bold inventory-title ps-0 ms-0">Payment</p>
+                <p class="h1 fw-bold inventory-title ps-0 ms-0 mb-0">Payment</p>
+            </div>
+            <div class="col-auto d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentSettingsModal" ng-click="openPaymentSettingsModal()">
+                    <i class="bi bi-gear me-1"></i>Manage Payment Settings
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="loadPayments()" title="Refresh list">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
             </div>
         </div>
-        <div class="row  px-4 pt-1">
+        <div class="row px-4 pt-1">
             <div class="col">
                 <table class="table table-striped table-responsive text-center" id="paymentTable">
                     <thead>
                         <tr>
                             <th>Payment ID</th>
-                            <th>Order ID</th>
+                            <th>Order No</th>
                             <th>Customer Name</th>
                             <th>Payment Date</th>
                             <th>Payment Option</th>
                             <th>Payment Method</th>
-                            <th>Reference Number</th>
+                            <th>Amount</th>
+                            <th>Status</th>
                             <th>Proof of Payment</th>
                         </tr>
                     </thead>
-
                     <tbody class="table-group-divider">
-                        <tr class="text-start" ng-init="orderStatus=''">
-                            <td>PMT-001</td>
-                            <td ng-click="orderDetails()" id="payment-orderID">ORD-001</td>
-                            <td>Jerilee Rosales</td>
-                            <td>12/25/2025</td>
-                            <td>Full Payment</td>
-                            <td>GCash</td>
-                            <td id="payment-refNo">928456237189213</td>
-                            <td id="paymentProof-link" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#paymentDetailModal"
-                               >[View Proof of Payment]
+                        <tr class="text-start" ng-repeat="payment in paymentsList">
+                            <td>PMT-{{payment.paymentId}}</td>
+                            <td>{{payment.orderNumber}}</td>
+                            <td>{{payment.customerName}}</td>
+                            <td>{{payment.paymentDateString}}</td>
+                            <td>{{payment.paymentOption}}</td>
+                            <td>{{payment.paymentMethod || '—'}}</td>
+                            <td>&#8369; {{payment.amount | number:2}}</td>
+                            <td><span class="badge" ng-class="{'bg-warning': payment.paymentStatus === 'SUBMITTED', 'bg-success': payment.paymentStatus === 'VERIFIED', 'bg-danger': payment.paymentStatus === 'REJECTED'}">{{payment.paymentStatus}}</span></td>
+                            <td>
+                                <a href="javascript:void(0)" class="paymentProof-link" ng-click="openPaymentProofModal(payment)" ng-if="payment.proofImageUrl">[View Proof of Payment]</a>
+                                <span ng-if="!payment.proofImageUrl" class="text-muted">—</span>
                             </td>
-                            @*modal view*@
-                            <div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-labelledby="paymentDetailModalLabel" aria-hidden="true">
-                                <div class="modal-dialog modal-lg modal-dialog-centered">
-                                    <div class="modal-content paymentProof-modal-content">
-                                        @*close button*@
-                                        <div class="modal-header border-0 pb-0">
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body p-4 pt-0">
-                                            <h2 class="text-center fw-bold mb-4 paymentProof-title">Verify Payment</h2>
-                                            <div class="row g-4">
-                                                <div class="col-md-6 border-end paymentProof-divider">
-                                                    <label class="paymentProof-label">Uploaded Proof of Payment</label>
-                                                    <div class="paymentProof-image-container mt-2 text-center">
-                                                        <img src="https://primaryhomes.com/uploads/media/Pay-QR4-1.jpg"
-                                                             class="img-fluid rounded  paymentProof-img"
-                                                             alt="Proof of Payment">
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6 ps-md-4">
-                                                    <label class="paymentProof-label mb-2">Transaction Information</label>
-
-                                                    <div class="mb-3">
-                                                        <span class="paymentProof-sublabel text-muted small">Customer Name</span>
-                                                        <p class="paymentProof-value fw-bold">Jerilee Rosales</p>
-                                                    </div>
-
-                                                    <div class="mb-3">
-                                                        <span class="paymentProof-sublabel text-muted small">Reference Number</span>
-                                                        <p class="paymentProof-value paymentProof-ref-highlight">928456237189213</p>
-                                                    </div>
-
-                                                    <div class="mb-3">
-                                                        <span class="paymentProof-sublabel text-muted small">Amount Paid</span>
-                                                        <p class="paymentProof-value paymentProof-amount fw-bold text-success">P 4,500.00</p>
-                                                    </div>
-                                                    @*Verify if the content of pof is same with the text*@
-                                                    <div class="verification-section mt-4 p-3 rounded" >
-                                                        <label class="paymentProof-label mb-2 d-block" style="font-size: 0.9rem;">Verify Proof of Transaction</label>
-                                                        <div class="d-grid gap-2">
-                                                            <button type="button" class="btn btn-confirm-match btn-sm py-2">
-                                                                <i class="bi bi-check-circle me-1"></i>Confirm
-                                                            </button>
-                                                            <button type="button" class="btn btn-reject-match btn-sm py-2">
-                                                                <i class="bi bi-x-circle me-1"></i> Reject
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        </tr>
+                        <tr ng-if="paymentsList.length === 0">
+                            <td colspan="9" class="text-center text-muted py-4">No payments yet. Payments appear here when buyers submit proof.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-        </div>.
-        @*----------Table end----------*@
+        </div>
+    </div>
+
+    @* Verify Payment modal — one per page, bound to selectedPayment *@
+    <div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-labelledby="paymentDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content paymentProof-modal-content" ng-if="selectedPayment">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title fw-bold" id="paymentDetailModalLabel">Verify Payment</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closePaymentProofModal()"></button>
+                </div>
+                <div class="modal-body p-4 pt-0">
+                    <div class="row g-4">
+                        <div class="col-md-6 border-end paymentProof-divider">
+                            <label class="paymentProof-label">Uploaded Proof of Payment</label>
+                            <div class="paymentProof-image-container mt-2 text-center">
+                                <img ng-src="{{selectedPayment.proofImageUrl}}" class="img-fluid rounded paymentProof-img" alt="Proof of Payment" ng-if="selectedPayment.proofImageUrl" />
+                                <p ng-if="!selectedPayment.proofImageUrl" class="text-muted">No image</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 ps-md-4">
+                            <label class="paymentProof-label mb-2">Transaction Information</label>
+                            <div class="mb-3">
+                                <span class="paymentProof-sublabel text-muted small">Order No</span>
+                                <p class="paymentProof-value fw-bold">{{selectedPayment.orderNumber}}</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="paymentProof-sublabel text-muted small">Customer Name</span>
+                                <p class="paymentProof-value fw-bold">{{selectedPayment.customerName}}</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="paymentProof-sublabel text-muted small">Amount Paid</span>
+                                <p class="paymentProof-value paymentProof-amount fw-bold text-success">&#8369; {{selectedPayment.amount | number:2}}</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="paymentProof-sublabel text-muted small">Status</span>
+                                <p class="paymentProof-value"><span class="badge" ng-class="{'bg-warning': selectedPayment.paymentStatus === 'SUBMITTED', 'bg-success': selectedPayment.paymentStatus === 'VERIFIED', 'bg-danger': selectedPayment.paymentStatus === 'REJECTED'}">{{selectedPayment.paymentStatus}}</span></p>
+                            </div>
+                            <div class="mb-3" ng-if="selectedPayment.rejectionReason">
+                                <span class="paymentProof-sublabel text-muted small">Rejection reason</span>
+                                <p class="paymentProof-value text-danger">{{selectedPayment.rejectionReason}}</p>
+                            </div>
+                            <div class="verification-section mt-4 p-3 rounded" ng-if="selectedPayment.paymentStatus === 'SUBMITTED'">
+                                <label class="paymentProof-label mb-2 d-block" style="font-size: 0.9rem;">Verify Proof of Transaction</label>
+                                <div class="mb-3">
+                                    <label class="paymentProof-sublabel text-muted small d-block mb-1">Rejection reason (required when rejecting)</label>
+                                    <textarea class="form-control" ng-model="paymentRejectionReason" placeholder="Enter reason for rejection..." rows="3" aria-label="Rejection reason"></textarea>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-confirm-match btn-sm py-2" ng-click="verifyPaymentFromModal()">
+                                        <i class="bi bi-check-circle me-1"></i>Confirm
+                                    </button>
+                                    <button type="button" class="btn btn-reject-match btn-sm py-2" ng-click="rejectPaymentFromModal()">
+                                        <i class="bi bi-x-circle me-1"></i> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Manage Payment Settings modal — 4 sections: GCash, Bank Transfer, Layaway, Meetup *@
+    <div class="modal fade" id="paymentSettingsModal" tabindex="-1" aria-labelledby="paymentSettingsModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title fw-bold" id="paymentSettingsModalLabel">Manage Payment Settings</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-4">Only one active config per type. Saving replaces the active config and logs the action.</p>
+
+                    <div class="border rounded p-3 mb-4">
+                        <h6 class="fw-bold mb-3">1. GCash</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Account Name</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountName" placeholder="Account name" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Account Number</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountNumber" placeholder="Account number" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">QR Image</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <img ng-src="{{paymentSettingsForm.gcashQrImageUrl}}" class="img-thumbnail" style="max-height:80px;" ng-if="paymentSettingsForm.gcashQrImageUrl" alt="GCash QR" />
+                                <input type="file" id="gcashQrUpload" accept=".jpg,.jpeg,.png" style="display:none;" />
+                                <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="triggerQrUpload('gcash')">Upload QR</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" ng-click="savePaymentSetting('GCASH')">Save GCash</button>
+                    </div>
+
+                    <div class="border rounded p-3 mb-4">
+                        <h6 class="fw-bold mb-3">2. Bank Transfer</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Bank / Account Name</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountName" placeholder="Bank or account name" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Account Number</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountNumber" placeholder="Account number" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">QR Image</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <img ng-src="{{paymentSettingsForm.bankQrImageUrl}}" class="img-thumbnail" style="max-height:80px;" ng-if="paymentSettingsForm.bankQrImageUrl" alt="Bank QR" />
+                                <input type="file" id="bankQrUpload" accept=".jpg,.jpeg,.png" style="display:none;" />
+                                <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="triggerQrUpload('bank')">Upload QR</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" ng-click="savePaymentSetting('BANK_TRANSFER')">Save Bank Transfer</button>
+                    </div>
+
+                    <div class="border rounded p-3 mb-4">
+                        <h6 class="fw-bold mb-3">3. Layaway</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-0">Downpayment %</label>
+                                <input type="number" class="form-control form-control-sm" ng-model="paymentSettingsForm.downpaymentPercentage" min="1" max="100" step="0.01" placeholder="30" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-0">Months allowed</label>
+                                <input type="number" class="form-control form-control-sm" ng-model="paymentSettingsForm.monthsAllowed" min="1" max="24" placeholder="3" />
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" ng-click="saveLayawaySettings()">Save Layaway</button>
+                    </div>
+
+                    <div class="border rounded p-3 mb-2">
+                        <h6 class="fw-bold mb-3">4. Meetup Location</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Location Name</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.meetupLocationName" placeholder="e.g. LBC Angeles" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Address</label>
+                            <textarea class="form-control form-control-sm" ng-model="paymentSettingsForm.meetupAddress" rows="2" placeholder="Full address"></textarea>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" ng-click="saveMeetupSetting()">Save Meetup Location</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+<script>
+    (function () {
+        function bindQrUpload(id, type) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', function () {
+                var file = el.files[0];
+                if (!file) return;
+                var body = document.body;
+                if (window.angular && body) {
+                    var scope = window.angular.element(body).scope();
+                    if (scope && scope.onQrFileSelected) scope.$apply(function () { scope.onQrFileSelected(file, type); });
+                }
+                el.value = '';
+            });
+        }
+        setTimeout(function () {
+            bindQrUpload('gcashQrUpload', 'gcash');
+            bindQrUpload('bankQrUpload', 'bank');
+        }, 800);
+    })();
+</script>

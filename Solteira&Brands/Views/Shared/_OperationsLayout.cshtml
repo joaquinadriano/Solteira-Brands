@@ -173,7 +173,7 @@
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#ordersTable').length) $('#ordersTable').DataTable();
             if ($('#orderArchiveTable').length) $('#orderArchiveTable').DataTable();
-            if ($('#paymentTable').length) $('#paymentTable').DataTable();
+            // paymentTable is plain Angular (ng-repeat), do not init DataTables
             if ($('#deliveryShipmentsTable').length) $('#deliveryShipmentsTable').DataTable();
             if ($('#deliveryMeetupTable').length) $('#deliveryMeetupTable').DataTable();
             // salesReportTable is plain Angular table (ng-repeat), do not init DataTables

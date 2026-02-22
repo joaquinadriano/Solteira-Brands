@@ -1,0 +1,152 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.payment-page-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2vw;
+}
+
+.payment-card {
+    background-color: #87AE73;
+    width: 100%;
+    max-width: 28vw;
+    padding: 1.5vw 2vw;
+}
+
+.payment-title {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    margin-bottom: 1.5vw;
+}
+
+.customer-info-box, .payment-methods-box {
+    background: white;
+    padding: 1vw 1.5vw;
+    margin-bottom: 1.5vw;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+.cust-name, .cust-phoneNum, .cust-address {
+    color: #1e1e1e;
+    margin-bottom: .25vw;
+    font-size: 1rem;
+}
+
+.price-display {
+    margin-top: .5vw;
+    padding-top: .5vw;
+}
+
+.layaway-price-grid p {
+    display: flex;
+    justify-content: space-between;
+}
+
+.separator-line {
+    border-top: 1px solid #eee;
+    margin: 0.8vw 0;
+    width: 100%;
+}
+
+.amount {
+    color: #1e1e1e;
+}
+
+.amount-to-pay {
+    color: #87AE73;
+    font-weight: bold;
+}
+
+.section-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: .5vw;
+}
+
+.payment-order-summary {
+    margin: 1vw 0;
+}
+
+.payment-order-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4vw 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+}
+
+.payment-order-item:last-of-type {
+    border-bottom: none;
+}
+
+.form-group {
+    margin-top: 1vw;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: .5vw;
+    border: 1px solid #87AE73;
+}
+
+.custom-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1vw;
+    border: 1px solid #87AE73;
+    padding: .5vw;
+    cursor: pointer;
+    width: 100%;
+}
+
+.file-name-display {
+    color: #888;
+}
+
+.photo-limit {
+    font-style: italic;
+}
+
+.pay-btn-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.pay-now-btn {
+    font-family: "Kaisei Tokumin";
+    background-color: white;
+    color: #87AE73;
+    border: none;
+    padding: .5vw 2vw;
+    margin: 0 auto;
+    font-weight: bold;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.pay-now-btn:hover {
+    background: #f0f0f0;
+}
+
+.pay-now-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.payment-error {
+    color: #c00;
+    font-size: 0.9rem;
+    margin-top: 0.5vw;
+}

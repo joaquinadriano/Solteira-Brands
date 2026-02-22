@@ -4,15 +4,15 @@
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/CartStyle.css" />
 
-<div ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController">
+<div ng-controller="SolteiraBrandsController">
     
     <div class="shopping-cart-text">
-        <span>Shopping Cart ({{cart.length}})</span>
+        <span>Shopping Cart ({{(cart || []).length}})</span>
     </div>
 
     <hr class="hr-line" />
 
-    <div class="empty-cart-wrapper" ng-if="cart.length === 0">
+    <div class="empty-cart-wrapper" ng-if="!(cart && cart.length)">
         <div class="empty-cart-message">
             <i class="bi bi-cart-x"></i>
             <p>Your jewelry box is currently empty.</p>
@@ -22,12 +22,12 @@
         </div>
     </div>
 
-    <div class="cart-page-wrapper" ng-init="validateCartAgainstStock()">
+    <div class="cart-page-wrapper" ng-init="refreshCartFromStorage(); validateCartAgainstStock()">
 
-        <hr class="hr-line" ng-show="cart.length > 0" />
+        <hr class="hr-line" ng-show="cart && cart.length > 0" />
 
-        <div class="cart-list" ng-if="cart.length > 0">
-            <div class="cart-item" ng-repeat="item in cart">
+        <div class="cart-list" ng-if="cart && cart.length > 0">
+            <div class="cart-item" ng-repeat="item in cart track by (item.id + '-' + $index)">
 
                 <div class="item-selection">
                     <label class="custom-checkbox">
@@ -71,7 +71,7 @@
         </div>
     </div>
 
-    <div class="cart-summary-footer" ng-if="cart.length > 0">
+    <div class="cart-summary-footer" ng-if="cart && cart.length > 0">
 
         <div class="footer-left-actions">
 
@@ -92,7 +92,7 @@
 
             <button ng-click="proceedToCheckout('@Url.Action("SolteiraBrandsCheckout", "SolteiraAndBrands")')"
                     class="checkout-btn"
-                    ng-disabled="(cart | filter:{selected: true}).length === 0">
+                    ng-disabled="!cart || (cart | filter:{selected: true}).length === 0">
                 CHECK OUT
             </button>
 
