@@ -26,7 +26,7 @@
 | Charts & Analytics | Data visualization endpoints | ✅ Completed |
 | Inventory CRUD | Create, Read, Update, Delete inventory items | ✅ Completed |
 | Archive System | Archiving inactive or old records | ✅ Completed |
-| Audit / Action Logs | Tracks system and user activity logs | 🚧 In Progress |
+| Audit / Action Logs | Tracks system and user activity logs | 🟠 Functioning but incomplete |
 
 ---
 
