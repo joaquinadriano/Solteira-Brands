@@ -161,9 +161,37 @@ body {
     margin-bottom: .75vw;
 }
 
-.product-qty-display {
+.qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 1.25rem;
     color: #1e1e1e;
+}
+
+.qty-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid #87AE73;
+    background: #fff;
+    color: #87AE73;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.qty-btn:hover {
+    background: #87AE73;
+    color: #fff;
+}
+
+.qty-value {
+    min-width: 2rem;
+    text-align: center;
+    font-weight: 600;
 }
 
 .item-actions {

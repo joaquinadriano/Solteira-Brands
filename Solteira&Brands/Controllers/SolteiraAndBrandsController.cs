@@ -29,6 +29,29 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        /// <summary>Record an activity log for the current user (admin/manager/staff). Call after the main action SaveChanges.</summary>
+        private void LogActivity(SolteiraBrandsContext db, string action, string module, int? entityId, string details = null)
+        {
+            var username = User?.Identity?.Name;
+            if (string.IsNullOrEmpty(username)) return;
+            var user = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == username);
+            if (user == null) return;
+            var roleName = user.Role != null ? user.Role.Name : "";
+            var log = new tblActivityLogModel
+            {
+                UserId = user.Id,
+                Username = user.Username ?? username,
+                RoleName = roleName,
+                Action = action ?? "",
+                Module = module ?? "",
+                EntityId = entityId,
+                Details = details != null && details.Length > 500 ? details.Substring(0, 500) : details,
+                CreatedAt = DateTime.Now
+            };
+            db.tbl_activity_logs.Add(log);
+            db.SaveChanges();
+        }
+
         // ----- SoD: ADMIN-only (Archive, Logs, Users) -----
         [Authorize(Roles = "ADMIN")]
         public ActionResult AdminOrdersArchivePage() { return View(); }
@@ -158,6 +181,29 @@ namespace Solteira_Brands.Controllers
         }
 
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetLowStockNotifications()
+        {
+            const int lowStockThreshold = 3;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var items = (from p in db.tbl_products
+                             join img in db.tbl_images on p.ImageId equals img.Id into imgs
+                             from img in imgs.DefaultIfEmpty()
+                             where !p.IsArchived && p.StockQuantity < lowStockThreshold
+                             orderby p.StockQuantity, p.Name
+                             select new
+                             {
+                                 id = p.Id,
+                                 name = p.Name,
+                                 stockQuantity = p.StockQuantity,
+                                 imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : (string)null
+                             }).ToList();
+                return Json(new { success = true, count = items.Count, items = items }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
         public JsonResult CreateProduct(ProductSaveRequest request)
         {
@@ -184,6 +230,7 @@ namespace Solteira_Brands.Controllers
                 };
                 db.tbl_products.Add(product);
                 db.SaveChanges();
+                LogActivity(db, "Add Product", "Inventory", product.Id, product.Name);
                 return Json(new { success = true, message = "Product created successfully.", id = product.Id });
             }
         }
@@ -214,6 +261,7 @@ namespace Solteira_Brands.Controllers
                 product.UpdatedAt = DateTime.Now;
 
                 db.SaveChanges();
+                LogActivity(db, "Edit Product", "Inventory", product.Id, product.Name);
                 return Json(new { success = true, message = "Product updated successfully." });
             }
         }
@@ -230,6 +278,7 @@ namespace Solteira_Brands.Controllers
                 product.IsArchived = !product.IsArchived;
                 product.UpdatedAt = DateTime.Now;
                 db.SaveChanges();
+                LogActivity(db, product.IsArchived ? "Archive Product" : "Unarchive Product", "Inventory", product.Id, product.Name);
 
                 return Json(new { success = true, message = "Product archive status updated.", isArchived = product.IsArchived });
             }
@@ -588,7 +637,43 @@ namespace Solteira_Brands.Controllers
                 if (order == null) return Json(new { success = false, message = "Order not found." });
                 order.OrderStatus = status.Trim();
                 db.SaveChanges();
+                LogActivity(db, "Order " + order.OrderStatus, "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
                 return Json(new { success = true, message = "Order status updated.", orderStatus = order.OrderStatus });
+            }
+        }
+
+        [Authorize(Roles = "ADMIN")]
+        [HttpGet]
+        public JsonResult GetActivityLogs()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var list = db.tbl_activity_logs
+                    .OrderByDescending(l => l.CreatedAt)
+                    .Select(l => new
+                    {
+                        id = l.Id,
+                        username = l.Username,
+                        roleName = l.RoleName,
+                        action = l.Action,
+                        module = l.Module,
+                        entityId = l.EntityId,
+                        details = l.Details,
+                        createdAt = l.CreatedAt
+                    })
+                    .ToList()
+                    .Select(l => new
+                    {
+                        l.id,
+                        l.username,
+                        l.roleName,
+                        l.action,
+                        l.module,
+                        l.entityId,
+                        l.details,
+                        createdAtString = l.createdAt.ToString("yyyy-MM-dd hh:mm tt")
+                    });
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
             }
         }
 

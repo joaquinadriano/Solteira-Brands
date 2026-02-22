@@ -247,6 +247,75 @@ html, body {
         color: #87AE73;
     }
 
+.inventory-navbar-icon-link {
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+    .inventory-navbar-icon-link:hover {
+        color: inherit;
+    }
+
+.inventory-notification-badge {
+    font-size: 0.65rem;
+    min-width: 1.1rem;
+    padding: 0.15em 0.4em;
+}
+
+.inventory-notification-dropdown {
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #fff;
+}
+
+.inventory-notification-header {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #1e1e1e;
+}
+
+.inventory-notification-item {
+    background-color: #fff;
+}
+.inventory-notification-item:hover {
+    background-color: #f8f8f8;
+}
+
+.inventory-notification-thumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background-color: #f0f0f0;
+}
+
+.inventory-notification-text {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.text-out-of-stock {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.text-low-stock {
+    color: #fd7e14;
+    font-weight: 600;
+}
+
+.inventory-notification-dismiss {
+    color: #999;
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.inventory-notification-dismiss:hover {
+    color: #666;
+}
+
 .inventory-dropdown-menu {
     background-color: #FFFBE8;
     box-shadow: 5px 5px 5px rgba(36, 54, 66, 0.3);

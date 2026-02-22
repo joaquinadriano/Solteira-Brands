@@ -49,7 +49,7 @@
                 <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
                     <div class="image-wrapper">
                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
-                        <div class="cart-icon-overlay">
+                        <div class="cart-icon-overlay" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
                             <i class="bi bi-cart-plus-fill"></i>
                         </div>
                     </div>

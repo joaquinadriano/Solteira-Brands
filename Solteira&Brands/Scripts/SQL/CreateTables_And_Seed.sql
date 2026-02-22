@@ -152,6 +152,29 @@ CREATE TABLE IF NOT EXISTS tbl_order_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- 5d. tbl_activity_logs (audit trail for admin/manager/staff actions)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_activity_logs (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    user_id         INT             NOT NULL,
+    username        VARCHAR(150)    NOT NULL,
+    role_name       VARCHAR(50)     NOT NULL,
+    action          VARCHAR(100)    NOT NULL,
+    module          VARCHAR(50)     NOT NULL,
+    entity_id       INT             NULL,
+    details         VARCHAR(500)    NULL,
+    created_at      DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_activity_logs_created_at (created_at),
+    INDEX idx_tbl_activity_logs_user_id (user_id),
+    CONSTRAINT fk_tbl_activity_logs_user
+        FOREIGN KEY (user_id)
+        REFERENCES tbl_users (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- 6. Idempotent changes for EXISTING databases (run each time; no-op if already applied)
 -- ----------------------------------------------------------------------------
 SET @dbname := DATABASE();

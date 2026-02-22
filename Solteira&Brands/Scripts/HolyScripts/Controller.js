@@ -1,7 +1,32 @@
 app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval', 'SolteiraAndBrandsService', function ($scope, $timeout, $interval, SolteiraAndBrandsService) {
 
-
-
+    // Low-stock notifications (navbar bell) — display list is mutable for dismiss
+    $scope.lowStockItems = [];
+    $scope.notificationItemsDisplay = [];
+    $scope.loadLowStockNotifications = function () {
+        SolteiraAndBrandsService.getLowStockNotifications().then(function (res) {
+            if (res.data && res.data.success) {
+                var items = res.data.items || [];
+                $scope.lowStockItems = items;
+                $scope.notificationItemsDisplay = angular.copy(items);
+            }
+        }, function () {
+            $scope.lowStockItems = [];
+            $scope.notificationItemsDisplay = [];
+        });
+    };
+    $scope.getNotificationCount = function () {
+        return ($scope.notificationItemsDisplay || []).length;
+    };
+    $scope.dismissNotification = function (index) {
+        if ($scope.notificationItemsDisplay && index >= 0 && index < $scope.notificationItemsDisplay.length) {
+            $scope.notificationItemsDisplay.splice(index, 1);
+        }
+    };
+    $scope.isOutOfStock = function (item) {
+        return item && (item.stockQuantity == null || item.stockQuantity === 0);
+    };
+    $scope.loadLowStockNotifications();
 
     //----------Navigation----------
 
@@ -787,6 +812,80 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     //----------Dashboard Page----------
 
     //----------Dashboard Page End----------
+
+    //----------Activity Logs Page----------
+    $scope.activityLogsList = [];
+    $scope.logsFilterUser = '';
+    $scope.logsFilterRole = '';
+    $scope.logsFilterAction = '';
+    $scope.logsFilterDateFrom = '';
+    $scope.logsFilterDateTo = '';
+    $scope.logsSearch = '';
+
+    $scope.getFilteredActivityLogs = function () {
+        var list = $scope.activityLogsList || [];
+        var user = ($scope.logsFilterUser || '').toLowerCase().trim();
+        var role = ($scope.logsFilterRole || '').trim();
+        var action = ($scope.logsFilterAction || '').toLowerCase().trim();
+        var dateFrom = ($scope.logsFilterDateFrom || '').trim();
+        var dateTo = ($scope.logsFilterDateTo || '').trim();
+        var search = ($scope.logsSearch || '').toLowerCase().trim();
+
+        return list.filter(function (log) {
+            if (user && (log.username || '').toLowerCase().indexOf(user) === -1) return false;
+            if (role && (log.roleName || '').trim() !== role) return false;
+            if (action && (log.action || '').toLowerCase().indexOf(action) === -1) return false;
+            if (dateFrom || dateTo) {
+                var logDate = (log.createdAtString || '').substring(0, 10);
+                if (dateFrom && logDate < dateFrom) return false;
+                if (dateTo && logDate > dateTo) return false;
+            }
+            if (search) {
+                var combined = [(log.username || ''), (log.roleName || ''), (log.action || ''), (log.module || ''), (log.details || ''), (log.createdAtString || '')].join(' ').toLowerCase();
+                if (combined.indexOf(search) === -1) return false;
+            }
+            return true;
+        });
+    };
+
+    $scope.loadActivityLogs = function () {
+        SolteiraAndBrandsService.getActivityLogs().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                var raw = res.data.data;
+                $scope.activityLogsList = raw.map(function (l) {
+                    return {
+                        username: l.username != null ? l.username : (l.Username != null ? l.Username : ''),
+                        roleName: l.roleName != null ? l.roleName : (l.RoleName != null ? l.RoleName : ''),
+                        action: l.action != null ? l.action : (l.Action != null ? l.Action : ''),
+                        module: l.module != null ? l.module : (l.Module != null ? l.Module : ''),
+                        entityId: l.entityId != null ? l.entityId : (l.EntityId != null ? l.EntityId : null),
+                        details: l.details != null ? l.details : (l.Details != null ? l.Details : null),
+                        createdAtString: l.createdAtString != null ? l.createdAtString : (l.CreatedAtString != null ? l.CreatedAtString : '')
+                    };
+                });
+            } else {
+                $scope.activityLogsList = [];
+            }
+        }, function () {
+            $scope.activityLogsList = [];
+        });
+    };
+    $scope.getActivityLogRoleClass = function (roleName) {
+        if (!roleName) return 'bg-secondary';
+        var r = (roleName || '').toUpperCase();
+        if (r === 'ADMIN') return 'bg-danger';
+        if (r === 'MANAGER') return 'bg-warning text-dark';
+        if (r === 'STAFF') return 'bg-info text-dark';
+        return 'bg-secondary';
+    };
+    $scope.getActivityLogActionClass = function (action) {
+        if (!action) return '';
+        var a = (action || '').toLowerCase();
+        if (a.indexOf('archive') !== -1 && a.indexOf('unarchive') === -1) return 'text-danger';
+        if (a.indexOf('unarchive') !== -1 || a.indexOf('add') !== -1) return 'text-success';
+        return 'text-primary';
+    };
+    //----------Activity Logs Page End----------
 
     //----------Sales Reports Page----------
     $scope.salesReportRows = [];

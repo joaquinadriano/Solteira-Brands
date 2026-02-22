@@ -79,4 +79,12 @@ app.service("SolteiraAndBrandsService", function ($http) {
         if (category) params.category = category;
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetSalesReport", params: params });
     };
+
+    this.getLowStockNotifications = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetLowStockNotifications" });
+    };
+
+    this.getActivityLogs = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetActivityLogs" });
+    };
 });

@@ -47,6 +47,21 @@ body {
         color: #1E1E1E;
     }
 
+.sb-cart-link {
+    display: inline-flex;
+    align-items: flex-start;
+}
+
+.sb-cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    font-size: 0.8rem;
+    min-width: 1.35rem;
+    padding: 0.2em 0.45em;
+    line-height: 1.2;
+}
+
 .icon-link.nav-item-align {
     color: #1e1e1e;
     font-size: 1.5rem;
