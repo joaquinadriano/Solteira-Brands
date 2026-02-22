@@ -227,6 +227,21 @@
         color: #1e1e1e;
     }
 
+.sold-out-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-family: "Nunito", sans-serif;
+    font-weight: bold;
+    font-size: 1.1rem;
+    padding: 8px 14px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
 .jewelry-grid-container .product-info {
     margin-top: 15px;
 }
@@ -235,6 +250,18 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+}
+
+.product-stock {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: 4px;
+}
+
+.product-stock.sold-out-text {
+    color: #c00;
+    font-weight: bold;
 }
 
 .jewelry-grid-container .product-name {
@@ -315,7 +342,19 @@
     font-family: "Kaisei Tokumin";
     font-size: 1.8rem;
     font-weight: bold;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
+}
+
+.detail-stock {
+    font-family: "Nunito", sans-serif;
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.detail-stock.sold-out-text {
+    color: #c00;
+    font-weight: bold;
 }
 
 .details-section {
@@ -385,12 +424,20 @@
 
     .quantity-controls input {
         width: 3vw;
+        min-width: 3rem;
         text-align: center;
         border-left: 1px solid #87AE73;
         border-right: 1px solid #87AE73;
         border-top: none;
         border-bottom: none;
         font-size: 1.35rem;
+        -moz-appearance: textfield;
+    }
+
+    .quantity-controls input::-webkit-outer-spin-button,
+    .quantity-controls input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
 .add-to-cart-btn {

@@ -58,6 +58,23 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    this.getProductStock = function (productId) {
+        return $http({
+            method: "GET",
+            url: "/SolteiraAndBrands/GetProductStock",
+            params: { productId: productId }
+        });
+    };
+
+    this.getProductStocks = function (productIds) {
+        if (!productIds || productIds.length === 0) return Promise.resolve({ data: { success: true, stocks: [] } });
+        return $http({
+            method: "GET",
+            url: "/SolteiraAndBrands/GetProductStocks",
+            params: { productIds: productIds }
+        });
+    };
+
     this.login = function (username, password) {
         var params = new URLSearchParams();
         params.append("username", username || "");

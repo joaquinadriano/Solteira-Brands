@@ -118,8 +118,12 @@
                         <img id="inventoryDropProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="img-fluid inventory-profile-img" alt="" />
                         <span class="inventory-profile-name ms-2">@(User != null && User.Identity != null ? User.Identity.Name : "User")</span>
                     </li>
+                    <li class="p-2 navbar-dropdown-item border-top">
+                        <a href="@Url.Action("Settings","Account")" class="dropdown-logout text-decoration-none text-dark">Account Settings</a>
+                    </li>
                     <li class="p-2 navbar-dropdown-item">
-                        <a href="@Url.Action("Logout","Account")" class="dropdown-logout text-decoration-none text-dark">Logout</a>
+                        @{ ViewBag.LogoutButtonCss = "dropdown-logout text-decoration-none text-dark border-0 bg-transparent w-100 text-start p-0"; }
+                        @Html.Partial("_LogoutForm")
                     </li>
                 </ul>
             </div>

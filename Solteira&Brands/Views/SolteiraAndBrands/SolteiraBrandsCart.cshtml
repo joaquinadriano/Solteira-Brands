@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <div class="cart-page-wrapper">
+    <div class="cart-page-wrapper" ng-init="validateCartAgainstStock()">
 
         <hr class="hr-line" ng-show="cart.length > 0" />
 
@@ -55,8 +55,8 @@
                             <i class="bi bi-dash" ng-if="item.qty > 1"></i>
                             <i class="bi bi-trash" ng-if="item.qty <= 1"></i>
                         </button>
-                        <span class="qty-value">{{item.qty}}</span>
-                        <button type="button" class="qty-btn" ng-click="updateCartQty(item, 1)" title="Increase">
+                        <input type="number" min="1" class="qty-value qty-input-numeric" ng-model="item.qty" ng-model-options="{ debounce: 300 }" ng-change="onCartItemQtyChange(item)" title="Quantity" />
+                        <button type="button" class="qty-btn" ng-click="updateCartQty(item, 1)" ng-disabled="item.qty >= (item.maxStock || 999)" title="Increase">
                             <i class="bi bi-plus"></i>
                         </button>
                     </div>

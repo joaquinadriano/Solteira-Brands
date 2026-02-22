@@ -108,12 +108,12 @@
 
                                 <li><hr class="dropdown-divider fw-bold"></li>
 
-                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsAccountSettings","SolteiraAndBrands")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
                                 <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
 
                                 <li><hr class="dropdown-divider"></li>
 
-                                <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
+                                <li>@Html.Partial("_LogoutForm")</li>
 
                             </ul>
                         </div>
@@ -136,9 +136,10 @@
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
                                 <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
                                 <li><hr class="dropdown-divider" /></li>
-                                <li><a class="dropdown-item text-danger" href="@Url.Action("Logout","Account")">Logout</a></li>
+                                <li>@Html.Partial("_LogoutForm")</li>
                             </ul>
                         </div>
                     }

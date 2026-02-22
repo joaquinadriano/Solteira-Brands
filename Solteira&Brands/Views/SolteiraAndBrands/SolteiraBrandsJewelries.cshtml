@@ -49,7 +49,8 @@
                 <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
                     <div class="image-wrapper">
                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
-                        <div class="cart-icon-overlay" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
+                        <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
+                        <div class="cart-icon-overlay" ng-show="(item.stockQuantity || 0) > 0" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
                             <i class="bi bi-cart-plus-fill"></i>
                         </div>
                     </div>
@@ -58,6 +59,8 @@
                             <span class="product-name">{{item.name}}</span>
                             <span class="product-price">&#8369; {{item.price | number:2}}</span>
                         </div>
+                        <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
+                        <div class="product-stock sold-out-text" ng-if="(item.stockQuantity || 0) === 0">SOLD OUT</div>
                     </div>
                 </div>
             </div>
@@ -78,6 +81,8 @@
                 <div class="product-info-column">
                     <h1 class="detail-name">{{selectedProduct.name}}</h1>
                     <p class="detail-price">&#8369; {{selectedProduct.price | number:2}}</p>
+                    <p class="detail-stock" ng-if="(selectedProduct.stockQuantity || 0) > 0">{{selectedProduct.stockQuantity}} in stock</p>
+                    <p class="detail-stock sold-out-text" ng-if="(selectedProduct.stockQuantity || 0) === 0">SOLD OUT</p>
 
                     <div class="details-section">
                         <span class="label">Product Details:</span>
@@ -92,18 +97,22 @@
 
                     <hr class="separator">
 
-                    <div class="action-section">
+                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) > 0">
                         <div class="quantity-container">
                             <span class="label">Quantity:</span>
                             <div class="quantity-controls">
-                                <button ng-click="qty = (qty > 1) ? qty - 1 : 1" ng-init="qty=1">-</button>
-                                <input type="text" ng-model="qty" readonly>
-                                <button ng-click="qty = qty + 1">+</button>
+                                <button type="button" ng-click="changeDetailQty(-1)">-</button>
+                                <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
+                                <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
                             </div>
+                            <span class="label text-muted small">(max {{selectedProduct.stockQuantity}})</span>
                         </div>
                         <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
                             <i class="bi bi-cart-plus"></i>Add to Cart
                         </button>                    
+                    </div>
+                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) === 0">
+                        <button class="add-to-cart-btn" disabled><i class="bi bi-cart-plus"></i>SOLD OUT</button>
                     </div>
                 </div>
             </div>

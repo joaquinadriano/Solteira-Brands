@@ -93,10 +93,11 @@ namespace Solteira_Brands.Controllers
         {
             return View();
         }
-        [BuyerAuthorize]
+        /// <summary>Redirect to unified Account Settings (all roles).</summary>
+        [Authorize]
         public ActionResult SolteiraBrandsAccountSettings()
         {
-            return View();
+            return RedirectToAction("Settings", "Account");
         }
 
         [BuyerAuthorize]
@@ -305,11 +306,48 @@ namespace Solteira_Brands.Controllers
                                     stones = p.Stones,
                                     weight = p.Weight,
                                     length = p.Length,
+                                    stockQuantity = p.StockQuantity,
                                     img = img != null ? (img.ImagePath + img.ImageFileName) : null,
                                     isBestSeller = p.IsBestSeller
                                 }).ToList();
 
                 return Json(new { success = true, data = products }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>Returns current stock for one product. Used for add-to-cart and quantity validation. Server-side source of truth.</summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public JsonResult GetProductStock(int productId)
+        {
+            if (productId <= 0)
+                return Json(new { success = false, message = "Invalid product." }, JsonRequestBehavior.AllowGet);
+            using (var db = new SolteiraBrandsContext())
+            {
+                var product = db.tbl_products.FirstOrDefault(p => p.Id == productId && !p.IsArchived);
+                if (product == null)
+                    return Json(new { success = false, message = "Product not found." }, JsonRequestBehavior.AllowGet);
+                return Json(new { success = true, productId = product.Id, stockQuantity = product.StockQuantity }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        /// <summary>Returns current stock for multiple products. Used for cart page to validate and auto-adjust quantities. GET with ?productIds=1&productIds=2</summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public JsonResult GetProductStocks(int[] productIds)
+        {
+            if (productIds == null || productIds.Length == 0)
+                return Json(new { success = true, stocks = new object[0] }, JsonRequestBehavior.AllowGet);
+            var ids = productIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count == 0)
+                return Json(new { success = true, stocks = new object[0] });
+            using (var db = new SolteiraBrandsContext())
+            {
+                var stocks = db.tbl_products
+                    .Where(p => ids.Contains(p.Id) && !p.IsArchived)
+                    .Select(p => new { productId = p.Id, stockQuantity = p.StockQuantity })
+                    .ToList();
+                return Json(new { success = true, stocks }, JsonRequestBehavior.AllowGet);
             }
         }
 
@@ -340,11 +378,27 @@ namespace Solteira_Brands.Controllers
                 var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
                 if (user == null) return Json(new { success = false, message = "User not found." });
 
+                if (string.IsNullOrEmpty((request.CustomerName ?? "").Trim()) || string.IsNullOrEmpty((request.ContactNumber ?? "").Trim()) || string.IsNullOrEmpty((request.DeliveryAddress ?? "").Trim()))
+                    return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+
+                // Server-side stock validation: ensure every item has sufficient stock before creating order
+                var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
+                var productsByKey = db.tbl_products.Where(p => productIds.Contains(p.Id)).ToDictionary(p => p.Id);
+                foreach (var item in request.Items)
+                {
+                    if (item.Quantity <= 0)
+                        return Json(new { success = false, message = "Invalid quantity for " + (item.ProductName ?? "item") + "." });
+                    if (!productsByKey.TryGetValue(item.ProductId, out var product))
+                        return Json(new { success = false, message = "Product not found: " + (item.ProductName ?? item.ProductId.ToString()) + "." });
+                    if (product.StockQuantity < item.Quantity)
+                        return Json(new { success = false, message = "Insufficient stock for " + (product.Name ?? item.ProductName) + ". Available: " + product.StockQuantity + "." });
+                }
+
                 var now = DateTime.Now;
                 var order = new tblOrdersModel
                 {
                     UserId = user.Id,
-                    OrderNumber = "", // set after insert
+                    OrderNumber = "",
                     CustomerName = (request.CustomerName ?? "").Trim(),
                     ContactNumber = (request.ContactNumber ?? "").Trim(),
                     DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
@@ -353,9 +407,6 @@ namespace Solteira_Brands.Controllers
                     OrderStatus = "Pending",
                     CreatedAt = now
                 };
-                if (string.IsNullOrEmpty(order.CustomerName) || string.IsNullOrEmpty(order.ContactNumber) || string.IsNullOrEmpty(order.DeliveryAddress))
-                    return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
-
                 db.tbl_orders.Add(order);
                 db.SaveChanges();
 
@@ -373,6 +424,10 @@ namespace Solteira_Brands.Controllers
                         UnitPrice = item.UnitPrice,
                         ImageUrl = item.ImageUrl
                     });
+                    // Deduct stock immediately after order is confirmed (order and items saved)
+                    var prod = productsByKey[item.ProductId];
+                    prod.StockQuantity -= item.Quantity;
+                    prod.UpdatedAt = now;
                 }
                 db.SaveChanges();
 
@@ -849,7 +904,7 @@ namespace Solteira_Brands.Controllers
             return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsNewPassword.cshtml");
         }
 
-        [BuyerAuthorize]
+        [Authorize]
         public ActionResult SolteiraBrandsChangePassword()
         {
             return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsChangePassword.cshtml");

@@ -81,13 +81,36 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>
-        /// GET: Sign out and redirect to login page.
+        /// POST: Clear session, abandon session, sign out authentication, redirect to login.
+        /// Prevents back-button access via cache headers. Use POST + anti-forgery from all layouts.
         /// </summary>
-        [HttpGet]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public ActionResult Logout()
         {
+            if (Session != null)
+            {
+                Session.Clear();
+                Session.Abandon();
+            }
             FormsAuthentication.SignOut();
+            Response.Cache.SetCacheability(HttpCacheability.NoCache);
+            Response.Cache.SetNoStore();
+            Response.AppendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            Response.AppendHeader("Pragma", "no-cache");
+            Response.Cache.SetExpires(DateTime.UtcNow.AddYears(-1));
             return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+        }
+
+        /// <summary>
+        /// GET: Single Account Settings page for all authenticated roles (ADMIN, MANAGER, STAFF, BUYER).
+        /// Loads current user via User.Identity; no role-specific duplication.
+        /// </summary>
+        [HttpGet]
+        [Authorize]
+        public ActionResult Settings()
+        {
+            return View("~/Views/SolteiraAndBrands/SolteiraBrandsAccountSettings.cshtml");
         }
 
         private const string DefaultAvatarUrl = "/Content/img/shared/default-avatar.svg";
@@ -335,7 +358,7 @@ namespace Solteira_Brands.Controllers
         /// Requires current password, validates strength of new password, and ensures new != old.
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "BUYER")]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public ActionResult ChangePassword(string currentPassword, string newPassword, string verifyPassword)
         {

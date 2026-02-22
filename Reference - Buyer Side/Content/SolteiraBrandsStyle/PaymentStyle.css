@@ -1,0 +1,297 @@
+﻿body {
+    margin: 0;
+    padding: 0;
+}
+
+.payment-page-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2vw;
+}
+
+.payment-card {
+    background-color: #87AE73;
+    width: 100%;
+    max-width: 28vw;
+    padding: 1.5vw 2vw;
+}
+
+.payment-title {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    margin-bottom: 1.5vw;
+}
+
+.customer-info-box, .payment-methods-box {
+    background: white;
+    padding: 1vw 1.5vw;
+    margin-bottom: 1.5vw;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+.cust-name, .cust-phoneNum, .cust-address {
+    color: #1e1e1e;
+    margin-bottom: .25vw;
+    font-size: 1rem;
+}
+
+.price-display {
+    margin-top: .5vw;
+    padding-top: .5vw;
+}
+
+.layaway-price-grid p {
+    display: flex;
+    justify-content: space-between;
+}
+
+.separator-line {
+    border-top: 1px solid #eee;
+    margin: 0.8vw 0;
+    width: 100%;
+}
+
+.amount {
+    color: #1e1e1e;
+}
+
+.amount-to-pay {
+    color: #87AE73;
+    font-weight: bold;
+}
+
+.section-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: .5vw;
+}
+
+.radio-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: .5vw;
+    cursor: pointer;
+    gap: .8vw;
+}
+
+    .radio-item input[type="radio"] {
+        transform: scale(1.5);
+        cursor: pointer;
+    }
+
+.sub-payment-options {
+    padding-left: 1.3vw;
+    margin-bottom: 0.8vw;
+}
+
+.sub-radio-row {
+    display: flex;
+    gap: 2vw;
+}
+
+.qr-container {
+    text-align: center;
+    margin: 1vw 0;
+}
+
+.qr-code {
+    width: 10vw;
+}
+
+.calendar-container {
+    border: 1px solid #87AE73;
+    padding: 1vw;
+    background: #fff;
+    margin: 1vw 0;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1vw;
+}
+
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #87AE73;
+    font-size: 1.2rem;
+}
+
+.day-labels, .days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.day-labels {
+    font-weight: bold;
+    color: #888;
+    margin-bottom: 0.5vw;
+}
+
+.days span {
+    padding: 0.5vw 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.days .muted {
+    color: #ccc;
+    cursor: default;
+}
+
+.selected-day {
+    background-color: #007bff;
+    color: white !important;
+    border-radius: 50%;
+    width: 1.8vw;
+    height: 1.8vw;
+    margin: 0 auto;
+}
+
+/* Time Picker Alignment */
+.time-picker-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 1vw 0;
+}
+
+.time-select {
+    width: auto;
+    border: 1px solid #87AE73;
+    padding: 0.2vw 0.8vw;
+    border-radius: 0;
+}
+
+/* Terms List Styling */
+.terms-mini {
+    margin-top: 1vw;
+    font-size: 0.9rem;
+}
+
+    .terms-mini ul {
+        padding-left: 1.2vw;
+        list-style-type: disc;
+    }
+
+    .terms-mini li {
+        margin-bottom: 0.4vw;
+        color: #333;
+    }
+
+/* Form & Buttons */
+.form-group {
+    margin-top: 1vw;
+}
+
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: .5vw;
+        border: 1px solid #87AE73;
+    }
+
+.custom-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1vw;
+    border: 1px solid #87AE73;
+    padding: .5vw;
+    cursor: pointer;
+    width: 100%;
+}
+
+.file-name-display {
+    color: #888;
+}
+
+.photo-limit {
+    font-style: italic;
+}
+
+.pay-btn-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.pay-now-btn {
+    font-family: "Kaisei Tokumin";
+    background-color: white;
+    color: #87AE73;
+    border: none;
+    padding: .5vw 2vw;
+    margin: 0 auto;
+    font-weight: bold;
+    font-size: 1.25rem;
+    transition: 0.2s;
+}
+
+    .pay-now-btn:hover {
+        background: #f0f0f0;
+    }
+
+.swal-icon-stack {
+    position: relative;
+    display: inline-block;
+    margin-bottom: .75vw;
+}
+
+.heart-overlay {
+    position: absolute;
+    bottom: -5px;
+    right: -10px;
+    font-size: 2.5rem;
+    color: #87AE73;
+    -webkit-text-stroke: 2px white;
+}
+
+.swal-custom-title {
+    font-family: "Kaisei Tokumin", serif;
+    font-size: 2rem;
+    margin-bottom: .5vw;
+}
+
+.swal-custom-text {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 1vw;
+}
+
+.custom-swal-close-btn {
+    background-color: white !important;
+    color: #87AE73 !important;
+    border: none;
+    padding: .5vw 1vw;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+    .custom-swal-close-btn:hover {
+        background-color: #f0f0f0;
+    }
+
+.swal-no-border {
+    border-radius: 0;
+}

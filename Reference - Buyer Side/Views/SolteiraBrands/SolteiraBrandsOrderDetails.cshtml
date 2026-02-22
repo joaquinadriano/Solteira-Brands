@@ -1,0 +1,130 @@
+﻿@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/SolteiraBrandsStyle/OrderDetailsStyle.css" />
+
+<div class="order-summary-page" ng-app="SolteiraBrandsApplication" ng-controller="SolteiraBrandsController" ng-init="initOrderDetails()">
+
+    <div class="header-container">
+        <button class="back-btn" ng-click="goToOrders()">
+            <i class="bi bi-arrow-left"></i> BACK
+        </button>
+        <h2 class="page-title">ORDER SUMMARY</h2>
+    </div>
+
+    <div class="summary-card-container">
+        <div class="summary-content-grid">
+
+            <div class="summary-left">
+                <div class="address-section">
+                    <h3 class="section-title">Delivery Address</h3>
+                    <div class="address-details">
+                        <p><strong>{{currentOrder.customerName}}</strong></p>
+                        <p>{{currentOrder.contactNumber}}</p>
+                        <p>{{currentOrder.deliveryAddress}}</p>
+                    </div>
+                </div>
+
+                <hr class="section-divider" />
+
+                <div class="items-section">
+                    <h3 class="section-title" ng-if="currentOrder.paymentMethod !== 'Layaway'">Your Items</h3>
+                    <div class="summary-item-row" ng-repeat="item in currentOrder.items">
+                        <img class="summary-item-img" ng-src="/Content/SolteiraBrandsImages/SBJewelryImages/{{item.img}}" alt="{{item.name}}" />
+                        <div class="summary-item-info">
+                            <span class="item-name">{{item.name}}</span>
+                            <span class="item-qty">Qty: {{item.qty}}</span>
+                            <span class="item-price">P {{item.price | number:2}}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-total-row">
+                    <span>Total: </span>
+                    <span class="total-amount">P {{currentOrder.total | number:2}}</span>
+                </div>
+
+                <div class="payment-method-margin">
+                    <p class="payment-method-text">Payment Method: {{currentOrder.subPaymentMethod}}</p>
+                    <a href="#" class="view-proof-link" ng-if="currentOrder.subPaymentMethod !== 'Cash through meetup'">[View Proof of Payment]</a>
+                </div>
+            </div>
+
+            <div class="summary-right">
+
+                <div class="layaway-panel" ng-if="currentOrder.paymentMethod === 'Layaway'">
+                    <h3 class="section-title">Payment Summary</h3>
+                    <div class="address-details">
+                        <p class="summary-payment-row">
+                            <strong>Total Amount:</strong> <span>P {{currentOrder.total | number:2}}</span>
+                        </p>
+                        <p class="summary-payment-row summary-payment-divider">
+                            <strong>Down Payment:</strong> <span>P {{ (currentOrder.total * 0.3) | number:2 }}</span>
+                        </p>
+                        <p class="summary-payment-row">
+                            <strong>Remaining Balance:</strong> <span>P {{ (currentOrder.total * 0.7) | number:2 }}</span>
+                        </p>
+                    </div>
+
+                    <p class="summary-payment-margin">
+                        <strong>Monthly Bill :</strong>
+                        <span class="monthly-bill-val">P {{ ((currentOrder.total * 0.7) / 6) | number:2 }} for 6 months</span>
+                    </p>
+
+                    <div class="progress-frame">
+                        <div class="progress-fill-dynamic" ng-style="{'width': (currentOrder.percentPaid || 30) + '%'}">
+                            {{currentOrder.percentPaid || 30}}% PAID
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-panel" ng-if="currentOrder.paymentMethod === 'Full Payment'">
+                    <h3 class="section-title">Order Status</h3>
+                    <div class="status-badges">
+                        <div class="status-box">Order: <span class="status-val success">Approved</span></div>
+                        <div class="status-box">Status: <span class="status-val success">In Transit</span></div>
+                    </div>
+
+                    <div class="summary-section-delivery">
+                        <div ng-if="currentOrder.subPaymentMethod !== 'Cash through meetup'">
+                            <h3 class="section-title tracking-header">Delivery Tracking Details</h3>
+                            <p>Tracking Number: <span class="tracking-num">{{currentOrder.trackingNumber || '578493562785'}}</span></p>
+                            <p>Courier: <span class="courier-name">LBC</span></p>
+                            <div class="centered-content">
+                                <a href="#" class="track-link">[Track via Courier Website]</a>
+                            </div>
+                        </div>
+
+                        <div ng-if="currentOrder.subPaymentMethod === 'Cash through meetup'">
+                            <p>Meetup Date: <span class="status-val success">{{currentOrder.meetupDate}}</span></p>
+                            <p>Meetup Time: <span class="status-val success">{{currentOrder.meetupTime}}</span></p>
+                            <p>Location: I-V G/F JMS Bldg., Mc Arthur Highway, Salapungan, Angeles City, Pampanga</p>
+                            <div class="centered-content">
+                                <a href="#" class="track-link">[View Proof of Transaction]</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="delivery-details-container">
+                    <h3 class="section-title">Payment History</h3>
+                    <p class="history-method-label">Payment Method: <strong>{{currentOrder.subPaymentMethod}}</strong></p>
+
+                    <div class="history-entry">
+                        <div class="history-row-header">
+                            <span class="total-amount" ng-if="currentOrder.paymentMethod === 'Full Payment'">P {{currentOrder.total | number:2}}</span>
+                            <span class="total-amount" ng-if="currentOrder.paymentMethod === 'Layaway'">P {{ (currentOrder.total * 0.3) | number:2 }}</span>
+                            <a href="javascript:void(0)" class="proof-link-small"
+                               ng-if="currentOrder.subPaymentMethod !== 'Cash through meetup'"
+                               ng-click="viewProof(currentOrder)">
+                                [View Proof of Payment]
+                            </a>                        </div>
+                        <p class="history-date-text">{{currentOrder.date}}</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

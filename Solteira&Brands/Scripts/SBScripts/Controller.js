@@ -51,11 +51,34 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }).then(() => {
             $timeout(() => {
                 $scope.selectedProduct = item;
+                $scope.qty = 1;
                 $scope.viewMode = 'detail';
                 $scope.transitionDir = 'forward';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                SolteiraBrandsService.getProductStock(item.id).then(function (r) {
+                    if (r.data && r.data.success && $scope.selectedProduct && $scope.selectedProduct.id === item.id) {
+                        $scope.selectedProduct.stockQuantity = r.data.stockQuantity;
+                        $scope.capDetailQtyToStock();
+                    }
+                });
             });
         });
+    };
+
+    $scope.changeDetailQty = function (delta) {
+        if (!$scope.selectedProduct) return;
+        var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
+        var current = parseInt($scope.qty, 10) || 1;
+        var next = Math.max(1, Math.min(max, current + delta));
+        $scope.qty = next;
+    };
+
+    $scope.capDetailQtyToStock = function () {
+        if (!$scope.selectedProduct) return;
+        var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
+        var val = parseInt($scope.qty, 10);
+        if (isNaN(val) || val < 1) $scope.qty = 1;
+        else if (max > 0 && val > max) $scope.qty = max;
     };
 
     $scope.excludeSelected = function (item) {
@@ -366,40 +389,52 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     }
 
     $scope.addToCart = function (product, quantity) {
-        // Anonymous or non-BUYER user: redirect to login instead of storing a guest cart
         if (!isBuyer) {
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
             return;
         }
-        let cartItem = {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            img: product.img,
-            stones: product.stones,
-            material: product.material,
-            weight: product.weight,
-            qty: parseInt(quantity) || 1,
-            selected: true
-        };
-
-        let existingItem = $scope.cart.find(i => i.id === product.id);
-
-        if (existingItem) {
-            existingItem.qty += cartItem.qty;
-        } else {
-            $scope.cart.push(cartItem);
-        }
-
-        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-        syncCartCountToLayout();
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Added to Cart',
-            text: product.name + ' is now in your bag.',
-            timer: 1500,
-            showConfirmButton: false
+        var requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
+        SolteiraBrandsService.getProductStock(product.id).then(function (r) {
+            if (!r.data || !r.data.success) {
+                Swal.fire({ icon: 'error', title: 'Error', text: (r.data && r.data.message) || 'Could not verify stock.' });
+                return;
+            }
+            var available = parseInt(r.data.stockQuantity, 10) || 0;
+            if (available < 1) {
+                Swal.fire({ icon: 'warning', title: 'Out of stock', text: product.name + ' is currently sold out.' });
+                if ($scope.selectedProduct && $scope.selectedProduct.id === product.id) $scope.selectedProduct.stockQuantity = 0;
+                return;
+            }
+            var existingItem = $scope.cart.find(function (i) { return i.id === product.id; });
+            var alreadyInCart = existingItem ? (existingItem.qty || 0) : 0;
+            var canAdd = Math.min(requestedQty, available - alreadyInCart);
+            if (canAdd < 1) {
+                Swal.fire({ icon: 'info', title: 'Maximum reached', text: 'You already have ' + alreadyInCart + ' of ' + product.name + ' in your cart. Available stock: ' + available + '.' });
+                return;
+            }
+            var cartItem = {
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                img: product.img,
+                stones: product.stones,
+                material: product.material,
+                weight: product.weight,
+                qty: canAdd,
+                selected: true
+            };
+            if (existingItem) {
+                existingItem.qty += canAdd;
+            } else {
+                $scope.cart.push(cartItem);
+            }
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+            var msg = product.name + ' is now in your bag.';
+            if (canAdd < requestedQty) msg = 'Added ' + canAdd + ' (max available: ' + available + '). ' + product.name + ' is in your bag.';
+            Swal.fire({ icon: 'success', title: 'Added to Cart', text: msg, timer: 1500, showConfirmButton: false });
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not verify stock. Please try again.' });
         });
     };
 
@@ -419,14 +454,79 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.updateCartQty = function (item, delta) {
-        var qty = (item.qty || 0) + delta;
-        if (qty < 1) {
+        var current = parseInt(item.qty, 10) || 0;
+        if (current + delta < 1) {
             $scope.removeFromCartByItem(item);
             return;
         }
-        item.qty = qty;
-        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-        syncCartCountToLayout();
+        if (delta > 0) {
+            SolteiraBrandsService.getProductStock(item.id).then(function (r) {
+                if (!r.data || !r.data.success) return;
+                var maxStock = parseInt(r.data.stockQuantity, 10) || 0;
+                item.maxStock = maxStock;
+                var newQty = Math.min(current + delta, maxStock);
+                if (newQty < 1) $scope.removeFromCartByItem(item);
+                else item.qty = newQty;
+                localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+                syncCartCountToLayout();
+            });
+        } else {
+            item.qty = current + delta;
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+        }
+    };
+
+    $scope.onCartItemQtyChange = function (item) {
+        var val = parseInt(item.qty, 10);
+        if (isNaN(val) || val < 1) {
+            item.qty = 1;
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+            return;
+        }
+        SolteiraBrandsService.getProductStock(item.id).then(function (r) {
+            if (!r.data || !r.data.success) return;
+            var maxStock = parseInt(r.data.stockQuantity, 10) || 0;
+            item.maxStock = maxStock;
+            if (maxStock < 1) {
+                $scope.removeFromCartByItem(item);
+                Swal.fire({ icon: 'info', title: 'Item removed', text: item.name + ' is no longer available and was removed from your cart.' });
+            } else if (val > maxStock) {
+                item.qty = maxStock;
+                Swal.fire({ icon: 'info', title: 'Quantity adjusted', text: item.name + ': max available is ' + maxStock + '. Quantity updated.' });
+            }
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+        });
+    };
+
+    $scope.validateCartAgainstStock = function () {
+        if (!$scope.cart || $scope.cart.length === 0) return;
+        var ids = $scope.cart.map(function (i) { return i.id; });
+        SolteiraBrandsService.getProductStocks(ids).then(function (r) {
+            if (!r.data || !r.data.success || !r.data.stocks) return;
+            var byId = {};
+            (r.data.stocks || []).forEach(function (s) { byId[s.productId] = s.stockQuantity; });
+            var messages = [];
+            for (var i = $scope.cart.length - 1; i >= 0; i--) {
+                var item = $scope.cart[i];
+                var stock = byId[item.id] !== undefined ? parseInt(byId[item.id], 10) : 0;
+                item.maxStock = stock;
+                if (stock < 1) {
+                    $scope.cart.splice(i, 1);
+                    messages.push(item.name + ' is no longer available and was removed.');
+                } else if ((item.qty || 0) > stock) {
+                    item.qty = stock;
+                    messages.push(item.name + ': quantity adjusted to ' + stock + ' (max available).');
+                }
+            }
+            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
+            syncCartCountToLayout();
+            if (messages.length > 0) {
+                Swal.fire({ icon: 'info', title: 'Cart updated', text: messages.join(' ') });
+            }
+        });
     };
 
     $scope.decrementOrRemoveFromCart = function (item, index) {
@@ -450,6 +550,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.profile = { username: '', email: '', avatarUrl: '' };
     $scope.defaultAvatarUrl = SolteiraBrandsService.defaultAvatarUrl;
+    $scope.pendingProfileImageFile = null;
+    $scope.profilePreviewUrl = null;
 
     $scope.loadProfile = function () {
         SolteiraBrandsService.getMyProfile().then(function (r) {
@@ -473,25 +575,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             Swal.fire({ icon: 'warning', title: 'Too large', text: 'File must be under 5MB.' });
             return;
         }
-        SolteiraBrandsService.uploadProfileImage(file).then(function (r) {
-            if (r.data && r.data.success && r.data.imageID) {
-                SolteiraBrandsService.updateProfile(r.data.imageID, null).then(function (up) {
-                    if (up.data && up.data.success) {
-                        var newUrl = (r.data.imagePath || '') + (r.data.imageFileName || '');
-                        $scope.profile.avatarUrl = newUrl;
-                        var el = document.getElementById('layoutProfileImg');
-                        var trigger = document.getElementById('layoutProfileImgTrigger');
-                        if (el) el.src = newUrl;
-                        if (trigger) trigger.src = newUrl;
-                        Swal.fire({ icon: 'success', title: 'Photo updated', timer: 1500, showConfirmButton: false });
-                    }
-                });
-            } else {
-                Swal.fire({ icon: 'error', title: 'Upload failed', text: (r.data && r.data.message) || 'Try again.' });
-            }
-        }, function () {
-            Swal.fire({ icon: 'error', title: 'Upload failed', text: 'Try again.' });
-        });
+        if ($scope.profilePreviewUrl) {
+            URL.revokeObjectURL($scope.profilePreviewUrl);
+        }
+        $scope.pendingProfileImageFile = file;
+        $scope.profilePreviewUrl = URL.createObjectURL(file);
+        $timeout(function () {
+            Swal.fire({ icon: 'info', title: 'Photo selected', text: 'Click Save Changes to save your new photo.' });
+        }, 0);
     };
 
     $scope.onProfileUsernameBlur = function () {
@@ -519,15 +610,46 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter a name (username).' });
             return;
         }
-        SolteiraBrandsService.updateProfile(null, username).then(function (r) {
-            if (r.data && r.data.success) {
-                Swal.fire({ icon: 'success', title: 'Saved', text: 'Profile updated.', timer: 1500, showConfirmButton: false });
-            } else {
-                Swal.fire({ icon: 'error', title: 'Failed', text: (r.data && r.data.message) || 'Try again.' });
-            }
-        }, function (err) {
-            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Try again.' });
-        });
+        var doUpdate = function (avatarImageId) {
+            SolteiraBrandsService.updateProfile(avatarImageId, username).then(function (r) {
+                if (r.data && r.data.success) {
+                    if ($scope.profilePreviewUrl) {
+                        URL.revokeObjectURL($scope.profilePreviewUrl);
+                        $scope.profilePreviewUrl = null;
+                    }
+                    $scope.pendingProfileImageFile = null;
+                    var inputEl = document.getElementById('profileImageInput');
+                    if (inputEl) inputEl.value = '';
+                    var avatarUrl = $scope.profile.avatarUrl;
+                    if (avatarUrl) {
+                        var el = document.getElementById('layoutProfileImg');
+                        var trigger = document.getElementById('layoutProfileImgTrigger');
+                        if (el) el.src = avatarUrl;
+                        if (trigger) trigger.src = avatarUrl;
+                    }
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Your changes have been saved.', timer: 1500, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: (r.data && r.data.message) || 'Try again.' });
+                }
+            }, function (err) {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Try again.' });
+            });
+        };
+        if ($scope.pendingProfileImageFile) {
+            SolteiraBrandsService.uploadProfileImage($scope.pendingProfileImageFile).then(function (r) {
+                if (r.data && r.data.success && r.data.imageID) {
+                    var newUrl = (r.data.imagePath || '') + (r.data.imageFileName || '');
+                    $scope.profile.avatarUrl = newUrl;
+                    doUpdate(r.data.imageID);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Upload failed', text: (r.data && r.data.message) || 'Try again.' });
+                }
+            }, function () {
+                Swal.fire({ icon: 'error', title: 'Upload failed', text: 'Try again.' });
+            });
+        } else {
+            doUpdate(null);
+        }
     };
 
     $scope.selectAll = false;

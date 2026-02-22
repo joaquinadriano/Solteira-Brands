@@ -1120,6 +1120,7 @@
     <Content Include="Views\SolteiraAndBrands\AdminLogsPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminUsersPage.cshtml" />
     <Content Include="ChangeNotes\2026-02-02_AdminSidebar_Icons.txt" />
+    <Content Include="Views\Shared\_LogoutForm.cshtml" />
     <Content Include="Views\Shared\_SolteiraBrandsLayout.cshtml" />
     <Content Include="Views\SolteiraAndBrands\SolteiraBrandsAbout.cshtml" />
     <Content Include="Views\SolteiraAndBrands\SolteiraBrandsAccountSettings.cshtml" />

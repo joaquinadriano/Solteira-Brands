@@ -194,6 +194,25 @@ body {
     font-weight: 600;
 }
 
+.qty-value.qty-input-numeric,
+input.qty-input-numeric {
+    width: 3rem;
+    padding: 0.25rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.qty-value.qty-input-numeric::-webkit-outer-spin-button,
+.qty-value.qty-input-numeric::-webkit-inner-spin-button,
+input.qty-input-numeric::-webkit-outer-spin-button,
+input.qty-input-numeric::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .item-actions {
     position: absolute;
     top: 50%;
