@@ -755,6 +755,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
         if (status === 'rejected' || status === 'cancelled') return 'View Details';
         if (status === 'approved') return 'Pay Now';
+        if (status === 'layaway active' && order.hasSubmittedPayment) return 'Under Review';
+        if (status === 'layaway active') return 'Pay Installment';
         if (status === 'awaiting payment verification') return 'Under Review';
         if (status === 'paid' || status === 'ready for meetup') return 'View Details';
         if (status === 'in delivery') return 'Track Now';
@@ -791,11 +793,30 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         $scope.selectedOrderForDetails = null;
     };
 
+    $scope.selectedOrderForProof = null;
+    $scope.openViewPaymentProofModalFromOrders = function (order) {
+        if (!order || !order.latestPaymentForProof) { $scope.openOrderDetailsModal(order); return; }
+        $scope.selectedOrderForProof = order;
+        var el = document.getElementById('viewPaymentProofModalMyOrders');
+        if (el && window.bootstrap) {
+            var m = new bootstrap.Modal(el);
+            m.show();
+        }
+    };
+    $scope.closeViewPaymentProofModal = function () {
+        var el = document.getElementById('viewPaymentProofModalMyOrders');
+        if (el && window.bootstrap) {
+            var m = bootstrap.Modal.getInstance(el);
+            if (m) m.hide();
+        }
+        $scope.selectedOrderForProof = null;
+    };
     $scope.handleOrderAction = function (order) {
         if (!order) return;
         var label = $scope.getOrderActionLabel(order);
-        if (label === 'Pay Now') $scope.goToPayment(order.orderId);
+        if (label === 'Pay Now' || label === 'Pay Installment') $scope.goToPayment(order.orderId);
         else if (label === 'Track Now') $scope.goToTracking(order.trackingNumber);
+        else if (label === 'Under Review') $scope.openViewPaymentProofModalFromOrders(order);
         else $scope.openOrderDetailsModal(order);
     };
 
@@ -848,6 +869,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
                 $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
+                if ($scope.paymentOrder.paymentType === 'LAYAWAY') {
+                    if ($scope.paymentChannel === 'Cash through Meetup' || !$scope.paymentChannel) {
+                        $scope.paymentChannel = 'GCash';
+                    }
+                }
                 $scope.paymentLoadError = null;
                 var os = $scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus;
                 console.log('[PAYMENT DEBUG] Order loaded:', { order_status: os, order_status_Approved: os === 'Approved', hasExistingPayment: $scope.paymentOrder.hasExistingPayment, orderId: $scope.paymentOrder.orderId });
@@ -868,6 +894,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
                 $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
+                if ($scope.paymentOrder.paymentType === 'LAYAWAY' && ($scope.paymentChannel === 'Cash through Meetup' || !$scope.paymentChannel)) {
+                    $scope.paymentChannel = 'GCash';
+                }
             }
         });
     };
@@ -925,9 +954,22 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.canShowPayForm = function () {
         if (!$scope.paymentOrder) return false;
         var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
-        if (!status || String(status).toUpperCase() !== 'APPROVED') return false;
+        var statusU = (status || '').toUpperCase();
+        if (statusU === 'AWAITING PAYMENT VERIFICATION') return false;
+        if (statusU === 'LAYAWAY ACTIVE' && $scope.paymentOrder.hasSubmittedPayment) return false;
+        if (statusU === 'LAYAWAY ACTIVE') return true;
+        if (statusU !== 'APPROVED') return false;
         if ($scope.paymentOrder.hasExistingPayment) return false;
         return true;
+    };
+
+    $scope.openViewPaymentProofModal = function () {
+        if (!$scope.paymentOrder || !$scope.paymentOrder.latestPaymentForProof) return;
+        var el = document.getElementById('viewPaymentProofModal');
+        if (el && window.bootstrap) {
+            var m = new bootstrap.Modal(el);
+            m.show();
+        }
     };
 
     $scope.hasValidProof = function () {

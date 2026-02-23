@@ -70,6 +70,12 @@ body {
     margin-bottom: .5vw;
 }
 
+.payment-method-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
 .payment-order-summary {
     margin: 1vw 0;
 }

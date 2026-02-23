@@ -1,7 +1,7 @@
 @{
     Layout = "~/Views/Shared/_OperationsLayout.cshtml";
 }
-<div class="main-content">
+<div class="main-content" ng-init="loadDeliveryShipments()">
     <div class="container-fluid delivery-container px-1">
         <div class="row px-4 pb-0 mb-0 ">
             <div class="col">
@@ -15,75 +15,63 @@
                 <div class="modal fade" id="deliveryAddShipmentModal" tabindex="-1" aria-labelledby="deliveryModalLabel" aria-hidden="true" data-bs-backdrop="static">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content delivery-form-box shadow-lg">
-
                             <div class="modal-header border-0 pb-0">
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
-
                             <div class="modal-body p-5 pt-0">
-                                <h2 class="delivery-header-text mb-5">New Delivery</h2>
-
-                                <form>
-                                    <div class="row mb-3 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Order ID: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7">
-                                                <input type="text" class="form-control delivery-input-field" placeholder="ORD-007">
-                                        </div>
+                                <h2 class="delivery-header-text mb-5">Add Order (Paid orders only)</h2>
+                                <div class="row mb-3 align-items-center">
+                                    <div class="col-sm-5"><label class="delivery-label">Order <span class="delivery-required">*</span></label></div>
+                                    <div class="col-sm-7">
+                                        <select class="form-select delivery-input-field" ng-model="selectedOrderForDelivery" ng-options="o as (o.orderNumber + ' - ' + o.customerName) for o in ordersForShipments track by o.id" ng-disabled="!ordersForShipments.length">
+                                            <option value="">{{ordersForShipments.length ? 'Select Paid Order' : 'No eligible paid orders available'}}</option>
+                                        </select>
                                     </div>
-
-                                    <div class="row mb-3 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Customer Name: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="Kim Namjuan">
-                                        </div>
+                                </div>
+                                <div class="card border rounded p-3 mb-4" ng-if="selectedOrderForDelivery" style="background: #f8f9fa;">
+                                    <strong class="small text-uppercase text-muted">Order summary</strong>
+                                    <p class="mb-1 mt-2"><strong>Customer:</strong> {{selectedOrderForDelivery.customerName}}</p>
+                                    <p class="mb-1"><strong>Address:</strong> {{selectedOrderForDelivery.deliveryAddress}}</p>
+                                    <p class="mb-1"><strong>Order total:</strong> &#8369; {{selectedOrderForDelivery.totalAmount | number:2}}</p>
+                                    <p class="mb-0"><strong>Payment type:</strong> {{selectedOrderForDelivery.paymentType || 'FULL'}}</p>
+                                </div>
+                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
+                                    <div class="col-sm-5"><label class="delivery-label">Courier <span class="delivery-required">*</span></label></div>
+                                    <div class="col-sm-7">
+                                        <select class="form-select delivery-input-field" ng-model="courierChoiceForNew" ng-init="courierChoiceForNew='LBC'">
+                                            <option value="LBC">LBC</option>
+                                            <option value="Custom">Custom</option>
+                                        </select>
                                     </div>
-
-                                    <div class="row mb-3 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Courier: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="ex. LBC">
-                                        </div>
+                                </div>
+                                <div class="row mb-3 align-items-center" ng-if="courierChoiceForNew === 'Custom'">
+                                    <div class="col-sm-5"><label class="delivery-label">Courier name</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control delivery-input-field" ng-model="customCourierNameForNew" placeholder="e.g. J&T, Flash Express" />
                                     </div>
-
-                                    <div class="row mb-3 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Tracking Number: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7 position-relative">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="Tracking Number">
-                                            <i class="bi bi-pencil delivery-icon-inside"></i>
-                                        </div>
+                                </div>
+                                <div class="row mb-3 align-items-center">
+                                    <div class="col-sm-5"><label class="delivery-label">Tracking number (optional)</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control delivery-input-field" ng-model="trackingNumberForNew" placeholder="e.g. 1234567890" />
                                     </div>
-
-                                    <div class="row mb-3 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Dispatch Date: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <input type="date" class="form-control delivery-input-field">
-                                        </div>
+                                </div>
+                                <div class="row mb-3 align-items-center">
+                                    <div class="col-sm-5"><label class="delivery-label">Dispatch date (optional)</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="date" class="form-control delivery-input-field" ng-model="dispatchDateForNew" />
                                     </div>
-
-                                    <div class="row mb-5 align-items-center">
-                                        <div class="col-sm-5">
-                                            <label class="delivery-label">Estimated Date of Arrival: <span class="delivery-required">*</span></label>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <input type="date" class="form-control delivery-input-field">
-                                        </div>
+                                </div>
+                                <div class="row mb-5 align-items-center">
+                                    <div class="col-sm-5"><label class="delivery-label">ETA (optional)</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="date" class="form-control delivery-input-field" ng-model="etaForNew" />
                                     </div>
-
-                                    <div class="text-center">
-                                        <button type="button" class="delivery-btn-cancel" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="delivery-btn-add" ng-click="addShipmentStatus()">Add</button>
-                                    </div>
-                                </form>
+                                </div>
+                                <div class="text-center">
+                                    <button type="button" class="delivery-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="delivery-btn-add" ng-click="createDeliveryFromShipmentsPage()">Add</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -111,204 +99,188 @@
                     </thead>
 
                     <tbody class="table-group-divider">
-                        <tr class="text-start" ng-init="deliveryShipmentStatus=''">
-                            <td>DVR-001</td>
-                            <td ng-click="orderDetails()" id="payment-orderID">ORD-001</td>
-                            <td>Jerilee Rosales</td>
-                            <td>Dapitan St., Sampaloc, Manila</td>
-                            <td>LBC</td>
-                            <td id="shipments-trackNo">578493562785</td>
-                            <td>Nov-16-2025</td>
-                            <td>Nov-16-2025</td>
+                        <tr class="text-start" ng-repeat="d in shipmentsList track by d.id">
+                            <td>{{d.id}}</td>
+                            <td>{{d.orderNumber}}</td>
+                            <td>{{d.customerName}}</td>
+                            <td>{{d.deliveryAddress}}</td>
+                            <td>{{d.courier || d.deliveryType || 'COURIER'}}</td>
+                            <td>{{d.trackingNumber || '-'}}</td>
+                            <td>{{d.dispatchDateFormatted || (d.createdAt | date:'MMM d, y')}}</td>
+                            <td>{{d.etaFormatted || '-'}}</td>
+                            <td>{{d.deliveryStatus}}</td>
                             <td>
-                                <div class="dropdown">
-                                    <a class="btn dropdown-toggle order-dropdown-status text-muted" href="#" role="button" data-bs-toggle="dropdown">
-                                        <span ng-bind="deliveryShipmentStatus || 'Status'">Status</span>
-                                    </a>
-
-                                    <ul class="dropdown-menu order-dropdown-menu py-0">
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="deliveryShipmentStatus='Pending';shipmentsStatus()">Pending</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="deliveryShipmentStatus='In Transit'; shipmentsStatus()">In Transit</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="deliveryShipmentStatus='Delivered'; shipmentsStatus()">Delivered</a></li>
-                                        <li><a class="dropdown-item order-dropdown-item" ng-click="deliveryShipmentStatus='Failed'; shipmentsStatus()">Failed</a></li>
-                                    </ul>
+                                <div class="d-inline-block me-1" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
+                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryViewModal(d)"><img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" /></a>
                                 </div>
+                                <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit" ng-if="d.deliveryStatus !== 'DELIVERED'">
+                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryEditModal(d)"><img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" /></a>
+                                </div>
+                                <span ng-if="d.deliveryStatus === 'DELIVERED'" class="text-muted small">-</span>
                             </td>
-                            <td class="">
-                                <div  data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Shipment Details" class="d-inline-block">
-                                    <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#deliveryViewShipmentModal">
-                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" />
-                                    </a>
-                                </div>
-                                @*modal - view delivery*@
-                                <div class="modal fade" id="deliveryViewShipmentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-                                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                                        <div class="modal-content view-shipment-container shadow-lg">
-
-                                            <div class="modal-header border-0 pb-0 justify-content-end">
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-
-                                            <div class="modal-body p-5 pt-0">
-                                                <h2 class="view-shipment-header mb-5 text-center">Delivery Shipment Details</h2>
-
-                                                <div class="row mb-3 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Order ID:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="shipment-view-orderID" id="">ORD-007</div>
-                                                    </div>
-                                                </div>
-                                                <hr class="mx-5" />
-
-                                                <div class="row mb-3 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Customer Name:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="view-shipment-data">Kim Namjuan</div>
-                                                    </div>
-                                                </div>
-                                                <hr class="mx-5" />
-
-                                                <div class="row mb-3 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Courier:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="view-shipment-data">LBC</div>
-                                                    </div>
-                                                </div>
-                                                <hr class="mx-5" />
-
-                                                <div class="row mb-3 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Tracking Number:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="view-shipment-data">578493562785</div>
-                                                    </div>
-                                                </div>
-                                                <hr class="mx-5" />
-
-                                                <div class="row mb-3 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Dispatch Date:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="view-shipment-data">
-                                                            <i class="bi bi-calendar3 me-2"></i> Nov-17-2025
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <hr class="mx-5" />
-
-                                                <div class="row mb-5 justify-content-center">
-                                                    <div class="col-sm-4">
-                                                        <label class="view-shipment-label">Estimated Arrival:</label>
-                                                    </div>
-                                                    <div class="col-sm-6">
-                                                        <div class="view-shipment-data">
-                                                            <i class="bi bi-clock me-2"></i> Nov-20-2025
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                @*end of modal*@
-                                @*edit button*@
-                                <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Shipment Details" class="d-inline-block">
-                                    <a class="order-action-icon" data-bs-toggle="modal" data-bs-target="#deliveryEditShipmentModal">
-                                        <img src="@Url.Content("~/Content/img/icons/edit.svg")" />
-                                    </a>
-                                </div>
-                                @*Modal - Edit Delivery*@
-                                <div class="modal fade" id="deliveryEditShipmentModal" tabindex="-1" aria-labelledby="deliveryModalLabel" aria-hidden="true" data-bs-backdrop="static">
-                                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                                        <div class="modal-content delivery-form-box shadow-lg">
-
-                                            <div class="modal-header border-0 pb-0">
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-
-                                            <div class="modal-body p-5 pt-0">
-                                                <h2 class="delivery-header-text mb-5">Edit Delivery</h2>
-
-                                                <form>
-                                                    <div class="row mb-3 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Order ID: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7">
-                                                            <input type="text" class="form-control delivery-input-field" placeholder="ORD-007">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="row mb-3 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Customer Name: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7">
-                                                            <input type="text" class="form-control delivery-input-field" placeholder="Kim Namjuan">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="row mb-3 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Courier: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7">
-                                                            <input type="text" class="form-control delivery-input-field" placeholder="ex. LBC">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="row mb-3 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Tracking Number: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7 position-relative">
-                                                            <input type="text" class="form-control delivery-input-field" placeholder="Tracking Number">
-                                                            <i class="bi bi-pencil delivery-icon-inside"></i>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="row mb-3 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Dispatch Date: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7">
-                                                            <input type="date" class="form-control delivery-input-field">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="row mb-5 align-items-center">
-                                                        <div class="col-sm-5">
-                                                            <label class="delivery-label">Estimated Date of Arrival: <span class="delivery-required">*</span></label>
-                                                        </div>
-                                                        <div class="col-sm-7">
-                                                            <input type="date" class="form-control delivery-input-field">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="text-center">
-                                                        <button type="button" class="delivery-btn-cancel" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="delivery-btn-add" ng-click="updateShipmentStatus()">Update</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                @*end of modal*@
-                            </td>
+                        </tr>
+                        <tr ng-if="shipmentsList.length === 0">
+                            <td colspan="10" class="text-muted py-4">No shipments. Add an order from Paid orders above.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
         @*----------Table end----------*@
+
+        @* View Delivery modal (read-only) *@
+        <div class="modal fade" id="deliveryViewModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content orderDetails-modal-custom" style="background-color: #f8f9fa;" ng-if="deliveryDetail">
+                    <div class="modal-header border-0 px-4 pt-4 pb-0">
+                        <h2 class="fw-bold mb-0">Delivery Details</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closeDeliveryViewModal()"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-4">
+                            <div class="col-lg-4">
+                                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h4 class="fw-bold mb-0">Delivery #{{deliveryDetail.deliveryOverview.id}} · Order {{deliveryDetail.deliveryOverview.orderNumber}}</h4>
+                                            <span class="orderDetails-badgeNew">{{deliveryDetail.deliveryOverview.deliveryStatus}}</span>
+                                        </div>
+                                        <p class="text-muted mb-0"><i class="bi bi-calendar me-1"></i>{{deliveryDetail.deliveryOverview.createdAtString}}</p>
+                                        <div class="mt-3">
+                                            <label class="orderDetails-infoLabel">Courier</label>
+                                            <p class="orderDetails-infoValue mb-0">{{deliveryDetail.deliveryOverview.courier || deliveryDetail.deliveryOverview.deliveryType || 'COURIER'}}</p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="orderDetails-infoLabel">Tracking Number</label>
+                                            <p class="orderDetails-infoValue mb-0">{{deliveryDetail.deliveryOverview.trackingNumber || '-'}}</p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="orderDetails-infoLabel">Dispatch Date</label>
+                                            <p class="orderDetails-infoValue mb-0">{{deliveryDetail.deliveryOverview.dispatchDateFormatted}}</p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="orderDetails-infoLabel">ETA</label>
+                                            <p class="orderDetails-infoValue mb-0">{{deliveryDetail.deliveryOverview.etaFormatted || '-'}}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="deliveryDetail.orderSummary">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-person-circle me-2 orderDetails-icon"></i>Customer Information</h5>
+                                        <div class="mb-3">
+                                            <label class="orderDetails-infoLabel">Name</label>
+                                            <p class="orderDetails-infoValue">{{deliveryDetail.orderSummary.customerName}}</p>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="orderDetails-infoLabel">Email</label>
+                                            <p class="orderDetails-infoValue">{{deliveryDetail.orderSummary.email}}</p>
+                                        </div>
+                                        <div>
+                                            <label class="orderDetails-infoLabel">Contact No</label>
+                                            <p class="orderDetails-infoValue">{{deliveryDetail.orderSummary.contactNumber}}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="deliveryDetail.orderSummary">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2"><i class="bi bi-geo-alt me-2 orderDetails-icon"></i>Delivery Address</h5>
+                                        <p class="fw-bold mb-1">{{deliveryDetail.orderSummary.customerName}}</p>
+                                        <p class="mb-0">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-8">
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="deliveryDetail.orderSummary && deliveryDetail.orderSummary.items.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-bag-check me-2 orderDetails-icon"></i>Order Items</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom"><tr class="text-muted small text-uppercase"><th>Item</th><th class="text-center">Qty</th><th class="text-end">Price</th></tr></thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="item in deliveryDetail.orderSummary.items">
+                                                        <td class="fw-bold py-3">{{item.productName}}</td>
+                                                        <td class="text-center">{{item.quantity}}</td>
+                                                        <td class="text-end">&#8369; {{item.unitPrice * item.quantity | number:2}}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="deliveryDetail.statusTimeline && deliveryDetail.statusTimeline.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 orderDetails-icon"></i>Status Timeline</h5>
+                                        <ul class="list-unstyled mb-0">
+                                            <li class="d-flex align-items-center mb-2" ng-repeat="t in deliveryDetail.statusTimeline">
+                                                <span class="badge me-2" ng-class="{'bg-secondary': t.status === 'PENDING', 'bg-primary': t.status === 'IN_TRANSIT', 'bg-success': t.status === 'DELIVERED'}">{{t.status}}</span>
+                                                <span class="text-muted small">{{t.at}}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-credit-card me-2 orderDetails-icon"></i>Order Summary</h5>
+                                        <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-3 mt-2">
+                                            <span>Total</span>
+                                            <span class="orderDetails-total">&#8369; {{deliveryDetail.orderSummary.totalAmount | number:2}}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4">
+                        <button type="button" class="btn btn-outline-primary" ng-if="deliveryDetail.deliveryOverview.deliveryStatus === 'PENDING'" ng-click="updateDeliveryStatusFromViewModal(deliveryDetail.deliveryOverview.id, 'IN_TRANSIT')">Mark In Transit</button>
+                        <button type="button" class="btn btn-success" ng-if="deliveryDetail.deliveryOverview.deliveryStatus === 'IN_TRANSIT'" ng-click="updateDeliveryStatusFromViewModal(deliveryDetail.deliveryOverview.id, 'DELIVERED')">Mark Delivered</button>
+                        <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal" ng-click="closeDeliveryViewModal()"><span>CLOSE</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Edit Delivery modal (PENDING: courier, tracking, dispatch, eta; IN_TRANSIT: tracking only) *@
+        <div class="modal fade" id="deliveryEditModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content orderDetails-modal-custom" ng-if="editingDelivery">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">Edit Shipment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" ng-click="closeDeliveryEditModal()"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <p class="text-muted small mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">You can edit courier, tracking number, dispatch date, ETA, and delivery status.</p>
+                        <p class="text-muted small mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'IN_TRANSIT'">You can update tracking number and delivery status.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Delivery Status</label>
+                            <select class="form-select" ng-model="editDeliveryForm.deliveryStatus">
+                                <option value="PENDING">PENDING</option>
+                                <option value="IN_TRANSIT">IN_TRANSIT</option>
+                                <option value="DELIVERED">DELIVERED</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
+                            <label class="form-label">Courier</label>
+                            <input type="text" class="form-control" ng-model="editDeliveryForm.courier" placeholder="e.g. LBC, J&T" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tracking Number</label>
+                            <input type="text" class="form-control" ng-model="editDeliveryForm.trackingNumber" placeholder="Tracking number" />
+                        </div>
+                        <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
+                            <label class="form-label">Dispatch Date</label>
+                            <input type="date" class="form-control" ng-model="editDeliveryForm.dispatchDate" />
+                        </div>
+                        <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
+                            <label class="form-label">ETA</label>
+                            <input type="date" class="form-control" ng-model="editDeliveryForm.eta" />
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-outline-secondary" ng-click="closeDeliveryEditModal()">Cancel</button>
+                        <button type="button" class="btn btn-success" ng-click="saveDeliveryEdit()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

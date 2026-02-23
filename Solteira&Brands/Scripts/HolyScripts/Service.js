@@ -81,18 +81,69 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetPaymentsForAdmin" });
     };
 
+    this.getPaymentDetailForAdmin = function (paymentId) {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetPaymentDetailForAdmin", params: { paymentId: paymentId } });
+    };
+
     this.revokeApproval = function (orderId) {
         return $http({ method: "POST", url: "/SolteiraAndBrands/RevokeApproval", params: { orderId: orderId } });
     };
 
-    this.createDelivery = function (orderId, deliveryType, trackingNumber) {
-        var params = { orderId: orderId, deliveryType: deliveryType };
+    this.createDelivery = function (orderId, deliveryType, trackingNumber, courier, dispatchDate, eta) {
+        var params = { orderId: orderId, deliveryType: deliveryType || 'COURIER' };
         if (trackingNumber) params.trackingNumber = trackingNumber;
+        if (courier) params.courier = courier;
+        if (dispatchDate) params.dispatchDate = dispatchDate;
+        if (eta) params.eta = eta;
         return $http({ method: "POST", url: "/SolteiraAndBrands/CreateDelivery", params: params });
     };
 
     this.updateDeliveryStatus = function (deliveryId, status) {
         return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateDeliveryStatus", params: { deliveryId: deliveryId, status: status } });
+    };
+
+    this.getDeliveryDetailForAdmin = function (deliveryId) {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetDeliveryDetailForAdmin", params: { deliveryId: deliveryId } });
+    };
+
+    this.updateDelivery = function (deliveryId, courier, trackingNumber, dispatchDate, eta, deliveryStatus) {
+        var params = { deliveryId: deliveryId };
+        if (courier != null) params.courier = courier;
+        if (trackingNumber != null) params.trackingNumber = trackingNumber;
+        if (dispatchDate != null) params.dispatchDate = dispatchDate;
+        if (eta != null) params.eta = eta;
+        if (deliveryStatus != null) params.deliveryStatus = deliveryStatus;
+        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateDelivery", params: params });
+    };
+
+    this.getOrdersForDeliveryShipments = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetOrdersForDeliveryShipments" });
+    };
+    this.getDeliveryShipments = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetDeliveryShipments" });
+    };
+    this.getOrdersForDeliveryMeetup = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetOrdersForDeliveryMeetup" });
+    };
+
+    this.getMeetupOrderDetail = function (orderId) {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetMeetupOrderDetail", params: { orderId: orderId } });
+    };
+    this.uploadMeetupReceipt = function (file) {
+        var formData = new FormData();
+        formData.append("file", file);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/UploadMeetupReceipt",
+            data: formData,
+            headers: { "Content-Type": undefined },
+            transformRequest: angular.identity
+        });
+    };
+    this.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+        var params = { orderId: orderId, status: status };
+        if (receiptImageId) params.receiptImageId = receiptImageId;
+        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateMeetupOutcome", params: params });
     };
 
     this.markReadyForMeetup = function (orderId) {

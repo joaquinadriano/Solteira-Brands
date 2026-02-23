@@ -10,6 +10,9 @@ namespace Solteira_Brands.Models
 
         public int OrderId { get; set; }
         public string DeliveryType { get; set; }
+        public string Courier { get; set; }
+        public DateTime? DispatchDate { get; set; }
+        public DateTime? Eta { get; set; }
         public string TrackingNumber { get; set; }
         public DateTime? MeetupDatetime { get; set; }
         public string DeliveryStatus { get; set; }

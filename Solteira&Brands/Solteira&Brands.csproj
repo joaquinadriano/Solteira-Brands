@@ -144,6 +144,9 @@
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
+    <Compile Include="Constants\OrderStatus.cs" />
+    <Compile Include="Constants\PaymentStatus.cs" />
+    <Compile Include="Constants\DeliveryStatus.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\SolteiraAndBrandsController.cs" />
@@ -160,6 +163,7 @@
     <Compile Include="Models\Maps\tblLayawaySettingsMap.cs" />
     <Compile Include="Models\Maps\tblMeetupSettingsMap.cs" />
     <Compile Include="Models\Maps\tblPaymentSettingsMap.cs" />
+    <Compile Include="Models\Maps\tblMeetupOutcomeMap.cs" />
     <Compile Include="Models\CreateOrderRequest.cs" />
     <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\SubmitPaymentRequest.cs" />
@@ -173,6 +177,7 @@
     <Compile Include="Models\tblProductsModel.cs" />
     <Compile Include="Models\tblActivityLogModel.cs" />
     <Compile Include="Models\tblLayawaySettingsModel.cs" />
+    <Compile Include="Models\tblMeetupOutcomeModel.cs" />
     <Compile Include="Models\tblMeetupSettingsModel.cs" />
     <Compile Include="Models\tblPaymentSettingsModel.cs" />
     <Compile Include="Security\BuyerAuthorizeAttribute.cs" />

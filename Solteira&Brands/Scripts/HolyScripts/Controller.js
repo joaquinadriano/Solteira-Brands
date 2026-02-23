@@ -255,6 +255,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (res.data && res.data.success) {
                 $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
+                $scope.loadDeliveryShipments();
                 Swal.fire({ title: 'Delivery status updated', icon: 'success', confirmButtonText: 'OK' });
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -262,6 +263,89 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }, function (err) {
             Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
         });
+    };
+    $scope.updateDeliveryStatusFromViewModal = function (deliveryId, status) {
+        if (!deliveryId || !status) return;
+        SolteiraAndBrandsService.updateDeliveryStatus(deliveryId, status).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.closeDeliveryViewModal();
+                $scope.loadOrders();
+                $scope.refreshSelectedOrderDetails();
+                $scope.loadDeliveryShipments();
+                Swal.fire({ title: 'Delivery status updated', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
+    $scope.deliveryDetail = null;
+    $scope.openDeliveryViewModal = function (d) {
+        if (!d || !d.id) return;
+        $scope.deliveryDetail = null;
+        SolteiraAndBrandsService.getDeliveryDetailForAdmin(d.id).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.deliveryDetail = res.data;
+                var el = document.getElementById('deliveryViewModal');
+                if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
+            }
+        }, function () { Swal.fire({ icon: 'error', title: 'Failed', text: 'Could not load delivery details.' }); });
+    };
+    $scope.closeDeliveryViewModal = function () {
+        var el = document.getElementById('deliveryViewModal');
+        if (el && window.bootstrap) { var m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
+        $scope.deliveryDetail = null;
+    };
+
+    $scope.editingDelivery = null;
+    $scope.editDeliveryForm = { courier: '', trackingNumber: '', dispatchDate: '', eta: '', deliveryStatus: '' };
+    $scope.openDeliveryEditModal = function (d) {
+        if (!d || !d.id) return;
+        if ((d.deliveryStatus || '').toUpperCase() === 'DELIVERED') {
+            Swal.fire({ icon: 'warning', title: 'Cannot edit', text: 'Delivered shipments cannot be edited.' });
+            return;
+        }
+        SolteiraAndBrandsService.getDeliveryDetailForAdmin(d.id).then(function (res) {
+            if (res.data && res.data.success) {
+                var ov = res.data.deliveryOverview;
+                $scope.editingDelivery = res.data;
+                $scope.editDeliveryForm = {
+                    courier: ov.courier || '',
+                    trackingNumber: ov.trackingNumber || '',
+                    dispatchDate: ov.dispatchDateIso || '',
+                    eta: ov.etaIso || '',
+                    deliveryStatus: ov.deliveryStatus || 'PENDING'
+                };
+                var el = document.getElementById('deliveryEditModal');
+                if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
+            }
+        }, function () { Swal.fire({ icon: 'error', title: 'Failed', text: 'Could not load delivery.' }); });
+    };
+    $scope.closeDeliveryEditModal = function () {
+        var el = document.getElementById('deliveryEditModal');
+        if (el && window.bootstrap) { var m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
+        $scope.editingDelivery = null;
+    };
+    $scope.saveDeliveryEdit = function () {
+        if (!$scope.editingDelivery || !$scope.editingDelivery.deliveryOverview) return;
+        var id = $scope.editingDelivery.deliveryOverview.id;
+        var currentStatus = ($scope.editingDelivery.deliveryOverview.deliveryStatus || '').toUpperCase();
+        var courier = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.courier || null) : null;
+        var trackingNumber = $scope.editDeliveryForm.trackingNumber || null;
+        var dispatchDate = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.dispatchDate || null) : null;
+        var eta = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.eta || null) : null;
+        var deliveryStatus = ($scope.editDeliveryForm.deliveryStatus || '').trim() || null;
+        SolteiraAndBrandsService.updateDelivery(id, courier, trackingNumber, dispatchDate, eta, deliveryStatus).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadDeliveryShipments();
+                $scope.closeDeliveryEditModal();
+                Swal.fire({ title: 'Delivery updated', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
     };
 
     $scope.markReadyForMeetup = function (orderId) {
@@ -292,6 +376,98 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }, function (err) {
             Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
         });
+    };
+
+    $scope.ordersForShipments = [];
+    $scope.shipmentsList = [];
+    $scope.loadDeliveryShipments = function () {
+        SolteiraAndBrandsService.getOrdersForDeliveryShipments().then(function (res) {
+            $scope.ordersForShipments = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+        });
+        SolteiraAndBrandsService.getDeliveryShipments().then(function (res) {
+            $scope.shipmentsList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+        });
+    };
+    $scope.createDeliveryFromShipmentsPage = function () {
+        var orderId = $scope.selectedOrderForDelivery ? ($scope.selectedOrderForDelivery.id || $scope.selectedOrderForDelivery.orderId) : null;
+        if (!orderId) { Swal.fire({ icon: 'warning', title: 'Select an order', text: 'Choose a Paid order from the list.' }); return; }
+        var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
+        var trackingNumber = ($scope.trackingNumberForNew || '').trim() || null;
+        var courier = ($scope.courierChoiceForNew === 'Custom' && ($scope.customCourierNameForNew || '').trim()) ? ($scope.customCourierNameForNew || '').trim() : ($scope.courierChoiceForNew || 'LBC');
+        var dispatchDate = ($scope.dispatchDateForNew || '').trim() || null;
+        var eta = ($scope.etaForNew || '').trim() || null;
+        SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber, courier, dispatchDate, eta).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadDeliveryShipments();
+                $scope.selectedOrderForDelivery = null; $scope.trackingNumberForNew = ''; $scope.customCourierNameForNew = ''; $scope.dispatchDateForNew = ''; $scope.etaForNew = '';
+                var modalEl = document.getElementById('deliveryAddShipmentModal');
+                if (modalEl && window.bootstrap) { var m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); }
+                Swal.fire({ title: 'Delivery created', icon: 'success', confirmButtonText: 'OK' });
+            } else { Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' }); }
+        }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+    };
+
+    $scope.meetupOrdersList = [];
+    $scope.loadDeliveryMeetup = function () {
+        SolteiraAndBrandsService.getOrdersForDeliveryMeetup().then(function (res) {
+            $scope.meetupOrdersList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+        });
+    };
+    $scope.meetupCompletedOrderId = null;
+    $scope.completeMeetupWithReceipt = function (orderId) {
+        $scope.meetupCompletedOrderId = orderId;
+        var el = document.getElementById('meetupReceiptFile');
+        if (el) el.value = '';
+        var modalEl = document.getElementById('meetupReceiptModal');
+        if (modalEl && window.bootstrap) { var m = new bootstrap.Modal(modalEl); m.show(); }
+    };
+    $scope.confirmMeetupCompleted = function () {
+        var orderId = $scope.meetupCompletedOrderId;
+        if (!orderId) { Swal.fire({ icon: 'warning', title: 'Error', text: 'No order selected.' }); return; }
+        var fileInput = document.getElementById('meetupReceiptFile');
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) { Swal.fire({ icon: 'warning', title: 'Select file', text: 'Please select a receipt image (JPG or PNG, max 5MB).' }); return; }
+        var file = fileInput.files[0];
+        SolteiraAndBrandsService.uploadMeetupReceipt(file).then(function (res) {
+            if (res.data && res.data.success && res.data.imageID) {
+                var receiptId = res.data.imageID;
+                SolteiraAndBrandsService.updateMeetupOutcome(orderId, 'COMPLETED', receiptId).then(function (r) {
+                    if (r.data && r.data.success) {
+                        $scope.meetupCompletedOrderId = null;
+                        var modalEl = document.getElementById('meetupReceiptModal');
+                        if (modalEl && window.bootstrap) { var m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); }
+                        $scope.loadDeliveryMeetup();
+                        Swal.fire({ title: 'Meetup completed', icon: 'success', confirmButtonText: 'OK' });
+                    } else { Swal.fire({ icon: 'error', title: 'Failed', text: (r.data && r.data.message) || 'Please try again.' }); }
+                }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+            } else { Swal.fire({ icon: 'error', title: 'Upload failed', text: (res.data && res.data.message) || 'Please try again.' }); }
+        }, function (err) { Swal.fire({ icon: 'error', title: 'Upload failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+    };
+    $scope.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+        if (!orderId || !status) return;
+        SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, receiptImageId).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadDeliveryMeetup();
+                Swal.fire({ title: 'Updated', icon: 'success', confirmButtonText: 'OK' });
+            } else { Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' }); }
+        }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+    };
+
+    $scope.meetupDetail = null;
+    $scope.openMeetupViewModal = function (o) {
+        if (!o || !o.id) return;
+        $scope.meetupDetail = null;
+        SolteiraAndBrandsService.getMeetupOrderDetail(o.id).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.meetupDetail = res.data;
+                var el = document.getElementById('meetupViewModal');
+                if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
+            }
+        }, function () { Swal.fire({ icon: 'error', title: 'Failed', text: 'Could not load meetup details.' }); });
+    };
+    $scope.closeMeetupViewModal = function () {
+        var el = document.getElementById('meetupViewModal');
+        if (el && window.bootstrap) { var m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
+        $scope.meetupDetail = null;
     };
 
     $scope.verifyPayment = function (paymentId) {
@@ -345,6 +521,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.paymentsList = [];
     $scope.selectedPayment = null;
+    $scope.paymentDetail = null;
     $scope.loadPayments = function () {
         SolteiraAndBrandsService.getPaymentsForAdmin().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
@@ -366,13 +543,23 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     });
     $scope.paymentRejectionReason = '';
     $scope.openPaymentProofModal = function (payment) {
-        $scope.selectedPayment = payment;
+        if (!payment || !payment.paymentId) return;
+        $scope.paymentDetail = null;
+        $scope.selectedPayment = null;
         $scope.paymentRejectionReason = '';
-        var el = document.getElementById('paymentDetailModal');
-        if (el && window.bootstrap) {
-            var m = new bootstrap.Modal(el);
-            m.show();
-        }
+        SolteiraAndBrandsService.getPaymentDetailForAdmin(payment.paymentId).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.paymentDetail = res.data;
+                $scope.selectedPayment = res.data.selectedPayment;
+                var el = document.getElementById('paymentDetailModal');
+                if (el && window.bootstrap) {
+                    var m = new bootstrap.Modal(el);
+                    m.show();
+                }
+            }
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Failed', text: 'Could not load payment details.' });
+        });
     };
     $scope.closePaymentProofModal = function () {
         var el = document.getElementById('paymentDetailModal');
@@ -381,7 +568,18 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (m) m.hide();
         }
         $scope.selectedPayment = null;
+        $scope.paymentDetail = null;
         $scope.paymentRejectionReason = '';
+    };
+    $scope.getPaymentStatusBadgeClass = function (status) {
+        if (!status) return 'bg-secondary';
+        var s = (status + '').toUpperCase();
+        if (s === 'PENDING') return 'bg-secondary';
+        if (s === 'SUBMITTED') return 'bg-warning text-dark';
+        if (s === 'VERIFIED') return 'bg-success';
+        if (s === 'REJECTED') return 'bg-danger';
+        if (s === 'OVERDUE') return 'bg-danger';
+        return 'bg-secondary';
     };
     $scope.verifyPaymentFromModal = function () {
         if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;

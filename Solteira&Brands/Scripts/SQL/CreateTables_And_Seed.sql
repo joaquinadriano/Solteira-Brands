@@ -1,7 +1,8 @@
 -- ============================================================================
 -- Solteira & Brands — SINGLE SQL SCRIPT (update this file as schema changes)
 -- Database: SolteiraBrands (MySQL / MariaDB)
--- Run in HeidiSQL. Idempotent: safe to run multiple times.
+-- Run in HeidiSQL: open this file in Query tab, then Execute (F9) or Run (Ctrl+F9).
+-- Idempotent: safe to run multiple times.
 --
 -- Current schema:
 --   tbl_roles, tbl_users (no first_name/last_name; auth_provider),
@@ -105,10 +106,12 @@ CREATE TABLE IF NOT EXISTS tbl_products (
 -- ----------------------------------------------------------------------------
 -- ORDER LIFECYCLE — Three status layers (order status is NEVER manually set)
 -- ----------------------------------------------------------------------------
--- 1. tbl_orders.order_status (valid only): Pending | Approved | Rejected |
---    Awaiting Payment Verification | Paid | In Delivery | Ready for Meetup | Completed | Cancelled
+-- 1. tbl_orders.order_status: Pending | Approved | Rejected | Awaiting Payment Verification |
+--    Paid | Layaway Active | In Delivery | Ready for Meetup | Completed | Cancelled
+--    delivery_type on order: COURIER | MEETUP (set at checkout; payment verification uses it)
 -- 2. tbl_payments.payment_status: SUBMITTED | VERIFIED | REJECTED
--- 3. tbl_deliveries.delivery_status: PENDING | IN_TRANSIT | DELIVERED
+-- 3. tbl_deliveries.delivery_status: PENDING | IN_TRANSIT | DELIVERED (shipments only; order_status = Paid required)
+-- 4. tbl_meetup_outcomes: meetup completion (Ready for Meetup → Completed/No Show/Cancelled)
 -- ----------------------------------------------------------------------------
 
 -- ----------------------------------------------------------------------------
@@ -126,6 +129,7 @@ CREATE TABLE IF NOT EXISTS tbl_orders (
     total_amount            DECIMAL(12,2)   NOT NULL,
     remaining_balance       DECIMAL(12,2)   NOT NULL DEFAULT 0,
     order_status            VARCHAR(50)     NOT NULL DEFAULT 'Pending',
+    delivery_type           VARCHAR(50)     NULL DEFAULT 'COURIER',
     rejection_reason        VARCHAR(500)    NULL,
     created_at              DATETIME        NOT NULL,
     last_status_update_at   DATETIME        NULL,
@@ -191,6 +195,29 @@ CREATE TABLE IF NOT EXISTS tbl_deliveries (
         FOREIGN KEY (order_id)
         REFERENCES tbl_orders (id)
         ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 5b4. tbl_meetup_outcomes (Ready for Meetup → Completed with receipt | No Show | Cancelled)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_meetup_outcomes (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    status              VARCHAR(50)     NOT NULL,
+    receipt_image_id    INT             NULL,
+    created_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_meetup_outcomes_order_id (order_id),
+    CONSTRAINT fk_meetup_outcomes_order
+        FOREIGN KEY (order_id)
+        REFERENCES tbl_orders (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_meetup_outcomes_receipt
+        FOREIGN KEY (receipt_image_id)
+        REFERENCES tbl_images (id)
+        ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -367,6 +394,25 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add resubmit_window_days to tbl_layaway_settings (days allowed to resubmit after rejection; default 3)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_layaway_settings' AND COLUMN_NAME = 'resubmit_window_days');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_layaway_settings ADD COLUMN resubmit_window_days INT NOT NULL DEFAULT 3 AFTER months_allowed;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+-- Add grace_period_days to tbl_layaway_settings (days past due before marking Overdue; default 0)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_layaway_settings' AND COLUMN_NAME = 'grace_period_days');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_layaway_settings ADD COLUMN grace_period_days INT NOT NULL DEFAULT 0 AFTER resubmit_window_days;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add reference_number and meetup_datetime to tbl_payments (for proof-based and meetup submissions)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'reference_number');
@@ -381,6 +427,44 @@ SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'meetup_datetime');
 SET @ddl := IF(@col_exists = 0,
     'ALTER TABLE tbl_payments ADD COLUMN meetup_datetime DATETIME NULL AFTER reference_number;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add delivery_type to tbl_orders (COURIER | MEETUP; set at checkout; payment verification uses it)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'delivery_type');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN delivery_type VARCHAR(50) NULL DEFAULT ''COURIER'' AFTER order_status;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add courier, dispatch_date, eta to tbl_deliveries (shipments: editable when PENDING)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_deliveries' AND COLUMN_NAME = 'courier');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_deliveries ADD COLUMN courier VARCHAR(100) NULL AFTER delivery_type;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_deliveries' AND COLUMN_NAME = 'dispatch_date');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_deliveries ADD COLUMN dispatch_date DATETIME NULL AFTER courier;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_deliveries' AND COLUMN_NAME = 'eta');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_deliveries ADD COLUMN eta DATETIME NULL AFTER dispatch_date;',
     'SELECT 1;');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

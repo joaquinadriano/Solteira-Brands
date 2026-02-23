@@ -250,13 +250,7 @@
             });
 
             //----------Delivery Page----------
-            $(document).ready(function () {
-                $('#deliveryShipmentsTable').DataTable();
-            });
-
-            $(document).ready(function () {
-                $('#deliveryMeetupTable').DataTable();
-            });
+            // deliveryShipmentsTable, deliveryMeetupTable are Angular ng-repeat — do NOT init DataTables (causes "unknown parameter" error)
 
             //----------Reports Page----------
             $(document).ready(function () {

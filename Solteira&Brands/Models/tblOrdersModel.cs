@@ -19,6 +19,7 @@ namespace Solteira_Brands.Models
         public decimal TotalAmount { get; set; }
         public decimal RemainingBalance { get; set; }
         public string OrderStatus { get; set; }
+        public string DeliveryType { get; set; }
         public string RejectionReason { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastStatusUpdateAt { get; set; }

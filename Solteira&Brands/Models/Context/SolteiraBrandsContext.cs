@@ -25,6 +25,7 @@ namespace Solteira_Brands.Models.Context
         public virtual DbSet<tblPaymentSettingsModel> tbl_payment_settings { get; set; }
         public virtual DbSet<tblMeetupSettingsModel> tbl_meetup_settings { get; set; }
         public virtual DbSet<tblLayawaySettingsModel> tbl_layaway_settings { get; set; }
+        public virtual DbSet<tblMeetupOutcomeModel> tbl_meetup_outcomes { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -41,6 +42,7 @@ namespace Solteira_Brands.Models.Context
             modelBuilder.Configurations.Add(new tblPaymentSettingsMap());
             modelBuilder.Configurations.Add(new tblMeetupSettingsMap());
             modelBuilder.Configurations.Add(new tblLayawaySettingsMap());
+            modelBuilder.Configurations.Add(new tblMeetupOutcomeMap());
         }
     }
 }
