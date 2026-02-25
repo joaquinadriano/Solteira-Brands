@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -18,7 +19,7 @@ namespace Solteira_Brands.Controllers
     public class SolteiraAndBrandsController : Controller
     {
         // ----- Order lifecycle: three status layers (order status is NEVER manually set) -----
-        // Order status: Pending | Approved | Rejected | Awaiting Payment Verification | Paid | In Delivery | Ready for Meetup | Completed | Cancelled (action-driven only)
+        // Order status: Pending | Approved | Rejected | Awaiting Payment Verification | Awaiting Meetup | Paid | In Delivery | Ready for Meetup | Completed | Cancelled (action-driven only)
         // Payment status: SUBMITTED | VERIFIED | REJECTED
         // Delivery status: PENDING | IN_TRANSIT | DELIVERED
 
@@ -313,6 +314,7 @@ namespace Solteira_Brands.Controllers
                                 {
                                     id = p.Id,
                                     name = p.Name,
+                                    description = p.Description,
                                     price = p.Price,
                                     category = p.Category,
                                     material = p.Material,
@@ -424,7 +426,7 @@ namespace Solteira_Brands.Controllers
                     PaymentType = paymentType,
                     TotalAmount = request.TotalAmount,
                     RemainingBalance = request.TotalAmount,
-                    OrderStatus = "Pending",
+                    OrderStatus = OrderStatus.Pending,
                     DeliveryType = deliveryType,
                     CreatedAt = now,
                     LastStatusUpdateAt = now
@@ -483,6 +485,7 @@ namespace Solteira_Brands.Controllers
                         deliveryAddress = o.DeliveryAddress,
                         totalAmount = o.TotalAmount,
                         orderStatus = o.OrderStatus,
+                        paymentType = o.PaymentType ?? "FULL",
                         customerName = o.CustomerName,
                         contactNumber = o.ContactNumber,
                         paymentMethod = o.PaymentMethod,
@@ -579,7 +582,6 @@ namespace Solteira_Brands.Controllers
                     .OrderByDescending(o => o.CreatedAt)
                     .Include(o => o.Deliveries)
                     .Include(o => o.OrderItems)
-                    .Include("Payments")
                     .Include("Payments.ProofImage")
                     .ToList();
 
@@ -758,6 +760,15 @@ namespace Solteira_Brands.Controllers
                         trackingNumber = o.Deliveries != null && o.Deliveries.Any()
                             ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().TrackingNumber
                             : null,
+                        courier = o.Deliveries != null && o.Deliveries.Any()
+                            ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().Courier
+                            : null,
+                        dispatchDate = o.Deliveries != null && o.Deliveries.Any()
+                            ? (o.Deliveries.OrderByDescending(d => d.CreatedAt).First().DispatchDate ?? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().CreatedAt).ToString("MMM d, yyyy")
+                            : null,
+                        eta = o.Deliveries != null && o.Deliveries.Any() && o.Deliveries.OrderByDescending(d => d.CreatedAt).First().Eta.HasValue
+                            ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().Eta.Value.ToString("MMM d, yyyy")
+                            : null,
                         createdAt = o.CreatedAt,
                         latestPaymentProofUrl = latestPaymentProofUrl,
                         verifiedPaymentsCount = verifiedCount,
@@ -789,9 +800,13 @@ namespace Solteira_Brands.Controllers
                 if (user == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
                 var order = db.tbl_orders.Include("OrderItems").Include("Payments").Include("Payments.ProofImage").FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
                 if (order == null) return Json(new { success = false, message = "Order not found." }, JsonRequestBehavior.AllowGet);
-                bool hasExistingPayment = db.tbl_payments.Any(p => p.OrderId == order.Id);
+                bool hasExistingPayment = db.tbl_payments.Any(p =>
+                    p.OrderId == order.Id &&
+                    (p.PaymentStatus != "REJECTED"));
                 var latestPaymentForProof = order.Payments != null
-                    ? order.Payments.OrderByDescending(p => p.CreatedAt).FirstOrDefault(p => string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase) || string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
+                    ? order.Payments.OrderByDescending(p => p.CreatedAt).FirstOrDefault(p =>
+                        string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
                     : null;
                 object latestPaymentForProofDto = null;
                 if (latestPaymentForProof != null)
@@ -804,7 +819,8 @@ namespace Solteira_Brands.Controllers
                         amount = latestPaymentForProof.Amount,
                         createdAt = latestPaymentForProof.CreatedAt.ToString("MMM dd, yyyy hh:mm tt"),
                         paymentStatus = latestPaymentForProof.PaymentStatus,
-                        rejectionReason = latestPaymentForProof.RejectionReason
+                        rejectionReason = latestPaymentForProof.RejectionReason,
+                        allowResubmit = latestPaymentForProof.AllowResubmit
                     };
                 }
                 var verifiedPaymentsCount = order.Payments != null ? order.Payments.Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)) : 0;
@@ -996,23 +1012,42 @@ namespace Solteira_Brands.Controllers
             if (orderId <= 0 || amount <= 0)
                 return Json(new { success = false, message = "Invalid order or amount." });
             bool isMeetup = !string.IsNullOrWhiteSpace(meetupDate) && !string.IsNullOrWhiteSpace(meetupTime);
-            string refTrimmed = null;
+            string refTrimmed = (referenceNumber ?? "").Trim();
+            if (refTrimmed.Length > 20)
+                return Json(new { success = false, message = "Reference number must be 20 characters or less." });
             if (!isMeetup)
             {
                 if (!proofImageId.HasValue || proofImageId.Value <= 0)
                     return Json(new { success = false, message = "Proof of payment is required. Please upload your payment proof first." });
-                refTrimmed = (referenceNumber ?? "").Trim();
                 if (string.IsNullOrEmpty(refTrimmed))
                     return Json(new { success = false, message = "Reference number is required." });
-                if (refTrimmed.Length > 20)
-                    return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+            }
+            else
+            {
+                if (!proofImageId.HasValue || proofImageId.Value <= 0)
+                    return Json(new { success = false, message = "Proof of 30% down payment is required. Please upload your payment proof first." });
+                if (string.IsNullOrEmpty(refTrimmed))
+                    return Json(new { success = false, message = "Reference number for 30% down payment is required." });
             }
             DateTime? meetupDt = null;
             if (isMeetup)
             {
-                if (!DateTime.TryParse(meetupDate, out var d) || !DateTime.TryParse(meetupTime, out var t))
-                    return Json(new { success = false, message = "Valid meetup date and time are required." });
-                meetupDt = d.Date.Add(t.TimeOfDay);
+                // Frontend sends date as yyyy-MM-dd from HTML date input; do not accept other formats.
+                if (!DateTime.TryParseExact(meetupDate?.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var meetupDateParsed))
+                    return Json(new { success = false, message = "Valid meetup date is required (yyyy-MM-dd)." });
+                if (!DateTime.TryParse(meetupTime, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.None, out var t))
+                    return Json(new { success = false, message = "Valid meetup time is required (e.g. 10:00 AM)." });
+                meetupDt = meetupDateParsed.Date.Add(t.TimeOfDay);
+                var today = DateTime.Today;
+                var now = DateTime.Now;
+                if (meetupDt.Value.Date < today)
+                    return Json(new { success = false, message = "Meetup date cannot be in the past." });
+                var start = new TimeSpan(10, 0, 0);
+                var end = new TimeSpan(17, 0, 0);
+                if (meetupDt.Value.TimeOfDay < start || meetupDt.Value.TimeOfDay > end)
+                    return Json(new { success = false, message = "Meetup must be between 10:00 AM and 5:00 PM." });
+                if (meetupDt.Value.Date == today && meetupDt.Value <= now)
+                    return Json(new { success = false, message = "Meetup time cannot be in the past." });
             }
             try
             {
@@ -1033,8 +1068,8 @@ namespace Solteira_Brands.Controllers
                         OrderId = order.Id,
                         Amount = amount,
                         PaymentStatus = "SUBMITTED",
-                        ProofImageId = isMeetup ? null : proofImageId,
-                        ReferenceNumber = isMeetup ? null : refTrimmed,
+                        ProofImageId = proofImageId,
+                        ReferenceNumber = string.IsNullOrEmpty(refTrimmed) ? null : refTrimmed,
                         MeetupDatetime = meetupDt,
                         CreatedAt = now
                     };
@@ -1043,6 +1078,8 @@ namespace Solteira_Brands.Controllers
                     {
                         order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
                         order.LastStatusUpdateAt = now;
+                        if (isMeetup && string.IsNullOrEmpty(order.DeliveryType))
+                            order.DeliveryType = "MEETUP";
                     }
                     db.SaveChanges();
                     var msg = isMeetup ? "Meetup scheduled. We will verify and update your order status." : "Payment submitted. We will verify and update your order status.";
@@ -1102,6 +1139,7 @@ namespace Solteira_Brands.Controllers
                     .Include("Order.User")
                     .Include("Order.Payments")
                     .Include("Order.Payments.ProofImage")
+                    .Include("Order.Deliveries")
                     .Include("ProofImage")
                     .FirstOrDefault(p => p.Id == paymentId);
                 if (payment == null || payment.Order == null)
@@ -1240,6 +1278,22 @@ namespace Solteira_Brands.Controllers
                     deliveryType
                 };
 
+                object deliveryInfo = null;
+                var latestDelivery = order.Deliveries != null && order.Deliveries.Any()
+                    ? order.Deliveries.OrderByDescending(d => d.CreatedAt).First()
+                    : null;
+                if (latestDelivery != null)
+                {
+                    deliveryInfo = new
+                    {
+                        courier = latestDelivery.Courier,
+                        trackingNumber = latestDelivery.TrackingNumber,
+                        dispatchDateFormatted = (latestDelivery.DispatchDate ?? latestDelivery.CreatedAt).ToString("MMM d, yyyy"),
+                        etaFormatted = latestDelivery.Eta.HasValue ? latestDelivery.Eta.Value.ToString("MMM d, yyyy") : (string)null,
+                        deliveryStatus = latestDelivery.DeliveryStatus
+                    };
+                }
+
                 return Json(new
                 {
                     success = true,
@@ -1248,6 +1302,7 @@ namespace Solteira_Brands.Controllers
                     paymentHistory,
                     installmentSchedule,
                     meetupSchedule,
+                    deliveryInfo,
                     selectedPayment = paymentOverview
                 }, JsonRequestBehavior.AllowGet);
             }
@@ -1594,7 +1649,7 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Cannot reject: order already has payment(s). Reject only when no payment exists." });
                     if (string.IsNullOrWhiteSpace(rejectionReason))
                         return Json(new { success = false, message = "Rejection reason is required when rejecting an order." });
-                    order.OrderStatus = "Rejected";
+                    order.OrderStatus = OrderStatus.Rejected;
                     order.RejectionReason = rejectionReason.Trim();
                     order.LastStatusUpdateAt = DateTime.Now;
                     foreach (var item in order.OrderItems)
@@ -1609,7 +1664,7 @@ namespace Solteira_Brands.Controllers
                 {
                     if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase))
                         return Json(new { success = false, message = "Only Pending orders can be approved." });
-                    order.OrderStatus = "Approved";
+                    order.OrderStatus = OrderStatus.Approved;
                     order.RejectionReason = null;
                     order.LastStatusUpdateAt = DateTime.Now;
                     LogActivity(db, "Order Approved", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
@@ -1623,7 +1678,7 @@ namespace Solteira_Brands.Controllers
         /// <summary>POST: Admin verify or reject payment. Only when payment is SUBMITTED. VERIFIED: COURIER+FULL→Paid; MEETUP→Ready for Meetup; LAYAWAY→Layaway Active or Paid when balance 0. REJECTED→order_status=Approved, save reason. Transaction + activity log.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null)
+        public JsonResult UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null, bool? allowResubmit = null)
         {
             var statusTrim = (status ?? "").Trim();
             if (statusTrim != "VERIFIED" && statusTrim != "REJECTED")
@@ -1648,6 +1703,10 @@ namespace Solteira_Brands.Controllers
                 if (statusTrim == "REJECTED")
                 {
                     payment.RejectionReason = rejectionReason.Trim();
+                    if (allowResubmit.HasValue)
+                        payment.AllowResubmit = allowResubmit.Value ? 1 : 0;
+                    else
+                        payment.AllowResubmit = 1;
                     var orderPaymentType = (payment.Order.PaymentType ?? "FULL").ToUpperInvariant();
                     if (orderPaymentType != "LAYAWAY" || !string.Equals(payment.Order.OrderStatus, "Layaway Active", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1691,9 +1750,12 @@ namespace Solteira_Brands.Controllers
                         else
                         {
                             order.RemainingBalance = 0;
-                            if (deliveryType == "MEETUP")
+                            var isMeetupOrder = deliveryType == "MEETUP" || payment.MeetupDatetime.HasValue;
+                            if (isMeetupOrder)
                             {
                                 order.OrderStatus = "Ready for Meetup";
+                                if (!payment.MeetupDatetime.HasValue && string.IsNullOrEmpty(order.DeliveryType))
+                                    order.DeliveryType = "MEETUP";
                                 LogActivity(db, "Payment Verified", "Payments", payment.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + " → Ready for Meetup.");
                             }
                             else
@@ -1748,7 +1810,13 @@ namespace Solteira_Brands.Controllers
             var now = DateTime.Now;
             DateTime? dispatchDt = null;
             DateTime? etaDt = null;
-            if (!string.IsNullOrWhiteSpace(dispatchDate) && DateTime.TryParse(dispatchDate, out var d1)) dispatchDt = d1;
+            if (!string.IsNullOrWhiteSpace(dispatchDate))
+            {
+                if (DateTime.TryParse(dispatchDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d1))
+                    dispatchDt = d1.Date;
+                else if (DateTime.TryParseExact(dispatchDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d1b))
+                    dispatchDt = d1b;
+            }
             if (!string.IsNullOrWhiteSpace(eta) && DateTime.TryParse(eta, out var d2)) etaDt = d2;
             using (var db = new SolteiraBrandsContext())
             {
@@ -1768,7 +1836,7 @@ namespace Solteira_Brands.Controllers
                     TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim(),
                     DispatchDate = dispatchDt,
                     Eta = etaDt,
-                    DeliveryStatus = "PENDING",
+                    DeliveryStatus = DeliveryStatus.Pending,
                     CreatedAt = now,
                     UpdatedAt = now
                 };

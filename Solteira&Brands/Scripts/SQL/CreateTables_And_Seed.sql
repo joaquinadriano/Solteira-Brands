@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS tbl_payments (
     verified_by_user_id INT             NULL,
     created_at          DATETIME        NOT NULL,
     verified_at         DATETIME        NULL,
+    allow_resubmit      TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1=buyer may resubmit after reject, 0=final reject',
     PRIMARY KEY (id),
     INDEX idx_tbl_payments_order_id (order_id),
     CONSTRAINT fk_tbl_payments_order
@@ -427,6 +428,16 @@ SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'meetup_datetime');
 SET @ddl := IF(@col_exists = 0,
     'ALTER TABLE tbl_payments ADD COLUMN meetup_datetime DATETIME NULL AFTER reference_number;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add allow_resubmit to tbl_payments (admin checkbox: allow buyer to resubmit after reject)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'allow_resubmit');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_payments ADD COLUMN allow_resubmit TINYINT(1) NOT NULL DEFAULT 1 COMMENT ''1=buyer may resubmit, 0=final reject'' AFTER verified_at;',
     'SELECT 1;');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

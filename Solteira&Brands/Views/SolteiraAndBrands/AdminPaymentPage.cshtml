@@ -131,6 +131,20 @@
                                     <p class="mb-0 text-muted small">Contact: {{paymentDetail.orderSummary.contactNumber}}</p>
                                 </div>
                             </div>
+
+                            <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="paymentDetail.deliveryInfo">
+                                <div class="card-body p-4">
+                                    <h5 class="fw-bold mb-3">
+                                        <i class="bi bi-truck me-2 orderDetails-icon"></i>
+                                        Delivery Information
+                                    </h5>
+                                    <div class="mb-2"><span class="orderDetails-infoLabel">Courier</span><p class="orderDetails-infoValue mb-0">{{paymentDetail.deliveryInfo.courier || '-'}}</p></div>
+                                    <div class="mb-2"><span class="orderDetails-infoLabel">Tracking Number</span><p class="orderDetails-infoValue mb-0">{{paymentDetail.deliveryInfo.trackingNumber || '-'}}</p></div>
+                                    <div class="mb-2"><span class="orderDetails-infoLabel">Dispatch Date</span><p class="orderDetails-infoValue mb-0">{{paymentDetail.deliveryInfo.dispatchDateFormatted || '-'}}</p></div>
+                                    <div class="mb-2"><span class="orderDetails-infoLabel">ETA</span><p class="orderDetails-infoValue mb-0">{{paymentDetail.deliveryInfo.etaFormatted || '-'}}</p></div>
+                                    <div><span class="orderDetails-infoLabel">Delivery Status</span><p class="orderDetails-infoValue mb-0">{{paymentDetail.deliveryInfo.deliveryStatus || '-'}}</p></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-lg-8">
@@ -283,13 +297,23 @@
 
                 <div class="modal-footer border-0 p-4 flex-wrap">
                     <span class="order-status-display me-2">Status: <strong>{{paymentDetail.paymentOverview.paymentStatus}}</strong></span>
-                    <span ng-if="selectedPayment && selectedPayment.paymentStatus === 'SUBMITTED'" class="me-2">
-                        <div class="mb-2">
-                            <label class="form-label small mb-0">Rejection reason (required when rejecting)</label>
-                            <textarea class="form-control form-control-sm" ng-model="paymentRejectionReason" placeholder="Enter reason..." rows="2" style="max-width: 300px;"></textarea>
+                    <span ng-if="selectedPayment && selectedPayment.paymentStatus === 'SUBMITTED'" class="me-2 d-flex flex-wrap align-items-start gap-2">
+                        <div class="d-flex flex-column gap-1">
+                            <button type="button" class="btn btn-success" ng-click="confirmVerifyPaymentFromModal()">Approve payment</button>
+                            <span class="small text-muted">Resubmit option does not apply when approving.</span>
                         </div>
-                        <button type="button" class="btn btn-success me-2" ng-click="verifyPaymentFromModal()">Confirm</button>
-                        <button type="button" class="btn btn-danger" ng-click="rejectPaymentFromModal()">Reject</button>
+                        <div class="border-start ps-3" style="border-color: #dee2e6 !important;">
+                            <p class="small fw-bold mb-1 text-secondary">When rejecting:</p>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0">Rejection reason (required)</label>
+                                <textarea class="form-control form-control-sm" ng-model="paymentModalForm.rejectionReason" placeholder="Enter reason..." rows="2" style="max-width: 300px;"></textarea>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="allowResubmitCheckbox" ng-model="paymentModalForm.allowResubmit" />
+                                <label class="form-check-label small" for="allowResubmitCheckbox">Allow buyer to resubmit payment</label>
+                            </div>
+                            <button type="button" class="btn btn-danger" ng-click="rejectPaymentFromModal()">Reject</button>
+                        </div>
                     </span>
                     <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal" ng-click="closePaymentProofModal()">
                         <span>CLOSE</span>

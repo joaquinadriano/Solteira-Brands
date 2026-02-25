@@ -175,10 +175,24 @@
 }
 
 .products-grid {
-    display: grid;    
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5vw;
-    width: 80%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+    .products-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 576px) and (max-width: 991px) {
+    .products-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 575px) {
+    .products-grid { grid-template-columns: 1fr; }
 }
 
 .product-card {
@@ -244,6 +258,29 @@
 
 .jewelry-grid-container .product-info {
     margin-top: 15px;
+}
+
+.product-category {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #737373;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.product-short-desc {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.85rem;
+    color: #555;
+    margin: 6px 0 0 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    min-height: 2.7em;
 }
 
 .name-price-row {
@@ -517,6 +554,43 @@
 
     .related-item:hover .image-wrapper img {
         transform: scale(1.1);
+    }
+
+    .related-item-category {
+        font-family: "Nunito", sans-serif;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #737373;
+        margin-bottom: 4px;
+    }
+
+    .related-item-name {
+        font-family: "Kaisei Tokumin", serif;
+        font-size: 1rem;
+        font-weight: bold;
+        color: #1e1e1e;
+        margin: 0 0 4px 0;
+    }
+
+    .related-item-desc {
+        font-family: "Nunito", sans-serif;
+        font-size: 0.8rem;
+        color: #555;
+        margin: 0 0 6px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.35;
+        min-height: 2.7em;
+    }
+
+    .related-item-price {
+        font-family: "Nunito", sans-serif;
+        font-size: 1rem;
+        font-weight: bold;
+        color: #1e1e1e;
     }
 
     .related-item p {

@@ -19,6 +19,9 @@ namespace Solteira_Brands.Models
         public DateTime CreatedAt { get; set; }
         public DateTime? VerifiedAt { get; set; }
 
+        // 0 = final reject, 1 = buyer may resubmit
+        public int AllowResubmit { get; set; }
+
         public virtual tblOrdersModel Order { get; set; }
         public virtual tblImagesModel ProofImage { get; set; }
         public virtual tblUsersModel VerifiedByUser { get; set; }

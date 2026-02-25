@@ -20,6 +20,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.VerifiedByUserId).HasColumnName("verified_by_user_id");
             Property(x => x.CreatedAt).HasColumnName("created_at");
             Property(x => x.VerifiedAt).HasColumnName("verified_at");
+            Property(x => x.AllowResubmit).HasColumnName("allow_resubmit");
 
             HasRequired(x => x.Order)
                 .WithMany(o => o.Payments)

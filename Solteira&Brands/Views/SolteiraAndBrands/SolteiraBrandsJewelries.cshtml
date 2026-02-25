@@ -55,10 +55,12 @@
                         </div>
                     </div>
                     <div class="product-info">
+                        <span class="product-category">{{item.category || 'Jewelry'}}</span>
                         <div class="name-price-row">
                             <span class="product-name">{{item.name}}</span>
                             <span class="product-price">&#8369; {{item.price | number:2}}</span>
                         </div>
+                        <p class="product-short-desc">{{getShortDescription(item)}}</p>
                         <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
                         <div class="product-stock sold-out-text" ng-if="(item.stockQuantity || 0) === 0">SOLD OUT</div>
                     </div>
@@ -124,9 +126,12 @@
                          ng-repeat="rel in getRelatedProducts()"
                          ng-click="selectProduct(rel)">
                         <div class="image-wrapper">
-                            <img ng-src="{{rel.img || defaultProductImageUrl}}">
+                            <img ng-src="{{rel.img || defaultProductImageUrl}}" alt="{{rel.name}}">
                         </div>
-                        <p>{{rel.name}}</p>
+                        <span class="related-item-category">{{rel.category || 'Jewelry'}}</span>
+                        <p class="related-item-name">{{rel.name}}</p>
+                        <p class="related-item-desc">{{getShortDescription(rel)}}</p>
+                        <span class="related-item-price">&#8369; {{rel.price | number:2}}</span>
                     </div>
                 </div>
             </div>

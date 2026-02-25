@@ -23,19 +23,20 @@
 
 </div>
 
-<div class="home-products" ng-controller="SolteiraBrandsController">
+<div class="home-products" ng-controller="SolteiraBrandsController" ng-init="loadStorefrontProducts()">
 
     <div class="featured-title">FEATURED PRODUCTS</div>
 
-    <div class="home-content">
-
-        <div ng-repeat="item in jewelries | limitTo: 4" ng-class="'jewelry' + ($index + 1)">
-            <a href="javascript:void(0)" class="product-link" ng-click="goToProduct(item)">
+    <div class="home-products-grid">
+        <a ng-repeat="item in jewelries | limitTo: 8 track by item.id" href="javascript:void(0)" class="featured-product-card" ng-click="goToProduct(item)">
+            <div class="featured-card-image">
                 <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
-                <span>{{item.name}}</span>
-            </a>
-        </div>
-
+            </div>
+            <span class="featured-card-category">{{item.category || 'Jewelry'}}</span>
+            <span class="featured-card-name">{{item.name}}</span>
+            <p class="featured-card-desc">{{getShortDescription(item)}}</p>
+            <span class="featured-card-price">&#8369; {{item.price | number:2}}</span>
+        </a>
     </div>
 
 </div>

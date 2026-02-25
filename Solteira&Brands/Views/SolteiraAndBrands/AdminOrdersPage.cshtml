@@ -16,9 +16,10 @@
                         <tr>
                             <th>Order ID</th>
                             <th>Order Date</th>
-                            <th>No. of Items</th>
+                            <th>Items</th>
                             <th>Address</th>
-                            <th>Total Price</th>
+                            <th>Total</th>
+                            <th>Payment Type</th>
                             <th>Order Status</th>
                             <th>Action</th>
                         </tr>
@@ -30,7 +31,8 @@
                             <td>{{order.itemCount}} item(s)</td>
                             <td>{{order.deliveryAddress}}</td>
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
-                            <td>
+                            <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
+                            <td class="text-center">
                                 <span class="order-status-display">{{order.orderStatus || '-'}}</span>
                                 <span ng-if="order.orderStatus === 'Pending'" class="ms-2">
                                     <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
@@ -40,7 +42,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
                                     <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
                                 </span>
-                                <span ng-if="order.orderStatus === 'Paid' || order.orderStatus === 'Layaway Active' || order.orderStatus === 'In Delivery' || order.orderStatus === 'Ready for Meetup' || order.orderStatus === 'Completed'" class="ms-2 text-muted small">(display only - use Payment / Delivery pages)</span>
+                                <span ng-if="order.orderStatus === 'Paid' || order.orderStatus === 'Layaway Active' || order.orderStatus === 'In Delivery' || order.orderStatus === 'Ready for Meetup' || order.orderStatus === 'Completed'" class="ms-2 text-muted small">(View only)</span>
                             </td>
                             <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
@@ -51,7 +53,7 @@
                             </td>
                         </tr>
                         <tr ng-if="ordersList.length === 0">
-                            <td colspan="7" class="text-muted py-4">No orders yet.</td>
+                            <td colspan="8" class="text-muted py-4">No orders yet.</td>
                         </tr>
                     </tbody>
                 </table>

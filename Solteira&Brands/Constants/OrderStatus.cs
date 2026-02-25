@@ -6,6 +6,7 @@ namespace Solteira_Brands.Constants
         public const string Pending = "Pending";
         public const string Approved = "Approved";
         public const string AwaitingPaymentVerification = "Awaiting Payment Verification";
+        public const string AwaitingMeetup = "Awaiting Meetup";
         public const string LayawayActive = "Layaway Active";
         public const string Paid = "Paid";
         public const string InDelivery = "In Delivery";

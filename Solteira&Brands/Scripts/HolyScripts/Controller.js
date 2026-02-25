@@ -148,14 +148,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
                     $scope.selectedOrderDetails.orderStatus = res.data.orderStatus || newStatus;
                 }
-                Swal.fire({
-                    title: 'Order status updated',
-                    icon: 'success',
-                    iconColor: '#FFFBE8',
-                    background: '#8eb078',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#FFFBE8'
-                });
+                if (newStatus === 'Approved') {
+                    Swal.fire({ title: 'Order approved', text: 'Order has been approved. Buyer can now submit payment.', icon: 'success', confirmButtonColor: '#28a745' });
+                } else if (newStatus === 'Rejected') {
+                    Swal.fire({ title: 'Order rejected', text: 'Order has been rejected. Rejection reason was saved.', icon: 'success', confirmButtonColor: '#dc3545' });
+                } else {
+                    Swal.fire({ title: 'Order status updated', icon: 'success', confirmButtonText: 'OK' });
+                }
             } else {
                 Swal.fire({ icon: 'error', title: 'Update failed', text: (res.data && res.data.message) || 'Please try again.' });
             }
@@ -388,14 +387,25 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             $scope.shipmentsList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
         });
     };
+    function toYyyyMmDd(val) {
+        if (!val) return null;
+        if (val instanceof Date) return val.toISOString().split('T')[0];
+        var s = (typeof val === 'string') ? val.trim() : String(val).trim();
+        return s || null;
+    }
     $scope.createDeliveryFromShipmentsPage = function () {
         var orderId = $scope.selectedOrderForDelivery ? ($scope.selectedOrderForDelivery.id || $scope.selectedOrderForDelivery.orderId) : null;
         if (!orderId) { Swal.fire({ icon: 'warning', title: 'Select an order', text: 'Choose a Paid order from the list.' }); return; }
         var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
         var trackingNumber = ($scope.trackingNumberForNew || '').trim() || null;
-        var courier = ($scope.courierChoiceForNew === 'Custom' && ($scope.customCourierNameForNew || '').trim()) ? ($scope.customCourierNameForNew || '').trim() : ($scope.courierChoiceForNew || 'LBC');
-        var dispatchDate = ($scope.dispatchDateForNew || '').trim() || null;
-        var eta = ($scope.etaForNew || '').trim() || null;
+        var customName = ($scope.customCourierNameForNew || '').trim();
+        if ($scope.courierChoiceForNew === 'Custom' && !customName) {
+            Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
+            return;
+        }
+        var courier = ($scope.courierChoiceForNew === 'Custom') ? ('Custom - ' + customName) : ($scope.courierChoiceForNew || 'LBC');
+        var dispatchDate = toYyyyMmDd($scope.dispatchDateForNew);
+        var eta = toYyyyMmDd($scope.etaForNew);
         SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber, courier, dispatchDate, eta).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryShipments();
@@ -503,7 +513,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }
         }).then(function (result) {
             if (result.isConfirmed && result.value) {
-                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim()).then(function (res) {
+                // Quick reject from list: default to allow resubmission
+                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim(), true).then(function (res) {
                     if (res.data && res.data.success) {
                         $scope.refreshSelectedOrderDetails();
                         if ($scope.loadPayments) $scope.loadPayments();
@@ -541,12 +552,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.$on('$destroy', function () {
         if ($scope.paymentRefreshInterval) { $interval.cancel($scope.paymentRefreshInterval); $scope.paymentRefreshInterval = null; }
     });
-    $scope.paymentRejectionReason = '';
+    $scope.paymentModalForm = { rejectionReason: '', allowResubmit: true };
     $scope.openPaymentProofModal = function (payment) {
         if (!payment || !payment.paymentId) return;
         $scope.paymentDetail = null;
         $scope.selectedPayment = null;
-        $scope.paymentRejectionReason = '';
+        $scope.paymentModalForm.rejectionReason = '';
+        $scope.paymentModalForm.allowResubmit = true;
         SolteiraAndBrandsService.getPaymentDetailForAdmin(payment.paymentId).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.paymentDetail = res.data;
@@ -569,7 +581,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
         $scope.selectedPayment = null;
         $scope.paymentDetail = null;
-        $scope.paymentRejectionReason = '';
+        $scope.paymentModalForm.rejectionReason = '';
     };
     $scope.getPaymentStatusBadgeClass = function (status) {
         if (!status) return 'bg-secondary';
@@ -596,20 +608,36 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
         });
     };
+    $scope.confirmVerifyPaymentFromModal = function () {
+        if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
+        Swal.fire({
+            title: 'Approve this payment?',
+            text: 'You are approving the payment. The "Allow resubmit" option only applies when you Reject.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, approve',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (result.isConfirmed) $scope.verifyPaymentFromModal();
+        });
+    };
     $scope.rejectPaymentFromModal = function () {
         if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
-        var reason = ($scope.paymentRejectionReason || '').trim();
+        var reason = (($scope.paymentModalForm && $scope.paymentModalForm.rejectionReason) || '').trim();
         if (!reason) {
             Swal.fire({ icon: 'warning', title: 'Rejection reason required', text: 'Please enter a reason for rejecting this payment.' });
             return;
         }
+        var allowResubmit = !!($scope.paymentModalForm && $scope.paymentModalForm.allowResubmit);
         var paymentId = $scope.selectedPayment.paymentId;
-        SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason).then(function (res) {
+        SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason, allowResubmit).then(function (res) {
             if (res.data && res.data.success) {
-                $scope.paymentRejectionReason = '';
+                $scope.paymentModalForm.rejectionReason = '';
+                $scope.paymentModalForm.allowResubmit = true;
                 $scope.loadPayments();
                 $scope.closePaymentProofModal();
-                Swal.fire({ title: 'Payment rejected', icon: 'success', confirmButtonText: 'OK' });
+                var msg = allowResubmit ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
+                Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' });
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
             }

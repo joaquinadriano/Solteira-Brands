@@ -67,13 +67,17 @@ app.service("SolteiraAndBrandsService", function ($http) {
         });
     };
 
-    this.updatePaymentStatus = function (paymentId, status, rejectionReason) {
-        var params = { paymentId: paymentId, status: status };
-        if (rejectionReason != null && rejectionReason !== '') params.rejectionReason = rejectionReason;
+    this.updatePaymentStatus = function (paymentId, status, rejectionReason, allowResubmit) {
+        var form = new URLSearchParams();
+        form.append("paymentId", paymentId);
+        form.append("status", status);
+        if (rejectionReason != null && rejectionReason !== '') form.append("rejectionReason", rejectionReason);
+        if (allowResubmit != null) form.append("allowResubmit", allowResubmit ? "true" : "false");
         return $http({
             method: "POST",
             url: "/SolteiraAndBrands/UpdatePaymentStatus",
-            params: params
+            data: form.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
         });
     };
 

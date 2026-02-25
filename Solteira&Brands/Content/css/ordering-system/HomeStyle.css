@@ -84,24 +84,98 @@
         align-items: center;
     }
 
-        .home-products .home-content .jewelry1 img,
-        .home-products .home-content .jewelry2 img,
-        .home-products .home-content .jewelry3 img,
-        .home-products .home-content .jewelry4 img {
-            width: 100%;
-            object-fit: cover;
-            height: 100%;
-            margin-bottom: 1.5vw;
-        }
+.home-products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
 
-        .home-products .home-content .jewelry1 span,
-        .home-products .home-content .jewelry2 span,
-        .home-products .home-content .jewelry3 span,
-        .home-products .home-content .jewelry4 span {
-            font-family: "Kaisei Tokumin";
-            font-size: 1.25rem;
-            text-align: center;
-        }
+@media (min-width: 992px) {
+    .home-products-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 576px) and (max-width: 991px) {
+    .home-products-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 575px) {
+    .home-products-grid { grid-template-columns: 1fr; }
+}
+
+.featured-product-card {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    text-decoration: none;
+    color: #1e1e1e;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 0;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.featured-product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.featured-card-image {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: #f6f6f6;
+}
+
+.featured-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.featured-card-category {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #737373;
+    padding: 0.5rem 0.75rem 0 0.75rem;
+    text-align: center;
+}
+
+.featured-card-name {
+    font-family: "Kaisei Tokumin", serif;
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 0.25rem 0.75rem 0 0.75rem;
+}
+
+.featured-card-desc {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.85rem;
+    color: #555;
+    padding: 0.5rem 0.75rem 0;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    min-height: 2.7em;
+}
+
+.featured-card-price {
+    font-family: "Nunito", sans-serif;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #1e1e1e;
+    padding: 0.5rem 0.75rem 1rem 0.75rem;
+    margin-top: auto;
+}
 
         .product-link {
             text-decoration: none;
