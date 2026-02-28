@@ -235,9 +235,7 @@
             });
 
             //----------Orders Archive Page----------
-            $(document).ready(function () {
-                $('#orderArchiveTable').DataTable();
-            });
+            // orderArchiveTable is Angular ng-repeat (archiveOrdersList) — do NOT init DataTables (causes "unknown parameter" error)
 
             //----------Activity Logs Page----------
             $(document).ready(function () {

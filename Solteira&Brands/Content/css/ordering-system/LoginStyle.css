@@ -45,6 +45,7 @@ body, html {
 .login-form {
     background-color: white;
     padding: 3vw;
+    padding-bottom: 40px;
 }
 
 .login-text {
@@ -73,10 +74,22 @@ body, html {
     border: 2px solid red !important;
 }
 
-.error-text {
-    color: red;
-    font-size: 12px;
+.helper-text {
+    display: block;
+    color: #777;
+    font-size: 0.875rem;
     margin-top: 4px;
+}
+
+.error-text {
+    display: block;
+    color: #c00;
+    font-size: 0.8125rem;
+    margin-top: 4px;
+}
+
+.form-group .error-text {
+    min-height: 0;
 }
 
 .custom-input-group {
@@ -121,6 +134,7 @@ body, html {
     border: none;
     color: #FFFBE8;
     padding: .5vw;
+    margin-bottom: 20px;
     transition: 0.2s ease;
 }
 
@@ -128,30 +142,42 @@ body, html {
         background-color: #789F64;
     }
 
-.login-or {
-    font-family: "Kaisei Tokumin";
-    text-align: center;
-    margin: 1vw;
+/* Hide browser's native password reveal (e.g. Edge) so only our toggle shows */
+.password-wrapper input[type="password"]::-ms-reveal,
+.password-wrapper input[type="text"]::-ms-reveal {
+    display: none !important;
 }
 
-.login-google {
-    font-family: "Kaisei Tokumin";
-    font-size: 1.25rem;
+.password-wrapper {
+    position: relative;
+    border: 1px solid #87AE73;
+}
+
+.password-wrapper .custom-input,
+.password-wrapper .password-input {
+    border: none;
+    width: 100%;
+    padding-right: 45px;
+}
+
+.password-wrapper .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    color: #B0B0B0;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: #1e1e1e;
-    border: 1px solid #87AE73;
-    background-color: white;
-    padding: .5vw;
-    gap: .5vw;
-    width: 60%;
-    transition: 0.2s ease;
+    font-size: 1.25rem;
 }
 
-    .login-google:hover {
-        background-color: #F0F0F0;
-    }
+.password-wrapper .toggle-password:hover {
+    color: #1e1e1e;
+}
 
 .reg-desc {
     font-family: "Kaisei Tokumin";

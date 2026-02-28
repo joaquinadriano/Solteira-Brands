@@ -168,6 +168,10 @@ namespace Solteira_Brands.Controllers
                     if (!string.IsNullOrWhiteSpace(username))
                     {
                         var trimmed = username.Trim();
+                        if (trimmed.Length > 14)
+                            return Json(new { success = false, message = "Username must not exceed 14 characters." });
+                        if (trimmed.Any(char.IsWhiteSpace))
+                            return Json(new { success = false, message = "Username must not contain spaces." });
                         if (db.tbl_users.Any(u => u.Username == trimmed && u.Id != user.Id))
                             return Json(new { success = false, message = "Username already taken." });
                         user.Username = trimmed;
@@ -249,6 +253,14 @@ namespace Solteira_Brands.Controllers
             {
                 errors["username"] = "Username is required.";
             }
+            else
+            {
+                var trimmed = username.Trim();
+                if (trimmed.Length > 14)
+                    errors["username"] = "Username must not exceed 14 characters.";
+                if (trimmed.Any(char.IsWhiteSpace))
+                    errors["username"] = (errors.ContainsKey("username") ? errors["username"] + " " : "") + "Username must not contain spaces.";
+            }
 
             if (!PasswordValidation.IsValid(password, out string passwordError))
             {
@@ -261,7 +273,7 @@ namespace Solteira_Brands.Controllers
                 {
                     errors["email"] = "Email already registered.";
                 }
-                if (db.tbl_users.Any(u => u.Username == username))
+                if (db.tbl_users.Any(u => u.Username == (username ?? "").Trim()))
                 {
                     errors["username"] = "Username already taken.";
                 }
@@ -348,6 +360,8 @@ namespace Solteira_Brands.Controllers
                 return Json(new { available = false }, JsonRequestBehavior.AllowGet);
 
             var trimmed = username.Trim();
+            if (trimmed.Length > 14)
+                return Json(new { available = false }, JsonRequestBehavior.AllowGet);
 
             using (var db = new SolteiraBrandsContext())
             {

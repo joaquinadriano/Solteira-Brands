@@ -60,19 +60,73 @@ namespace Solteira_Brands.Controllers
             db.SaveChanges();
         }
 
-        // ----- SoD: ADMIN-only (Archive, Logs, Users) -----
-        [Authorize(Roles = "ADMIN")]
+        // ----- Orders + Archive: single page for ADMIN, MANAGER, STAFF (Show Active / Show Archived) -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminOrdersArchivePage() { return View(); }
+        [Authorize(Roles = "ADMIN")]
+        [HttpGet]
+        public JsonResult GetArchiveOrders()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var orders = db.tbl_orders
+                    .Include("OrderItems")
+                    .Where(o => o.IsArchived)
+                    .OrderByDescending(o => o.CreatedAt)
+                    .ToList();
+                var list = orders.Select(o => new
+                {
+                    id = o.Id,
+                    orderNumber = o.OrderNumber,
+                    orderDateString = o.CreatedAt.ToString("MM/dd/yyyy"),
+                    itemCount = o.OrderItems != null ? o.OrderItems.Count : 0,
+                    deliveryAddress = o.DeliveryAddress,
+                    totalAmount = o.TotalAmount,
+                    orderStatus = o.OrderStatus
+                }).ToList();
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+        [Authorize(Roles = "ADMIN")]
+        [HttpPost]
+        public JsonResult ArchiveOrder(int orderId)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (order.IsArchived) return Json(new { success = false, message = "Order is already archived." });
+                order.IsArchived = true;
+                db.SaveChanges();
+                LogActivity(db, "Order Archived", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+                return Json(new { success = true, message = "Order archived successfully." });
+            }
+        }
+        [Authorize(Roles = "ADMIN")]
+        [HttpPost]
+        public JsonResult RestoreOrder(int orderId)
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
+                if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (!order.IsArchived) return Json(new { success = false, message = "Order is not archived." });
+                order.IsArchived = false;
+                db.SaveChanges();
+                LogActivity(db, "Order Restored", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+                return Json(new { success = true, message = "Order restored successfully." });
+            }
+        }
         [Authorize(Roles = "ADMIN")]
         public ActionResult AdminLogsPage() { return View(); }
         [Authorize(Roles = "ADMIN")]
         public ActionResult AdminUsersPage() { return View(); }
 
-        // ----- SoD: MANAGER & STAFF only (Orders, Payment, Delivery) -----
-        [Authorize(Roles = "MANAGER,STAFF")]
-        public ActionResult AdminOrdersPage() { return View(); }
-        [Authorize(Roles = "MANAGER,STAFF")]
-        public ActionResult AdminOrderDetailsPage() { return View(); }
+        // ----- Redirect to combined Orders/Archive page -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        public ActionResult AdminOrdersPage() { return RedirectToAction("AdminOrdersArchivePage"); }
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        public ActionResult AdminOrderDetailsPage() { return RedirectToAction("AdminOrdersArchivePage"); }
         [Authorize(Roles = "MANAGER,STAFF")]
         public ActionResult AdminPaymentPage() { return View(); }
         [Authorize(Roles = "MANAGER,STAFF")]
@@ -151,7 +205,15 @@ namespace Solteira_Brands.Controllers
         {
             using (var db = new SolteiraBrandsContext())
             {
-                var now = DateTime.Now;
+                var validStatuses = new[] { "Paid", "In Delivery", "Completed", "Ready for Meetup" };
+                var validOrderIds = db.tbl_orders.Where(o => !o.IsArchived && o.OrderStatus != null && validStatuses.Contains(o.OrderStatus)).Select(o => o.Id).ToList();
+                var soldByProductId = db.tbl_order_items
+                    .Where(oi => oi.ProductId != null && validOrderIds.Contains(oi.OrderId))
+                    .GroupBy(oi => oi.ProductId.Value)
+                    .Select(g => new { ProductId = g.Key, Sold = g.Sum(x => x.Quantity) })
+                    .ToList()
+                    .ToDictionary(x => x.ProductId, x => x.Sold);
+
                 var list = (from p in db.tbl_products
                             join img in db.tbl_images on p.ImageId equals img.Id into productImages
                             from img in productImages.DefaultIfEmpty()
@@ -186,10 +248,11 @@ namespace Solteira_Brands.Controllers
                                 x.weight,
                                 x.length,
                                 x.stockQuantity,
+                                sold = soldByProductId.ContainsKey(x.id) ? soldByProductId[x.id] : 0,
                                 x.imageUrl,
                                 x.isBestSeller,
-                                createdAtString = x.createdAt.ToString("MM/dd/yy"),
-                                updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MM/dd/yy")
+                                createdAtString = x.createdAt.ToString("MMM dd, yyyy"),
+                                updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MMM dd, yyyy")
                             });
 
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
@@ -470,6 +533,7 @@ namespace Solteira_Brands.Controllers
                     .Include("OrderItems")
                     .Include("Payments")
                     .Include("Deliveries")
+                    .Where(o => !o.IsArchived)
                     .OrderByDescending(o => o.CreatedAt)
                     .ToList();
                 var list = orders.Select(o =>
@@ -782,7 +846,16 @@ namespace Solteira_Brands.Controllers
                         layawayPolicyNote = orderMonths > 0 ? "Failure to settle installment within deadline may result in cancellation of Layaway agreement." : (string)null,
                         hasSubmittedPayment = paymentsList.Any(p => string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase)),
                         latestPaymentForProof = latestPaymentForProofDto,
-                        items = o.OrderItems.Select(i => new { name = i.ProductName, qty = i.Quantity, price = i.UnitPrice, img = i.ImageUrl }).ToList()
+                        items = o.OrderItems.Select(i => new { name = i.ProductName, qty = i.Quantity, price = i.UnitPrice, img = i.ImageUrl }).ToList(),
+                        deliveryType = o.DeliveryType ?? "",
+                        meetupOutcomeStatus = latestMeetupByOrder.ContainsKey(o.Id) ? latestMeetupByOrder[o.Id].Status : (string)null,
+                        meetupReason = latestMeetupByOrder.ContainsKey(o.Id) ? latestMeetupByOrder[o.Id].Reason : (string)null,
+                        meetupRescheduledDate = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].RescheduledAt.HasValue ? latestMeetupByOrder[o.Id].RescheduledAt.Value.ToString("yyyy-MM-dd") : (string)null,
+                        meetupRescheduledDateFormatted = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].RescheduledAt.HasValue ? latestMeetupByOrder[o.Id].RescheduledAt.Value.ToString("MMM dd, yyyy hh:mm tt") : (string)null,
+                        meetupScheduledAtFormatted = (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue) : null)?.MeetupDatetime?.ToString("MMM dd, yyyy hh:mm tt"),
+                        meetupReceiptImageUrl = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].ReceiptImage != null ? (latestMeetupByOrder[o.Id].ReceiptImage.ImagePath + latestMeetupByOrder[o.Id].ReceiptImage.ImageFileName) : (string)null,
+                        currentDate = DateTime.Today.ToString("MMM d, yyyy"),
+                        isArchived = o.IsArchived
                     };
                 }).ToList();
 
@@ -803,6 +876,7 @@ namespace Solteira_Brands.Controllers
                 if (user == null) return Json(new { success = false }, JsonRequestBehavior.AllowGet);
                 var order = db.tbl_orders.Include("OrderItems").Include("Payments").Include("Payments.ProofImage").FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
                 if (order == null) return Json(new { success = false, message = "Order not found." }, JsonRequestBehavior.AllowGet);
+                if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." }, JsonRequestBehavior.AllowGet);
                 bool hasExistingPayment = db.tbl_payments.Any(p =>
                     p.OrderId == order.Id &&
                     (p.PaymentStatus != "REJECTED"));
@@ -1060,6 +1134,11 @@ namespace Solteira_Brands.Controllers
                     if (user == null) return Json(new { success = false, message = "User not found." });
                     var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
                     if (order == null) return Json(new { success = false, message = "Order not found." });
+                    if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
+                    // Apply automatic layaway cancellation before accepting any new payment.
+                    AutoCancelLayawayIfMissedPayment(order, db);
+                    if (string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                        return Json(new { success = false, message = "Cannot submit payment for a cancelled order." });
                     if (!string.Equals(order.OrderStatus, "Approved", StringComparison.OrdinalIgnoreCase) && !string.Equals(order.OrderStatus, "Layaway Active", StringComparison.OrdinalIgnoreCase))
                         return Json(new { success = false, message = "Order is not available for payment." });
                     var orderPaymentType = (order.PaymentType ?? "FULL").ToUpperInvariant();
@@ -1109,6 +1188,7 @@ namespace Solteira_Brands.Controllers
                 var payments = db.tbl_payments
                     .Include("Order")
                     .Include("ProofImage")
+                    .Where(p => p.Order != null && !p.Order.IsArchived)
                     .OrderByDescending(p => p.CreatedAt)
                     .ToList();
                 var list = payments.Select(p => new
@@ -1537,7 +1617,7 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                var ordersInRange = db.tbl_orders.Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange).ToList();
+                var ordersInRange = db.tbl_orders.Where(o => !o.IsArchived && o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange).ToList();
                 var orderIdsInRange = ordersInRange.Select(o => o.Id).ToList();
 
                 var totalSales = ordersInRange.Sum(o => o.TotalAmount);
@@ -1645,6 +1725,7 @@ namespace Solteira_Brands.Controllers
             {
                 var order = db.tbl_orders.Include("OrderItems").Include("Payments").FirstOrDefault(o => o.Id == id);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
                 var current = order.OrderStatus ?? "";
 
                 if (string.Equals(statusTrim, "Rejected", StringComparison.OrdinalIgnoreCase))
@@ -1704,6 +1785,9 @@ namespace Solteira_Brands.Controllers
                 var payment = db.tbl_payments.Include("Order").Include("Order.Payments").FirstOrDefault(p => p.Id == paymentId);
                 if (payment == null) return Json(new { success = false, message = "Payment not found." });
                 if (payment.Order == null) return Json(new { success = false, message = "Order not found." });
+                if (payment.Order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
+                if (string.Equals(payment.Order.OrderStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Cannot update payment for a cancelled order." });
                 if (!OrderLifecycleRules.CanTransitionPayment(payment.PaymentStatus, statusTrim))
                     return Json(new { success = false, message = "Only SUBMITTED payments can be verified or rejected." });
                 var now = DateTime.Now;
@@ -1802,6 +1886,7 @@ namespace Solteira_Brands.Controllers
             {
                 var order = db.tbl_orders.Include("OrderItems").Include("Payments").FirstOrDefault(o => o.Id == orderId);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
                 if (!order.OrderStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Only Approved orders can be revoked." });
                 var hasPayments = order.Payments != null && order.Payments.Any();
@@ -1837,6 +1922,7 @@ namespace Solteira_Brands.Controllers
             {
                 var order = db.tbl_orders.Include("Deliveries").FirstOrDefault(o => o.Id == orderId);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
+                if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
                 var ordStatus = order.OrderStatus ?? "";
                 if (!ordStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) && !ordStatus.Equals("Ready for Meetup", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Only Paid or Ready for Meetup orders can have delivery created." });
@@ -1875,6 +1961,7 @@ namespace Solteira_Brands.Controllers
             {
                 var delivery = db.tbl_deliveries.Include("Order").FirstOrDefault(d => d.Id == deliveryId);
                 if (delivery == null || delivery.Order == null) return Json(new { success = false, message = "Delivery not found." });
+                if (delivery.Order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
                 var orderStatus = delivery.Order.OrderStatus ?? "";
                 if (!OrderLifecycleRules.CanTransitionDelivery(delivery.DeliveryStatus, statusTrim))
                     return Json(new { success = false, message = "Invalid delivery status transition." });
@@ -1951,8 +2038,10 @@ namespace Solteira_Brands.Controllers
             using (var db = new SolteiraBrandsContext())
             {
                 var orders = db.tbl_orders
-                    .Where(o => !o.Deliveries.Any()
-                        && (o.OrderStatus == "Paid" || o.OrderStatus == "Ready for Meetup")
+                    .Where(o => !o.IsArchived
+                        && !o.Deliveries.Any()
+                        && o.OrderStatus == "Paid"
+                        && o.DeliveryType != "MEETUP"
                         && (o.RemainingBalance <= 0 || o.PaymentType == null || (o.PaymentType != null && o.PaymentType.ToUpper() != "LAYAWAY")))
                     .OrderByDescending(o => o.CreatedAt)
                     .Select(o => new { id = o.Id, orderNumber = o.OrderNumber, customerName = o.CustomerName, deliveryAddress = o.DeliveryAddress, totalAmount = o.TotalAmount, paymentType = o.PaymentType ?? "FULL", createdAt = o.CreatedAt })
@@ -1970,8 +2059,7 @@ namespace Solteira_Brands.Controllers
             {
                 var deliveries = db.tbl_deliveries
                     .Include("Order")
-                    // Show full shipment history (including Delivered), not just active ones.
-                    .Where(d => d.Order != null)
+                    .Where(d => d.Order != null && !d.Order.IsArchived)
                     .OrderByDescending(d => d.CreatedAt)
                     .ToList();
                 var list = deliveries.Select(d => new
@@ -2062,6 +2150,8 @@ namespace Solteira_Brands.Controllers
                 var delivery = db.tbl_deliveries.Include("Order").FirstOrDefault(d => d.Id == deliveryId);
                 if (delivery == null || delivery.Order == null)
                     return Json(new { success = false, message = "Delivery not found." });
+                if (delivery.Order.IsArchived)
+                    return Json(new { success = false, message = "Archived orders cannot be modified." });
                 var currentStatus = (delivery.DeliveryStatus ?? "").Trim();
                 if (string.Equals(currentStatus, DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Cannot edit a delivered shipment." });
@@ -2118,7 +2208,7 @@ namespace Solteira_Brands.Controllers
             using (var db = new SolteiraBrandsContext())
             {
                 var orders = db.tbl_orders
-                    .Where(o => o.OrderStatus == "Ready for Meetup")
+                    .Where(o => !o.IsArchived && o.OrderStatus == "Ready for Meetup")
                     .OrderByDescending(o => o.CreatedAt)
                     .Select(o => new { id = o.Id, orderNumber = o.OrderNumber, customerName = o.CustomerName, deliveryAddress = o.DeliveryAddress, contactNumber = o.ContactNumber, totalAmount = o.TotalAmount, createdAt = o.CreatedAt })
                     .ToList();

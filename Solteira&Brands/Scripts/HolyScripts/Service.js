@@ -49,6 +49,18 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetOrders" });
     };
 
+    this.getArchiveOrders = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetArchiveOrders" });
+    };
+
+    this.archiveOrder = function (orderId) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/ArchiveOrder", params: { orderId: orderId } });
+    };
+
+    this.restoreOrder = function (orderId) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/RestoreOrder", params: { orderId: orderId } });
+    };
+
     this.getOrderDetails = function (orderId) {
         return $http({
             method: "GET",

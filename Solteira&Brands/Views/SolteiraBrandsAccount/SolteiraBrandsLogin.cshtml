@@ -35,29 +35,31 @@
                 <form name="loginForm" ng-submit="login()" class="d-flex flex-column align-items-center">
 
                     <div class="text-start mb-4 w-100">
-                        <label for="username" class="form-label">Username</label>
+                        <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
                         <input type="text" class="form-control custom-input"
+                               maxlength="14" pattern="^[^\s]{1,14}$"
                                ng-class="{'is-invalid': loginErrors.username}"
                                id="username" ng-model="loginData.username"
                                ng-change="onLoginFieldChange('username')"
-                               placeholder="Username" required />
+                               placeholder="Enter username" required />
+                        <small class="error-text" ng-if="loginErrors.username">{{loginErrors.username}}</small>
                     </div>
 
-                    <div class="text-start mb-4 w-100 position-relative">
-                        <label for="password" class="form-label">Password</label>
-                        <div class="input-group custom-input-group">
-                            <input type="{{showPassword ? 'text' : 'password'}}"
-                                   class="form-control custom-input border-end-0"
+                    <div class="text-start mb-4 w-100">
+                        <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                        <div class="password-wrapper">
+                            <input type="password"
+                                   class="form-control custom-input password-input"
                                    ng-class="{'is-invalid': loginErrors.password}"
-                                   id="password" ng-model="loginData.password"
+                                   id="password" name="Password"
+                                   ng-model="loginData.password"
                                    ng-change="onLoginFieldChange('password')"
-                                   placeholder="********" required />
-                            <span class="input-group-text bg-transparent border-start-0"
-                                  style="cursor : pointer;"
-                                  ng-click="showPassword = !showPassword">
-                                <i class="bi" ng-class="showPassword ? 'bi-eye' : 'bi-eye-slash-fill'"></i>
-                            </span>
+                                   placeholder="Enter password" required />
+                            <button type="button" class="toggle-password" aria-label="Toggle password visibility">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
                         </div>
+                        <small class="error-text" ng-if="loginErrors.password">{{loginErrors.password}}</small>
                     </div>
 
                     <div class="text-end w-100 mb-4">
@@ -67,10 +69,6 @@
                     </div>
 
                     <button type="submit" class="login-btn w-25">LOGIN</button>
-
-                    <p class="login-or">or</p>
-
-                    <button class="login-google"><i class="bi bi-google"></i>Login with Google</button>
 
                 </form>
 
@@ -99,6 +97,7 @@
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
     <script src="~/Scripts/SBScripts/Controller.js"></script>
+    <script src="~/Scripts/SBScripts/PasswordToggle.js"></script>
 
 </body>
 </html>

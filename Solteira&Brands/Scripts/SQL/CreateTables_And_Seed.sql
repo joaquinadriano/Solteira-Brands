@@ -453,6 +453,16 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add is_archived to tbl_orders (soft archive: hide from operational pages; buyer still sees in My Orders as view-only)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'is_archived');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER last_status_update_at;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add courier, dispatch_date, eta to tbl_deliveries (shipments: editable when PENDING)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_deliveries' AND COLUMN_NAME = 'courier');

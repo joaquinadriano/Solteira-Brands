@@ -14,10 +14,61 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 $scope.jewelries = res.data.data;
             } else {
                 $scope.jewelries = [];
+                $scope.featuredCarouselSlides = [];
             }
         }, function () {
             $scope.jewelries = [];
+            $scope.featuredCarouselSlides = [];
         });
+    };
+
+    $scope.featuredCarouselSlides = [];
+    $scope.currentFeaturedSlide = 0;
+    $scope.featuredCarouselInterval = null;
+    var FEATURED_SLIDE_INTERVAL_MS = 10000;
+    var FEATURED_MAX = 12;
+
+    $scope.buildFeaturedSlides = function () {
+        var list = ($scope.jewelries || []).slice(0, FEATURED_MAX);
+        var slides = [];
+        for (var i = 0; i < list.length; i += 4) {
+            slides.push(list.slice(i, i + 4));
+        }
+        $scope.featuredCarouselSlides = slides;
+        $scope.currentFeaturedSlide = 0;
+    };
+
+    $scope.nextFeaturedSlide = function () {
+        var total = $scope.featuredCarouselSlides.length;
+        if (total <= 1) return;
+        $scope.currentFeaturedSlide++;
+        if ($scope.currentFeaturedSlide >= total) $scope.currentFeaturedSlide = 0;
+        $scope.stopFeaturedCarousel();
+        $scope.startFeaturedCarousel();
+    };
+    $scope.prevFeaturedSlide = function () {
+        var total = $scope.featuredCarouselSlides.length;
+        if (total <= 1) return;
+        $scope.currentFeaturedSlide--;
+        if ($scope.currentFeaturedSlide < 0) $scope.currentFeaturedSlide = total - 1;
+        $scope.stopFeaturedCarousel();
+        $scope.startFeaturedCarousel();
+    };
+
+    $scope.startFeaturedCarousel = function () {
+        if ($scope.featuredCarouselInterval) $interval.cancel($scope.featuredCarouselInterval);
+        if ($scope.featuredCarouselSlides.length <= 1) return;
+        $scope.featuredCarouselInterval = $interval(function () {
+            var total = $scope.featuredCarouselSlides.length;
+            $scope.currentFeaturedSlide++;
+            if ($scope.currentFeaturedSlide >= total) $scope.currentFeaturedSlide = 0;
+        }, FEATURED_SLIDE_INTERVAL_MS);
+    };
+    $scope.stopFeaturedCarousel = function () {
+        if ($scope.featuredCarouselInterval) {
+            $interval.cancel($scope.featuredCarouselInterval);
+            $scope.featuredCarouselInterval = null;
+        }
     };
 
     $scope.isEnumerable = function (item) {
@@ -787,21 +838,36 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var status = (order.status || '').trim();
         var statusLower = status.toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
+        var paymentType = (order.paymentType || '').toUpperCase();
+        var remaining = order.remainingBalance != null ? Number(order.remainingBalance) : null;
+        var total = order.total != null ? Number(order.total) : null;
+        var verifiedCount = order.verifiedPaymentsCount != null ? Number(order.verifiedPaymentsCount) : 0;
+        if (statusLower === 'cancelled') return 'Order Cancelled';
+        if (statusLower === 'completed') return 'Completed';
+        if (paymentType === 'LAYAWAY' && remaining != null && remaining > 0 && verifiedCount >= 1) return 'Layaway Active';
+        if (paymentType === 'LAYAWAY' && remaining != null && total != null && remaining > 0 && remaining < total) return 'Layaway Active';
+        if (statusLower === 'layaway active') return 'Layaway Active';
+        if (statusLower === 'awaiting payment verification') return (order.hasSubmittedPayment ? 'Under Review' : 'Awaiting Payment');
+        if (statusLower === 'paid') return 'Paid';
+        if (statusLower === 'ready for meetup') return 'Ready for Meetup';
+        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
         if (statusLower === 'pending') return 'Pending Approval';
         if (statusLower === 'approved') return 'Awaiting Payment';
-        if (statusLower === 'rejected') return 'Rejected';
-        if (statusLower === 'awaiting meetup') return 'Awaiting Meetup';
-        if (statusLower === 'awaiting payment verification') return 'Awaiting Payment Verification';
-        if (statusLower === 'layaway active') return 'Layaway Active';
-        if (statusLower === 'paid' || statusLower === 'ready for meetup') return 'Paid';
-        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
-        if (statusLower === 'completed') return 'Completed';
-        if (statusLower === 'cancelled') return 'Cancelled';
+        if (statusLower === 'rejected') return 'Payment Rejected';
         return status || '-';
+    };
+
+    $scope.getOverallStatusTooltip = function (order) {
+        if (!order) return '';
+        var status = (order.status || '').toLowerCase();
+        if (status === 'rejected') return 'Payment not approved.';
+        if (status === 'cancelled') return 'Order permanently closed.';
+        return '';
     };
 
     $scope.getOrderActionLabel = function (order) {
         if (!order) return 'View';
+        if (order.isArchived) return 'View';
         var status = (order.status || '').toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
         if (status === 'rejected' || status === 'cancelled') return 'View';
@@ -810,10 +876,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (status === 'layaway active') return 'Pay Installment';
         if (status === 'awaiting payment verification') return 'View';
         if (status === 'paid' || status === 'ready for meetup') return 'View';
-        if (status === 'in delivery') return 'Track Now';
+        if (status === 'in delivery' || deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'View';
         if (status === 'completed') return 'View';
         if (status === 'pending' || status.indexOf('pending') >= 0) return 'View';
-        if (deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'Track Now';
         return 'View';
     };
 

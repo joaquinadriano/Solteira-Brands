@@ -27,16 +27,32 @@
 
     <div class="featured-title">FEATURED PRODUCTS</div>
 
-    <div class="home-products-grid">
-        <a ng-repeat="item in jewelries | limitTo: 8 track by item.id" href="javascript:void(0)" class="featured-product-card" ng-click="goToProduct(item)">
-            <div class="featured-card-image">
-                <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
+    <div class="featured-carousel-container" ng-if="featuredCarouselSlides.length > 0" ng-mouseenter="stopFeaturedCarousel()" ng-mouseleave="startFeaturedCarousel()">
+        <button type="button" class="featured-carousel-btn featured-carousel-prev carousel-arrow left" aria-label="Previous" ng-click="prevFeaturedSlide()" ng-disabled="featuredCarouselSlides.length <= 1">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <div class="featured-carousel">
+            <div class="featured-carousel-viewport">
+                <div class="carousel-track" ng-style="{'transform': 'translateX(-' + (currentFeaturedSlide * 100) + '%)'}">
+                    <div class="carousel-slide" ng-repeat="slide in featuredCarouselSlides track by $index">
+                        <div class="home-products-grid home-products-grid-max4">
+                            <a ng-repeat="item in slide track by item.id" href="javascript:void(0)" class="featured-product-card" ng-click="goToProduct(item)">
+                                <div class="featured-card-image">
+                                    <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
+                                </div>
+                                <span class="featured-card-category">{{item.category || 'Jewelry'}}</span>
+                                <span class="featured-card-name">{{item.name}}</span>
+                                <p class="featured-card-desc">{{getShortDescription(item)}}</p>
+                                <span class="featured-card-price">&#8369; {{item.price | number:2}}</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <span class="featured-card-category">{{item.category || 'Jewelry'}}</span>
-            <span class="featured-card-name">{{item.name}}</span>
-            <p class="featured-card-desc">{{getShortDescription(item)}}</p>
-            <span class="featured-card-price">&#8369; {{item.price | number:2}}</span>
-        </a>
+        </div>
+        <button type="button" class="featured-carousel-btn featured-carousel-next carousel-arrow right" aria-label="Next" ng-click="nextFeaturedSlide()" ng-disabled="featuredCarouselSlides.length <= 1">
+            <i class="bi bi-chevron-right"></i>
+        </button>
     </div>
 
 </div>

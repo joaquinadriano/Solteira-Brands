@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -173,8 +173,7 @@
             if ($('#userTable').length) $('#userTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#ordersTable').length) $('#ordersTable').DataTable();
-            // adminOrdersTable, deliveryShipmentsTable, deliveryMeetupTable are Angular ng-repeat tables — do NOT init DataTables (causes "unknown parameter '1'" error)
-            if ($('#orderArchiveTable').length) $('#orderArchiveTable').DataTable();
+            // adminOrdersTable, deliveryShipmentsTable, deliveryMeetupTable, orderArchiveTable are Angular ng-repeat tables — do NOT init DataTables (causes "unknown parameter '1'" error)
             // paymentTable is plain Angular (ng-repeat), do not init DataTables
             // salesReportTable is plain Angular table (ng-repeat), do not init DataTables
             // inventoryTable is initialized/rebuilt by Angular controller after bindings

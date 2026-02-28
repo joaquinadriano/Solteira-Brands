@@ -1,14 +1,107 @@
 @{
-    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
-<div class="main-content">
+<div class="main-content" ng-init="showArchivedOrders = false; loadOrders();">
     <div class="container-fluid ordersArchive-container px-1">
-        <div class="row px-4 pb-0 mb-0">
+        <div class="row px-4 pb-0 mb-0 align-items-center">
             <div class="col">
-                <p class="h1 fw-bold inventory-title ps-0 ms-0">Orders Archive</p>
+                @if (User.IsInRole("ADMIN"))
+                {
+                    <p class="h1 fw-bold inventory-title ps-0 ms-0">Orders Archive</p>
+                }
+                else
+                {
+                    <p class="h1 fw-bold inventory-title ps-0 ms-0">Orders</p>
+                }
+            </div>
+            @if (User.IsInRole("ADMIN"))
+            {
+                <div class="col d-flex justify-content-end align-items-center gap-2">
+                    <div class="btn-group me-2" role="group">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-success"
+                                ng-class="{'active': !showArchivedOrders}"
+                                ng-click="showArchivedOrders = false; loadOrders();">
+                            Show Active
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                ng-class="{'active': showArchivedOrders}"
+                                ng-click="showArchivedOrders = true; loadArchiveOrders();">
+                            Show Archived
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ----- Active orders (non-archived) ----- *@
+        <div class="row px-4 pt-1" ng-show="!showArchivedOrders">
+            <div class="col">
+                <table class="table table-striped table-responsive text-center" id="adminOrdersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Order Date</th>
+                            <th>Items</th>
+                            <th>Address</th>
+                            <th>Total</th>
+                            <th>Payment Type</th>
+                            <th>Order Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-group-divider">
+                        <tr class="text-start" ng-repeat="order in ordersList">
+                            <td>{{order.orderNumber}}</td>
+                            <td>{{order.orderDateString}}</td>
+                            <td>{{order.itemCount}} item(s)</td>
+                            <td>{{order.deliveryAddress}}</td>
+                            <td>&#8369; {{order.totalAmount | number:2}}</td>
+                            <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
+                            <td class="text-center">
+                                <span class="order-status-display">{{order.orderStatus === 'Rejected' ? 'Payment Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-'))}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled'" title="{{order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.'}}" style="cursor:help;"></i>
+                                @if (!User.IsInRole("ADMIN"))
+                                {
+                                    <span ng-if="order.orderStatus === 'Pending'" class="ms-2">
+                                        <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
+                                        <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
+                                    </span>
+                                    <span ng-if="order.orderStatus === 'Approved'" class="ms-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
+                                        <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
+                                    </span>
+                                }
+                                <span ng-if="order.orderStatus === 'Paid' || order.orderStatus === 'Layaway Active' || order.orderStatus === 'In Delivery' || order.orderStatus === 'Ready for Meetup' || order.orderStatus === 'Completed'" class="ms-2 text-muted small">(View only)</span>
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <span class="ms-2 text-muted small">(Archive only)</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
+                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openOrderDetails(order)">
+                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
+                                    </a>
+                                </div>
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <a class="order-action-icon ms-1" href="javascript:void(0)" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Archive" ng-click="archiveOrderConfirm(order)">
+                                        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                        <tr ng-if="ordersList.length === 0">
+                            <td colspan="8" class="text-muted py-4">No orders yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-        <div class="row  px-4 pt-1">
+
+        @* ----- Archived orders ----- *@
+        <div class="row px-4 pt-1" ng-show="showArchivedOrders">
             <div class="col">
                 <table class="table table-striped table-responsive text-center" id="orderArchiveTable">
                     <thead>
@@ -22,34 +115,199 @@
                             <th>Action</th>
                         </tr>
                     </thead>
-
                     <tbody class="table-group-divider">
-                        <tr class="text-start" ng-init="orderStatus=''">
-                            <td>ORD-001</td>
-                            <td>12/25/2025</td>
-                            <td>2 items</td>
-                            <td>Dapitan St, Sampaloc, Manila</td>
-                            <td>P 90, 468.00</td>
-                            <td>
-                                <span class="order-status-display">Order status is display-only (set by system)</span>
-                            </td>
-                            @*restore button*@
+                        <tr class="text-start" ng-repeat="order in archiveOrdersList">
+                            <td>{{order.orderNumber || order.id}}</td>
+                            <td>{{order.orderDateString}}</td>
+                            <td>{{order.itemCount}} item(s)</td>
+                            <td>{{order.deliveryAddress}}</td>
+                            <td>&#8369; {{order.totalAmount | number:2}}</td>
+                            <td><span class="order-status-display">{{order.orderStatus}}</span></td>
                             <td id="restore-col">
-                                <button type="button" class="btn archive-restore px-3 py-1" ng-click="restoreAlert()">
-                                    <i class="bi bi-arrow-counterclockwise fw-bold me-2"></i>
-                                    Restore
-                                </button>
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <button type="button" class="btn archive-restore px-3 py-1" ng-click="restoreAlert(order)">
+                                        <i class="bi bi-arrow-counterclockwise fw-bold me-2"></i>
+                                        Restore
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
                             </td>
+                        </tr>
+                        <tr ng-if="archiveOrdersList.length === 0">
+                            <td colspan="7" class="text-muted py-4">No archived orders.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-
-        @*----------Table end----------*@
-
-
+        @* ----- Order details modal (View button) ----- *@
+        <div class="modal fade" id="viewOrderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content orderDetails-modal-custom" style="background-color: #f8f9fa " ng-if="selectedOrderDetails">
+                    <div class="modal-header border-0 px-4 pt-4 pb-0">
+                        <div class="d-flex align-items-center justify-content-between w-100">
+                            <h2 class="fw-bold mb-0" id="orderDetailsModalLabel">Order Details</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-4">
+                            <div class="col-lg-4">
+                                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h4 class="fw-bold mb-0">Order {{selectedOrderDetails.orderNumber}}</h4>
+                                            <span class="orderDetails-badgeNew" title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment not approved.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment Rejected' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order Cancelled' : selectedOrderDetails.orderStatus)}}</span>
+                                        </div>
+                                        <p class="text-muted mb-0">
+                                            <i class="bi bi-calendar me-1"></i>
+                                            Placed on {{selectedOrderDetails.createdAtString}}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3">
+                                            <i class="bi bi-person-circle me-2 orderDetails-icon"></i>
+                                            Customer Information
+                                        </h5>
+                                        <div class="mb-3">
+                                            <label class="orderDetails-infoLabel">Name</label>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.customerName}}</p>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="orderDetails-infoLabel">Email</label>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.email}}</p>
+                                        </div>
+                                        <div>
+                                            <label class="orderDetails-infoLabel">Contact No</label>
+                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.contactNumber}}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">
+                                            <i class="bi bi-geo-alt me-2 orderDetails-icon"></i>
+                                            Delivery Address
+                                        </h5>
+                                        <p class="fw-bold mb-1">{{selectedOrderDetails.customerName}}</p>
+                                        <p class="mb-1">{{selectedOrderDetails.deliveryAddress}}</p>
+                                        <p class="mb-0 text-muted small">Contact: {{selectedOrderDetails.contactNumber}}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-8">
+                                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3">
+                                            <i class="bi bi-bag-check me-2 orderDetails-icon"></i>
+                                            Order Items
+                                        </h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom">
+                                                    <tr class="text-muted small text-uppercase">
+                                                        <th>Item</th>
+                                                        <th class="text-center">Quantity</th>
+                                                        <th class="text-end">Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="item in selectedOrderDetails.items">
+                                                        <td class="fw-bold py-3">{{item.productName}}</td>
+                                                        <td class="text-center">{{item.quantity}}</td>
+                                                        <td class="text-end">&#8369; {{item.unitPrice * item.quantity | number:2}}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="selectedOrderDetails.payments && selectedOrderDetails.payments.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3">
+                                            <i class="bi bi-cash-stack me-2 orderDetails-icon"></i>
+                                            Payment Proofs
+                                        </h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom">
+                                                    <tr class="text-muted small text-uppercase">
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Proof</th>
+                                                        <th class="text-end">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="p in selectedOrderDetails.payments">
+                                                        <td class="fw-bold">&#8369; {{p.amount | number:2}}</td>
+                                                        <td><span class="badge" ng-class="{'bg-warning': p.paymentStatus === 'SUBMITTED', 'bg-success': p.paymentStatus === 'VERIFIED', 'bg-danger': p.paymentStatus === 'REJECTED'}">{{p.paymentStatus}}</span></td>
+                                                        <td>
+                                                            <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
+                                                            <span ng-if="!p.proofImageUrl" class="text-muted">-</span>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <span ng-if="p.paymentStatus === 'SUBMITTED'" class="text-muted small">Verify/Reject on Payment page</span>
+                                                            <span ng-if="p.rejectionReason" class="text-muted small">Reason: {{p.rejectionReason}}</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3">
+                                            <i class="bi bi-credit-card me-2 orderDetails-icon"></i>
+                                            Payment Summary
+                                        </h5>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Payment Method</span>
+                                            <span>{{selectedOrderDetails.paymentMethod}}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-3 mt-2">
+                                            <span>Total</span>
+                                            <span class="orderDetails-total">&#8369; {{selectedOrderDetails.totalAmount | number:2}}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4 flex-wrap">
+                        <span class="order-status-display me-2">Order status: <strong>{{selectedOrderDetails.orderStatus}}</strong></span>
+                        @if (!User.IsInRole("ADMIN"))
+                        {
+                            <span ng-if="selectedOrderDetails.orderStatus === 'Pending'">
+                                <button type="button" class="btn btn-success me-2" ng-click="statusChange(selectedOrderDetails.id, 'Approved')">Approve</button>
+                                <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')">Reject</button>
+                            </span>
+                            <span ng-if="selectedOrderDetails.orderStatus === 'Approved'">
+                                <button type="button" class="btn btn-outline-secondary me-2" ng-click="revokeApproval(selectedOrderDetails.id)" ng-if="!selectedOrderDetails.hasPayments">Revoke Approval</button>
+                                <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')" ng-if="!selectedOrderDetails.hasPayments">Reject</button>
+                            </span>
+                        }
+                        @if (User.IsInRole("ADMIN"))
+                        {
+                            <a class="order-action-icon me-2" href="javascript:void(0)" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Archive" ng-click="archiveOrderConfirm(selectedOrderDetails); $event.stopPropagation();" data-bs-dismiss="modal">
+                                <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+                            </a>
+                        }
+                        <span ng-if="selectedOrderDetails.orderStatus === 'Paid' || selectedOrderDetails.orderStatus === 'Layaway Active' || selectedOrderDetails.orderStatus === 'In Delivery' || selectedOrderDetails.orderStatus === 'Ready for Meetup' || selectedOrderDetails.orderStatus === 'Completed'" class="text-muted small me-2">Paid / Delivery / Completed - manage from Payment and Delivery pages.</span>
+                        <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
+                            <span>CLOSE</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-

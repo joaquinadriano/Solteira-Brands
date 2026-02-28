@@ -23,6 +23,7 @@ namespace Solteira_Brands.Models
         public string RejectionReason { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastStatusUpdateAt { get; set; }
+        public bool IsArchived { get; set; }
 
         public virtual tblUsersModel User { get; set; }
         public virtual ICollection<tblOrderItemsModel> OrderItems { get; set; }

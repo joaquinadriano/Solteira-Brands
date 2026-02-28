@@ -24,6 +24,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(500).IsOptional();
             Property(x => x.CreatedAt).HasColumnName("created_at");
             Property(x => x.LastStatusUpdateAt).HasColumnName("last_status_update_at").IsOptional();
+            Property(x => x.IsArchived).HasColumnName("is_archived");
 
             HasRequired(x => x.User)
                 .WithMany()

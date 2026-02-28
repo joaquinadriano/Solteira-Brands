@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content" ng-init="loadOrders()">
     <div class="container-fluid orders-container px-1">
@@ -33,16 +33,23 @@
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
                             <td class="text-center">
-                                <span class="order-status-display">{{order.orderStatus || '-'}}</span>
-                                <span ng-if="order.orderStatus === 'Pending'" class="ms-2">
-                                    <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
-                                    <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
-                                </span>
-                                <span ng-if="order.orderStatus === 'Approved'" class="ms-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
-                                    <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
-                                </span>
+                                <span class="order-status-display">{{order.orderStatus === 'Rejected' ? 'Payment Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-'))}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled'" title="{{order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.'}}" style="cursor:help;"></i>
+                                @if (!User.IsInRole("ADMIN"))
+                                {
+                                    <span ng-if="order.orderStatus === 'Pending'" class="ms-2">
+                                        <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
+                                        <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
+                                    </span>
+                                    <span ng-if="order.orderStatus === 'Approved'" class="ms-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
+                                        <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
+                                    </span>
+                                }
                                 <span ng-if="order.orderStatus === 'Paid' || order.orderStatus === 'Layaway Active' || order.orderStatus === 'In Delivery' || order.orderStatus === 'Ready for Meetup' || order.orderStatus === 'Completed'" class="ms-2 text-muted small">(View only)</span>
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <span class="ms-2 text-muted small">(Archive only)</span>
+                                }
                             </td>
                             <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
@@ -50,6 +57,10 @@
                                         <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
                                     </a>
                                 </div>
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-1" ng-click="archiveOrderConfirm(order)" title="Move to Archive">Archive</button>
+                                }
                             </td>
                         </tr>
                         <tr ng-if="ordersList.length === 0">
@@ -80,7 +91,7 @@
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <h4 class="fw-bold mb-0">Order {{selectedOrderDetails.orderNumber}}</h4>
-                                            <span class="orderDetails-badgeNew">{{selectedOrderDetails.orderStatus}}</span>
+                                            <span class="orderDetails-badgeNew" title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment not approved.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment Rejected' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order Cancelled' : selectedOrderDetails.orderStatus)}}</span>
                                         </div>
                                         <p class="text-muted mb-0">
                                             <i class="bi bi-calendar me-1"></i>
@@ -208,14 +219,21 @@
 
                     <div class="modal-footer border-0 p-4 flex-wrap">
                         <span class="order-status-display me-2">Order status: <strong>{{selectedOrderDetails.orderStatus}}</strong></span>
-                        <span ng-if="selectedOrderDetails.orderStatus === 'Pending'">
-                            <button type="button" class="btn btn-success me-2" ng-click="statusChange(selectedOrderDetails.id, 'Approved')">Approve</button>
-                            <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')">Reject</button>
-                        </span>
-                        <span ng-if="selectedOrderDetails.orderStatus === 'Approved'">
-                            <button type="button" class="btn btn-outline-secondary me-2" ng-click="revokeApproval(selectedOrderDetails.id)" ng-if="!selectedOrderDetails.hasPayments">Revoke Approval</button>
-                            <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')" ng-if="!selectedOrderDetails.hasPayments">Reject</button>
-                        </span>
+                        @if (!User.IsInRole("ADMIN"))
+                        {
+                            <span ng-if="selectedOrderDetails.orderStatus === 'Pending'">
+                                <button type="button" class="btn btn-success me-2" ng-click="statusChange(selectedOrderDetails.id, 'Approved')">Approve</button>
+                                <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')">Reject</button>
+                            </span>
+                            <span ng-if="selectedOrderDetails.orderStatus === 'Approved'">
+                                <button type="button" class="btn btn-outline-secondary me-2" ng-click="revokeApproval(selectedOrderDetails.id)" ng-if="!selectedOrderDetails.hasPayments">Revoke Approval</button>
+                                <button type="button" class="btn btn-danger me-2" ng-click="statusChange(selectedOrderDetails.id, 'Rejected')" ng-if="!selectedOrderDetails.hasPayments">Reject</button>
+                            </span>
+                        }
+                        @if (User.IsInRole("ADMIN"))
+                        {
+                            <button type="button" class="btn btn-outline-secondary me-2" ng-click="archiveOrderConfirm(selectedOrderDetails); $event.stopPropagation();" data-bs-dismiss="modal">Archive</button>
+                        }
                         <span ng-if="selectedOrderDetails.orderStatus === 'Paid' || selectedOrderDetails.orderStatus === 'Layaway Active' || selectedOrderDetails.orderStatus === 'In Delivery' || selectedOrderDetails.orderStatus === 'Ready for Meetup' || selectedOrderDetails.orderStatus === 'Completed'" class="text-muted small me-2">Paid / Delivery / Completed - manage from Payment and Delivery pages.</span>
                         <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
                             <span>CLOSE</span>

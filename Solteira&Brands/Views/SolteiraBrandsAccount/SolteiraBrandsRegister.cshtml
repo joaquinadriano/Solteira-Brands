@@ -46,58 +46,62 @@
                         <div class="error-text" ng-if="registerErrors.email">{{registerErrors.email}}</div>
                     </div>
 
-                    <div class="text-start mb-4 w-100">
-                        <label for="username" class="form-label">
+                    <div class="form-group text-start mb-4 w-100">
+                        <label for="registerUsername" class="form-label">
                             Username <span class="text-danger">*</span>
                         </label>
                         <input type="text"
+                               maxlength="14" pattern="^[^\s]{1,14}$"
                                class="form-control custom-input"
                                ng-class="{'is-invalid': registerErrors.username}"
-                               id="username" name="username"
+                               id="registerUsername" name="username"
                                ng-model="registerData.username"
                                ng-blur="onUsernameBlur(registerForm)"
-                               placeholder="Choose a unique username." required />
-                        <div class="error-text" ng-if="registerErrors.username">{{registerErrors.username}}</div>
+                               placeholder="Enter username" required />
+                        <small class="helper-text">Max 14 characters. No spaces.</small>
+                        <small class="error-text username-error-text" id="registerUsernameError" style="display:none;"></small>
+                        <small class="error-text" ng-if="registerErrors.username">{{registerErrors.username}}</small>
                     </div>
 
-                    <div class="text-start mb-4 w-100 position-relative">
+                    <div class="form-group text-start mb-4 w-100">
                         <label for="password" class="form-label">
                             Password <span class="text-danger">*</span>
                         </label>
-                        <div class="input-group custom-input-group">
-                            <input type="{{showPassword ? 'text' : 'password'}}"
-                                   class="form-control custom-input border-end-0"
+                        <div class="password-wrapper">
+                            <input type="password"
+                                   class="form-control custom-input password-input"
                                    ng-class="{'is-invalid': registerErrors.password}"
-                                   name="password"
+                                   id="password" name="password"
                                    ng-model="registerData.password"
                                    ng-change="onPasswordInput()"
-                                   placeholder="Min 8 chars: upper, lower, number, special" required />
-                            <span class="input-group-text bg-transparent border-start-0"
-                                  ng-click="showPassword = !showPassword" style="cursor: pointer;">
-                                <i class="bi" ng-class="showPassword ? 'bi-eye' : 'bi-eye-slash-fill'"></i>
-                            </span>
+                                   placeholder="Enter password" required />
+                            <button type="button" class="toggle-password" aria-label="Toggle password">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
                         </div>
-                        <div class="error-text" ng-if="registerErrors.password">{{registerErrors.password}}</div>
+                        <small class="helper-text">Min 8 characters: upper, lower, number, special.</small>
+                        <small class="error-text" ng-if="registerErrors.password">{{registerErrors.password}}</small>
                     </div>
 
-                    <div class="text-start mb-4 w-100 position-relative">
+                    <div class="form-group text-start mb-4 w-100">
                         <label for="verifyPassword" class="form-label">
                             Verify Password <span class="text-danger">*</span>
                         </label>
-                        <div class="input-group custom-input-group">
-                            <input type="{{showVerifyPassword ? 'text' : 'password'}}"
-                                   class="form-control custom-input border-end-0"
+                        <div class="password-wrapper">
+                            <input type="password"
+                                   class="form-control custom-input password-input"
                                    ng-class="{'is-invalid': registerErrors.verifyPassword}"
-                                   name="verifyPassword"
+                                   name="ConfirmPassword"
+                                   id="verifyPassword"
                                    ng-model="registerData.verifyPassword"
                                    ng-change="onVerifyPasswordInput()"
-                                   placeholder="Re-type your password" required />
-                            <span class="input-group-text bg-transparent border-start-0"
-                                  ng-click="showVerifyPassword = !showVerifyPassword" style="cursor: pointer;">
-                                <i class="bi" ng-class="showVerifyPassword ? 'bi-eye' : 'bi-eye-slash-fill'"></i>
-                            </span>
+                                   placeholder="Enter password again" required />
+                            <button type="button" class="toggle-password" aria-label="Toggle password">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
                         </div>
-                        <div class="error-text" ng-if="registerErrors.verifyPassword">{{registerErrors.verifyPassword}}</div>
+                        <small class="helper-text">Must match password.</small>
+                        <small class="error-text" ng-if="registerErrors.verifyPassword">{{registerErrors.verifyPassword}}</small>
                     </div>
 
                     <button type="submit"
@@ -113,10 +117,6 @@
                     <a href="@Url.Action("SolteiraBrandsLogin","SolteiraAndBrands")" class="login-link">Login</a>
                 </p>
 
-                <button class="signin-google">
-                    <i class="bi bi-google"></i>Sign In with Google
-                </button>
-
             </div>
 
         </div>
@@ -129,7 +129,27 @@
     <script src="~/Scripts/SBScripts/Module.js"></script>
     <script src="~/Scripts/SBScripts/Service.js"></script>
     <script src="~/Scripts/SBScripts/Controller.js"></script>
-
+    <script>
+        (function () {
+            var usernameInput = document.getElementById("registerUsername");
+            var errorEl = document.getElementById("registerUsernameError");
+            if (usernameInput && errorEl) {
+                usernameInput.addEventListener("input", function () {
+                    var value = this.value || "";
+                    if (value.length > 14) {
+                        errorEl.textContent = "Username cannot exceed 14 characters.";
+                        errorEl.style.display = "block";
+                    } else if (/\s/.test(value)) {
+                        errorEl.textContent = "Username cannot contain spaces.";
+                        errorEl.style.display = "block";
+                    } else {
+                        errorEl.style.display = "none";
+                    }
+                });
+            }
+        })();
+    </script>
+    <script src="~/Scripts/SBScripts/PasswordToggle.js"></script>
 </body>
 
 </html>

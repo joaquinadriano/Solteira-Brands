@@ -33,7 +33,7 @@
                             <td>{{order.orderDate | date:'MMM d, y'}}</td>
                             <td>&#8369; {{order.total | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
-                            <td class="text-center"><span class="status-weight">{{getOverallStatus(order)}}</span><span class="badge bg-warning text-dark ms-1 small" ng-if="order.status === 'Layaway Active' && order.hasSubmittedPayment">Installment Under Review</span></td>
+<td class="text-center"><span class="status-weight">{{getOverallStatus(order)}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="getOverallStatusTooltip(order)" title="{{getOverallStatusTooltip(order)}}" style="cursor:help;"></i><span class="badge bg-warning text-dark ms-1 small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Installment Under Review</span></td>
                             <td>
                                 <button type="button" class="btn-order-action" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
                             </td>
@@ -61,8 +61,8 @@
                 <div class="modal-body buyer-order-details-body">
                     <p class="buyer-order-status-line">
                         <span class="buyer-order-status-label">Status:</span>
-                        <span class="buyer-order-status-value">{{getOverallStatus(selectedOrderForDetails)}}</span>
-                        <span class="badge bg-warning text-dark ms-1 small" ng-if="selectedOrderForDetails.status === 'Layaway Active' && selectedOrderForDetails.hasSubmittedPayment">Installment Under Review</span>
+<span class="buyer-order-status-value">{{getOverallStatus(selectedOrderForDetails)}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="getOverallStatusTooltip(selectedOrderForDetails)" title="{{getOverallStatusTooltip(selectedOrderForDetails)}}" style="cursor:help;"></i>
+                        <span class="badge bg-warning text-dark ms-1 small" ng-if="getOverallStatus(selectedOrderForDetails) === 'Layaway Active' && selectedOrderForDetails.hasSubmittedPayment">Installment Under Review</span>
                     </p>
                     <div class="buyer-order-summary-card">
                         <div class="buyer-order-item" ng-repeat="item in selectedOrderForDetails.items">
@@ -152,13 +152,16 @@
                         <p class="mb-1"><strong>Tracking Number:</strong> {{selectedOrderForDetails.trackingNumber || '-'}}</p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.dispatchDate"><strong>Dispatch Date:</strong> {{selectedOrderForDetails.dispatchDate}}</p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.eta"><strong>ETA:</strong> {{selectedOrderForDetails.eta}}</p>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.trackingNumber"><a ng-href="https://www.lbcexpress.com/track/?trackingNo={{selectedOrderForDetails.trackingNumber}}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">Track shipment (LBC Express)</a></p>
                         <p class="small text-muted mb-0 mt-2" ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">Please track your shipment directly via the courier's official website.</p>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-click="closeOrderDetailsModal()">Close</button>
-                    <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved'" ng-click="closeOrderDetailsModal(); goToPayment(selectedOrderForDetails.orderId)">Pay Now</button>
-                    <button type="button" class="btn btn-primary" ng-if="selectedOrderForDetails.status === 'In Delivery'" ng-click="goToTracking(selectedOrderForDetails.trackingNumber)">Track Now</button>
+<button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType !== 'LAYAWAY'" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">{{ (selectedOrderForDetails.latestPaymentForProof && selectedOrderForDetails.latestPaymentForProof.paymentStatus === 'REJECTED' && selectedOrderForDetails.latestPaymentForProof.allowResubmit) ? 'Resubmit' : 'Pay Now' }}</button>
+                    <button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && (selectedOrderForDetails.status === 'Layaway Active' || (selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.remainingBalance > 0 && selectedOrderForDetails.verifiedPaymentsCount >= 1)) && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Installment</button>
+                    <button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType === 'LAYAWAY' && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Now</button>
+                    <a ng-if="!selectedOrderForDetails.isArchived && selectedOrderForDetails.status === 'In Delivery' && selectedOrderForDetails.trackingNumber" href="https://www.lbcexpress.com/track/?trackingNo={{selectedOrderForDetails.trackingNumber}}" target="_blank" rel="noopener" class="btn btn-primary">Track shipment</a>
                 </div>
             </div>
         </div>

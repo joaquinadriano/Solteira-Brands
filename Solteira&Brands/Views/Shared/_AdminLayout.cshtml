@@ -157,7 +157,7 @@
         $(document).ready(function () {
             if ($('#userTable').length) $('#userTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
-            if ($('#orderArchiveTable').length) $('#orderArchiveTable').DataTable();
+            // orderArchiveTable is Angular ng-repeat (archiveOrdersList) — do NOT init DataTables (causes "unknown parameter" error)
             // activityLogsTable is plain Angular table (ng-repeat), do not init DataTables
             // salesReportTable is inited by Angular after Generate Report
             // inventoryTable is initialized/rebuilt by Angular controller after bindings

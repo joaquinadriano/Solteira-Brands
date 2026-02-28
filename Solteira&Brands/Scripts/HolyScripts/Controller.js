@@ -124,6 +124,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
+    // ----- Orders Archive (ADMIN): list, restore -----
+    $scope.archiveOrdersList = [];
+    $scope.loadArchiveOrders = function () {
+        SolteiraAndBrandsService.getArchiveOrders().then(function (res) {
+            if (res.data && res.data.success && angular.isArray(res.data.data)) {
+                $scope.archiveOrdersList = res.data.data;
+            } else {
+                $scope.archiveOrdersList = [];
+            }
+        }, function () {
+            $scope.archiveOrdersList = [];
+        });
+    };
+
     $scope.openOrderDetails = function (order) {
         if (!order || !order.id) return;
         $scope.selectedOrderDetails = null;
@@ -380,11 +394,19 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.ordersForShipments = [];
     $scope.shipmentsList = [];
     $scope.loadDeliveryShipments = function () {
+        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryShipmentsTable').length && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) {
+            try { $('#deliveryShipmentsTable').DataTable().destroy(); } catch (e) { }
+        }
         SolteiraAndBrandsService.getOrdersForDeliveryShipments().then(function (res) {
             $scope.ordersForShipments = (res.data && res.data.success && res.data.data) ? res.data.data : [];
         });
         SolteiraAndBrandsService.getDeliveryShipments().then(function (res) {
             $scope.shipmentsList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+            $timeout(function () {
+                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#deliveryShipmentsTable').length) return;
+                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) return;
+                $('#deliveryShipmentsTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+            }, 150);
         });
     };
     function toYyyyMmDd(val) {
@@ -419,8 +441,22 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.meetupOrdersList = [];
     $scope.loadDeliveryMeetup = function () {
+        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryMeetupTable').length && $.fn.DataTable.isDataTable('#deliveryMeetupTable')) {
+            try { $('#deliveryMeetupTable').DataTable().destroy(); } catch (e) { }
+        }
         SolteiraAndBrandsService.getOrdersForDeliveryMeetup().then(function (res) {
-            $scope.meetupOrdersList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+            var raw = res.data;
+            var list = (raw && raw.success && raw.data) ? raw.data : [];
+            $scope.meetupOrdersList = list;
+            $timeout(function () {
+                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#deliveryMeetupTable').length) return;
+                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#deliveryMeetupTable')) return;
+                $('#deliveryMeetupTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+            }, 150);
+            if (window.console && window.console.log) { window.console.log('GetOrdersForDeliveryMeetup: success=', raw && raw.success, 'count=', list && list.length); }
+        }, function (err) {
+            if (window.console && window.console.error) { window.console.error('GetOrdersForDeliveryMeetup failed', err && err.data); }
+            $scope.meetupOrdersList = [];
         });
     };
     $scope.meetupCompletedOrderId = null;
@@ -534,12 +570,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.selectedPayment = null;
     $scope.paymentDetail = null;
     $scope.loadPayments = function () {
+        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#paymentTable').length && $.fn.DataTable.isDataTable('#paymentTable')) {
+            try { $('#paymentTable').DataTable().destroy(); } catch (e) { }
+        }
         SolteiraAndBrandsService.getPaymentsForAdmin().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
                 $scope.paymentsList = res.data.data;
             } else {
                 $scope.paymentsList = [];
             }
+            $timeout(function () {
+                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#paymentTable').length) return;
+                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#paymentTable')) return;
+                $('#paymentTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+            }, 150);
         }, function () {
             $scope.paymentsList = [];
         });
@@ -782,6 +826,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.loadInventoryProducts = function () {
         SolteiraAndBrandsService.getInventoryProducts($scope.showArchivedInventory).then(function (res) {
+            // Destroy existing DataTable so the table can be re-rendered by Angular and re-inited
+            if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                try { $('#inventoryTable').DataTable().destroy(); } catch (e) { }
+            }
             var list = [];
             if (angular.isArray(res.data)) {
                 list = res.data;
@@ -800,6 +848,23 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 });
                 $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
             }
+
+            // Standard DataTables: search box, entries per page, column sorting (no per-column filter row)
+            $timeout(function () {
+                if (typeof $ === 'undefined' || !$.fn.DataTable) return;
+                var $table = $('#inventoryTable');
+                if (!$table.length) return;
+                try {
+                    if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                        $table.DataTable().destroy();
+                    }
+                } catch (e) { }
+                if (!$scope.inventoryProducts.length) return;
+                $table.DataTable({
+                    responsive: true,
+                    pageLength: 10
+                });
+            }, 200);
         }, function () {
             $scope.inventoryProducts = [];
         });
@@ -1148,11 +1213,12 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
 
-    //for when restore is clicked
-    $scope.restoreAlert = function () {
+    // Restore order from Archive page (order = { id, orderNumber, ... })
+    $scope.restoreAlert = function (order) {
+        if (!order || !order.id) return;
         Swal.fire({
             title: 'Restore Confirmation',
-            text: 'Please confirm you wish to restore this order',
+            text: 'Please confirm you wish to restore order ' + (order.orderNumber || order.id) + '. It will reappear on the Orders page.',
             icon: 'info',
             iconColor: '#8eb078',
             showCancelButton: true,
@@ -1160,35 +1226,28 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             confirmButtonColor: '#8eb078',
             cancelButtonText: 'Cancel',
             background: '#FFFBE8',
-        }).then((result) => {
+        }).then(function (result) {
             if (result.isConfirmed) {
-                $scope.orderRestoreAlert();
+                SolteiraAndBrandsService.restoreOrder(order.id).then(function (res) {
+                    if (res.data && res.data.success) {
+                        Swal.fire({ title: 'Order restored successfully!', icon: 'success', confirmButtonColor: '#8eb078' });
+                        $scope.loadArchiveOrders();
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Restore failed', text: (res.data && res.data.message) || 'Please try again.' });
+                    }
+                }, function (err) {
+                    Swal.fire({ icon: 'error', title: 'Restore failed', text: (err.data && err.data.message) || 'Please try again.' });
+                });
             }
         });
     };
 
-    //for when an order is restored in archive - order restored alert
-    $scope.orderRestoreAlert = function () {
-        Swal.fire({
-            title: 'Order restored successfully!',
-            icon: 'success',
-            iconColor: '#FFFBE8',
-            background: '#8eb078',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8',
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
-            }
-        });
-    }
-
-    //for when archvie is clicked in ORDERS Page
-    $scope.archiveOrder = function () {
+    // Archive order from Orders page (ADMIN only). orderId = order.id
+    $scope.archiveOrderConfirm = function (order) {
+        if (!order || !order.id) return;
         Swal.fire({
             title: 'Archive Confirmation',
-            text: 'Please confirm you wish to archive this order',
+            text: 'This order will be moved to Archive and hidden from Orders, Payments, and Delivery pages. Buyer will still see it in My Orders (view-only).',
             icon: 'info',
             iconColor: '#8eb078',
             showCancelButton: true,
@@ -1196,29 +1255,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             confirmButtonColor: '#8eb078',
             cancelButtonText: 'Cancel',
             background: '#FFFBE8',
-        }).then((result) => {
+        }).then(function (result) {
             if (result.isConfirmed) {
-                $scope.archiveOrderAlert();
+                SolteiraAndBrandsService.archiveOrder(order.id).then(function (res) {
+                    if (res.data && res.data.success) {
+                        Swal.fire({ title: 'Order archived successfully!', icon: 'success', confirmButtonColor: '#8eb078' });
+                        $scope.loadOrders();
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Archive failed', text: (res.data && res.data.message) || 'Please try again.' });
+                    }
+                }, function (err) {
+                    Swal.fire({ icon: 'error', title: 'Archive failed', text: (err.data && err.data.message) || 'Please try again.' });
+                });
             }
         });
     };
-
-    //for when an order is archived in ORDERS Page - order archive alert
-    $scope.archiveOrderAlert = function () {
-        Swal.fire({
-            title: 'Order archived successfully!',
-            icon: 'success',
-            iconColor: '#FFFBE8',
-            background: '#8eb078',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#FFFBE8',
-            buttonsStyling: true,
-            customClass: {
-                title: 'status-title',
-                confirmButton: 'status-button'
-            }
-        });
-    }
 
     //for when archive/restore is clicked in INVENTORY Page
     $scope.inventoryArchiveAlert = function (item) {
