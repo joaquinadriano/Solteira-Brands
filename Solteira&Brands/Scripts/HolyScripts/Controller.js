@@ -420,7 +420,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.meetupOrdersList = [];
     $scope.loadDeliveryMeetup = function () {
         SolteiraAndBrandsService.getOrdersForDeliveryMeetup().then(function (res) {
-            $scope.meetupOrdersList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+            var raw = res.data;
+            var list = (raw && raw.success && raw.data) ? raw.data : [];
+            $scope.meetupOrdersList = list;
+            $timeout(function () { $scope.meetupOrdersList = list; }, 10);
+            if (window.console && window.console.log) { window.console.log('GetOrdersForDeliveryMeetup: success=', raw && raw.success, 'count=', list && list.length); }
+        }, function (err) {
+            if (window.console && window.console.error) { window.console.error('GetOrdersForDeliveryMeetup failed', err && err.data); }
+            $scope.meetupOrdersList = [];
         });
     };
     $scope.meetupCompletedOrderId = null;
@@ -454,6 +461,100 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
     $scope.updateMeetupOutcome = function (orderId, status, receiptImageId) {
         if (!orderId || !status) return;
+        var statusUpper = (status || '').toUpperCase();
+        if (statusUpper === 'CANCELLED') {
+            Swal.fire({
+                title: 'Reason required',
+                input: 'textarea',
+                inputLabel: 'Reason for cancellation',
+                inputPlaceholder: 'Enter reason...',
+                inputAttributes: { 'aria-label': 'Reason for cancellation' },
+                showCancelButton: true,
+                confirmButtonText: 'Submit',
+                inputValidator: function (value) { if (!value || !value.trim()) return 'Reason is required.'; }
+            }).then(function (result) {
+                if (result.isConfirmed && result.value) {
+                    SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, null, result.value.trim()).then(function (res) {
+                        if (res.data && res.data.success) {
+                            $scope.loadDeliveryMeetup();
+                            Swal.fire({ title: 'Updated', icon: 'success', confirmButtonText: 'OK' });
+                        } else { Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' }); }
+                    }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+                }
+            });
+            return;
+        }
+        if (statusUpper === 'NO_SHOW') {
+            Swal.fire({
+                title: 'Reason required',
+                input: 'textarea',
+                inputLabel: 'Reason for no show',
+                inputPlaceholder: 'Enter reason...',
+                inputAttributes: { 'aria-label': 'Reason for no show' },
+                showCancelButton: true,
+                confirmButtonText: 'Next',
+                inputValidator: function (value) { if (!value || !value.trim()) return 'Reason is required.'; }
+            }).then(function (result) {
+                if (!result.isConfirmed || !result.value) return;
+                var reason = result.value.trim();
+                var today = new Date();
+                var minDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+                var MEETUP_TIME_SLOTS = ['10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM'];
+                function timeSlotTo24h(s) {
+                    if (!s) return null;
+                    var m = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (!m) return null;
+                    var h = parseInt(m[1], 10), min = parseInt(m[2], 10);
+                    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+                    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+                    return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+                }
+                var timeOptions = '<option value="">Select time</option>' + MEETUP_TIME_SLOTS.map(function (t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
+                Swal.fire({
+                    title: 'Reschedule',
+                    html: '<label class="form-label small mb-1">Date</label><input type="date" id="swal-reschedule-date" class="form-control mb-3" min="' + minDate + '" />' +
+                          '<label class="form-label small mb-1">Time (10:00 AM - 5:00 PM)</label><select id="swal-reschedule-time" class="form-control">' + timeOptions + '</select>' +
+                          '<p class="small text-muted mt-2 mb-0">Date and time are required and must not be in the past.</p>',
+                    showCancelButton: true,
+                    confirmButtonText: 'Submit',
+                    preConfirm: function () {
+                        var dateEl = document.getElementById('swal-reschedule-date');
+                        var timeEl = document.getElementById('swal-reschedule-time');
+                        var dateVal = dateEl ? dateEl.value.trim() : '';
+                        var timeVal = timeEl ? timeEl.value : '';
+                        if (!dateVal) {
+                            Swal.showValidationMessage('Date is required.');
+                            return false;
+                        }
+                        if (!timeVal) {
+                            Swal.showValidationMessage('Time is required. Choose a slot between 10:00 AM and 5:00 PM.');
+                            return false;
+                        }
+                        var time24 = timeSlotTo24h(timeVal);
+                        if (!time24) {
+                            Swal.showValidationMessage('Invalid time slot.');
+                            return false;
+                        }
+                        var now = new Date();
+                        var chosen = new Date(dateVal + 'T' + time24 + ':00');
+                        if (chosen < now) {
+                            Swal.showValidationMessage('Date and time must not be in the past.');
+                            return false;
+                        }
+                        return dateVal + ' ' + time24;
+                    }
+                }).then(function (res2) {
+                    var rescheduleDate = (res2.isConfirmed && res2.value) ? res2.value : null;
+                    SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, null, reason, rescheduleDate).then(function (res) {
+                        if (res.data && res.data.success) {
+                            $scope.loadDeliveryMeetup();
+                            Swal.fire({ title: 'Updated', icon: 'success', confirmButtonText: 'OK' });
+                        } else { Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' }); }
+                    }, function (err) { Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' }); });
+                });
+            });
+            return;
+        }
         SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, receiptImageId).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryMeetup();
@@ -915,6 +1016,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         } else {
             doCreate(null);
         }
+    };
+
+    $scope.viewPhotoItem = null;
+    $scope.openViewPhotoModal = function (item) {
+        if (!item) return;
+        $scope.viewPhotoItem = item;
+        $('#inventoryViewPhotoModal').modal('show');
+    };
+    $scope.closeViewPhotoAndEdit = function (item) {
+        $('#inventoryViewPhotoModal').modal('hide');
+        $scope.viewPhotoItem = null;
+        $scope.$applyAsync(function () {
+            $scope.openEditProduct(item);
+        });
     };
 
     $scope.openEditProduct = function (item) {

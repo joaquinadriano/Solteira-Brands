@@ -7,8 +7,9 @@
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Delivery - Cash through Meetup</p>
             </div>
-            <div class="col d-flex justify-content-end">
-                <small class="text-muted align-self-center me-2">Ready for Meetup orders only</small>
+            <div class="col d-flex justify-content-end align-items-center">
+                <small class="text-muted align-self-center me-2">{{ meetupOrdersList.length }} order(s)</small>
+                <small class="text-muted align-self-center me-2">All meetup orders</small>
             </div>
         </div>
         @*table*@
@@ -17,24 +18,32 @@
                 <table class="table table-striped table-responsive text-center" id="deliveryMeetupTable">
                     <thead>
                         <tr>
-                            <th>Order ID</th>
-                            <th>Customer Name</th>
-                            <th>Address</th>
-                            <th>Total</th>
-                            <th>Outcome</th>
-                            <th>Action</th>
+                            <th>Order Number</th>
+                            <th>Customer</th>
+                            <th>Current Order Status</th>
+                            <th>Latest Meetup Outcome</th>
+                            <th>Outcome Reason</th>
+                            <th>Reschedule Date</th>
+                            <th>Outcome Action</th>
+                            <th>View</th>
                         </tr>
                     </thead>
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="o in meetupOrdersList track by o.id">
                             <td>{{o.orderNumber}}</td>
                             <td>{{o.customerName}}</td>
-                            <td>{{o.deliveryAddress}}</td>
-                            <td>&#8369; {{o.totalAmount | number:2}}</td>
+                            <td>{{o.orderStatus}}</td>
+                            <td>{{o.latestMeetupOutcome || '-'}}</td>
+                            <td>{{o.meetupOutcomeReason || '-'}}</td>
+                            <td>{{o.meetupRescheduledDateFormatted || o.meetupRescheduledDate || '-'}}</td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-success me-1" ng-click="completeMeetupWithReceipt(o.id)">Mark Completed (upload receipt)</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')">Mark No Show</button>
-                                <button type="button" class="btn btn-sm btn-danger" ng-click="updateMeetupOutcome(o.id, 'CANCELLED')">Cancel</button>
+                                <span ng-if="o.orderStatus !== 'Ready for Meetup'" class="text-muted small">No further updates</span>
+                                <span ng-if="o.orderStatus === 'Ready for Meetup'">
+                                    <button type="button" class="btn btn-sm btn-success me-1" ng-click="completeMeetupWithReceipt(o.id)">Mark Completed (upload receipt)</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')" ng-if="o.latestMeetupOutcome !== 'NO_SHOW'">Mark No Show</button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning me-1" ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')" ng-if="o.latestMeetupOutcome === 'NO_SHOW'">Edit No Show</button>
+                                    <button type="button" class="btn btn-sm btn-danger" ng-click="updateMeetupOutcome(o.id, 'CANCELLED')">Cancel</button>
+                                </span>
                             </td>
                             <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
@@ -43,7 +52,7 @@
                             </td>
                         </tr>
                         <tr ng-if="meetupOrdersList.length === 0">
-                            <td colspan="6" class="text-muted py-4">No Ready for Meetup orders.</td>
+                            <td colspan="8" class="text-muted py-4">No meetup orders.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -96,6 +105,44 @@
                                         <p class="mb-0 text-muted small">{{meetupDetail.meetupSchedule.address}}</p>
                                     </div>
                                 </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="meetupDetail.meetupOutcomeStatus">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Latest Meetup Outcome</h5>
+                                        <p class="mb-1"><strong>Status:</strong> {{meetupDetail.meetupOutcomeStatus}}</p>
+                                        <p class="mb-1" ng-if="meetupDetail.meetupOutcomeReason"><strong>Reason:</strong> {{meetupDetail.meetupOutcomeReason}}</p>
+                                        <p class="mb-1" ng-if="meetupDetail.meetupRescheduledDateFormatted || meetupDetail.meetupRescheduledDate"><strong>Reschedule date:</strong> {{meetupDetail.meetupRescheduledDateFormatted || meetupDetail.meetupRescheduledDate}}</p>
+                                        <p class="mb-0" ng-if="meetupDetail.receiptImageUrl"><strong>Receipt:</strong> <a ng-href="{{meetupDetail.receiptImageUrl}}" target="_blank" rel="noopener">View image</a></p>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="meetupDetail.orderSummary.deliveryType">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Order Info</h5>
+                                        <p class="mb-1"><strong>Delivery Type:</strong> {{meetupDetail.orderSummary.deliveryType}}</p>
+                                        <p class="mb-1"><strong>Payment Type:</strong> {{meetupDetail.orderSummary.paymentType}}</p>
+                                        <p class="mb-0" ng-if="meetupDetail.orderSummary.remainingBalance != null"><strong>Remaining Balance:</strong> &#8369; {{meetupDetail.orderSummary.remainingBalance | number:2}}</p>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="meetupDetail.paymentHistory && meetupDetail.paymentHistory.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Payment History</h5>
+                                        <div class="small" ng-repeat="p in meetupDetail.paymentHistory">
+                                            <span class="me-2">&#8369; {{p.amount | number:2}}</span>
+                                            <span class="me-2">{{p.paymentStatus}}</span>
+                                            <span class="me-2" ng-if="p.meetupDatetimeFormatted">Meetup: {{p.meetupDatetimeFormatted}}</span>
+                                            <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" rel="noopener">Proof</a>
+                                            <span class="text-muted">{{p.createdAt}}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="meetupDetail.deliveryInfo">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Delivery (if shipment)</h5>
+                                        <p class="mb-1"><strong>Courier:</strong> {{meetupDetail.deliveryInfo.courier || '-'}}</p>
+                                        <p class="mb-1"><strong>Tracking:</strong> {{meetupDetail.deliveryInfo.trackingNumber || '-'}}</p>
+                                        <p class="mb-1" ng-if="meetupDetail.deliveryInfo.dispatchDateFormatted"><strong>Dispatch:</strong> {{meetupDetail.deliveryInfo.dispatchDateFormatted}}</p>
+                                        <p class="mb-0" ng-if="meetupDetail.deliveryInfo.etaFormatted"><strong>ETA:</strong> {{meetupDetail.deliveryInfo.etaFormatted}}</p>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-lg-8">
                                 <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="meetupDetail.orderSummary.items.length">
@@ -128,10 +175,10 @@
                         </div>
                     </div>
                     <div class="modal-footer border-0 p-4 flex-wrap">
-                        <span class="me-2">Actions:</span>
-                        <button type="button" class="btn btn-success me-2" ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();">Mark Completed (upload receipt)</button>
-                        <button type="button" class="btn btn-outline-secondary me-2" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();">Mark No Show</button>
-                        <button type="button" class="btn btn-danger me-2" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'CANCELLED'); closeMeetupViewModal();">Cancel</button>
+                        <span class="me-2" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup'">Actions:</span>
+                        <button type="button" class="btn btn-success me-2" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup'" ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();">Mark Completed (upload receipt)</button>
+                        <button type="button" class="btn btn-outline-secondary me-2" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup'" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();">Mark No Show</button>
+                        <button type="button" class="btn btn-danger me-2" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup'" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'CANCELLED'); closeMeetupViewModal();">Cancel</button>
                         <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal" ng-click="closeMeetupViewModal()"><span>CLOSE</span></button>
                     </div>
                 </div>

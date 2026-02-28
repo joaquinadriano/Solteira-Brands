@@ -141,6 +141,16 @@
                                         </div>
                                     </div>
 
+                                    <div class="row mb-3 align-items-center">
+                                        <div class="col-sm-5">
+                                            <label class="delivery-label">Featured (storefront carousel):</label>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <input type="checkbox" class="form-check-input" id="newProductFeatured" ng-model="newProduct.isBestSeller" />
+                                            <label class="form-check-label ms-2" for="newProductFeatured">Show in Featured Products (max 4 per slide)</label>
+                                        </div>
+                                    </div>
+
                                     <div class="row mb-4 align-items-center">
                                         <div class="col-sm-5">
                                             <label class="delivery-label">Photo:</label>
@@ -180,7 +190,7 @@
                             <th>Product ID</th>
                             <th>Category</th>
                             <th>Product Name</th>
-                            <th>Product Description</th>
+                            <th>Specs</th>
                             <th>Selling Price</th>
                             <th>Stock Left</th>
                             <th>Date Added</th>
@@ -191,13 +201,8 @@
 
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="item in inventoryProducts | filter:inventorySearch">
-                            <td>
-                                <div class="d-flex align-items-center justify-content-center">
-                                    <img ng-if="item.imageUrl"
-                                         ng-src="{{item.imageUrl}}"
-                                         alt="{{item.name}}"
-                                         style="width:40px;height:40px;object-fit:cover;border-radius:4px;margin-right:4px;" />
-                                </div>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" ng-click="openViewPhotoModal(item)">View</button>
                             </td>
                             <td>{{item.id}}</td>
                             <td>{{item.category}}</td>
@@ -233,6 +238,47 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        @* View Photo Modal: full image, name, category, price, stock, description; no image = placeholder + "Add Photo" to Edit *@
+        <div class="modal fade" id="inventoryViewPhotoModal" tabindex="-1" aria-labelledby="inventoryViewPhotoLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content delivery-form-box shadow-lg">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title" id="inventoryViewPhotoLabel">Product</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4" ng-if="viewPhotoItem">
+                        <div class="text-center mb-3">
+                            <img ng-if="viewPhotoItem.imageUrl"
+                                 ng-src="{{viewPhotoItem.imageUrl}}"
+                                 alt="{{viewPhotoItem.name}}"
+                                 class="img-fluid"
+                                 style="max-height:280px;object-fit:contain;" />
+                            <img ng-if="!viewPhotoItem.imageUrl"
+                                 src="@Url.Content("~/Content/img/shared/default-product.svg")"
+                                 alt="No image"
+                                 class="img-fluid"
+                                 style="max-height:200px;object-fit:contain;" />
+                            <div ng-if="!viewPhotoItem.imageUrl" class="mt-2">
+                                <a href="javascript:void(0)" class="text-primary" ng-click="closeViewPhotoAndEdit(viewPhotoItem)">Add Photo</a>
+                            </div>
+                        </div>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Name</dt>
+                            <dd class="col-sm-8">{{viewPhotoItem.name}}</dd>
+                            <dt class="col-sm-4">Category</dt>
+                            <dd class="col-sm-8">{{viewPhotoItem.category}}</dd>
+                            <dt class="col-sm-4">Price</dt>
+                            <dd class="col-sm-8">P {{viewPhotoItem.price | number:2}}</dd>
+                            <dt class="col-sm-4">Stock</dt>
+                            <dd class="col-sm-8">{{viewPhotoItem.stockQuantity}}</dd>
+                            <dt class="col-sm-4">Description</dt>
+                            <dd class="col-sm-8">{{viewPhotoItem.description || '—'}}</dd>
+                        </dl>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -672,6 +718,16 @@
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.length">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3 align-items-center">
+                                <div class="col-sm-5">
+                                    <label class="delivery-label">Featured (storefront carousel):</label>
+                                </div>
+                                <div class="col-sm-7">
+                                    <input type="checkbox" class="form-check-input" id="editProductFeatured" ng-model="editProduct.isBestSeller" />
+                                    <label class="form-check-label ms-2" for="editProductFeatured">Show in Featured Products (max 4 per slide)</label>
                                 </div>
                             </div>
 

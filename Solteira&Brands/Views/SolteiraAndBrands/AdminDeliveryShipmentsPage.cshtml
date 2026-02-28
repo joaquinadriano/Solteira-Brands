@@ -188,6 +188,25 @@
                                         <p class="mb-0">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
                                     </div>
                                 </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="deliveryDetail.orderSummary.deliveryType || deliveryDetail.orderSummary.paymentType">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Order Info</h5>
+                                        <p class="mb-1" ng-if="deliveryDetail.orderSummary.deliveryType"><strong>Delivery Type:</strong> {{deliveryDetail.orderSummary.deliveryType}}</p>
+                                        <p class="mb-1" ng-if="deliveryDetail.orderSummary.paymentType"><strong>Payment Type:</strong> {{deliveryDetail.orderSummary.paymentType}}</p>
+                                        <p class="mb-0" ng-if="deliveryDetail.orderSummary.remainingBalance != null"><strong>Remaining Balance:</strong> &#8369; {{deliveryDetail.orderSummary.remainingBalance | number:2}}</p>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="deliveryDetail.paymentHistory && deliveryDetail.paymentHistory.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-2">Payment History</h5>
+                                        <div class="small" ng-repeat="p in deliveryDetail.paymentHistory">
+                                            <span class="me-2">&#8369; {{p.amount | number:2}}</span>
+                                            <span class="me-2">{{p.paymentStatus}}</span>
+                                            <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" rel="noopener">Proof</a>
+                                            <span class="text-muted">{{p.createdAt}}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-lg-8">
                                 <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="deliveryDetail.orderSummary && deliveryDetail.orderSummary.items.length">

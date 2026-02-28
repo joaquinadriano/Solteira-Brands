@@ -167,6 +167,69 @@
     pointer-events: none;
 }
 
+.featured-section {
+    padding: 2vw 4vw 3vw;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.featured-title {
+    font-family: "Kaisei Tokumin", serif;
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #1e1e1e;
+}
+.featured-carousel-wrapper {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.featured-carousel-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: 2px solid #1e1e1e;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    transition: background 0.2s, color 0.2s;
+}
+.featured-carousel-btn:hover:not(:disabled) {
+    background: #1e1e1e;
+    color: #fff;
+}
+.featured-carousel-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.featured-carousel-track {
+    flex: 1;
+    min-width: 0;
+}
+.featured-slide {
+    width: 100%;
+}
+.featured-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    width: 100%;
+}
+@media (min-width: 576px) and (max-width: 991px) {
+    .featured-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 575px) {
+    .featured-grid { grid-template-columns: 1fr; }
+}
+
 .jewelry-grid-container {
     display: flex;
     justify-content: center;
@@ -184,7 +247,8 @@
 }
 
 @media (min-width: 992px) {
-    .products-grid { grid-template-columns: repeat(4, 1fr); }
+    .products-grid,
+    .products-grid-four { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (min-width: 576px) and (max-width: 991px) {

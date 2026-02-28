@@ -7,19 +7,16 @@
 <div ng-controller="SolteiraBrandsController">
 
     <div class="nav-jewelry" ng-show="viewMode === 'list'">
-        <div class="filter-container">
-            <div class="filter-btn">
+        <div class="filter-container" ng-class="{'active': filterDropdownOpen}">
+            <div class="filter-btn" ng-click="filterDropdownOpen = !filterDropdownOpen">
                 <span class="btn-content">FILTER <i class="bi bi-filter fs-5"></i></span>
             </div>
             <div class="filter-dropdown">
-                <div class="filter-item">A-Z</div>
-                <div class="filter-item">Z-A</div>
-                <div class="filter-item">PRICE: L-H</div>
-                <div class="filter-item">PRICE: H-L</div>
-                <div class="filter-item">BRACELET</div>
-                <div class="filter-item">EARRING</div>
-                <div class="filter-item">NECKLACE</div>
-                <div class="filter-item">RING</div>
+                <div class="filter-item" ng-click="setCategoryFilter(null)">All</div>
+                <div class="filter-item" ng-click="setCategoryFilter('Bracelet')">Bracelet</div>
+                <div class="filter-item" ng-click="setCategoryFilter('Earring')">Earring</div>
+                <div class="filter-item" ng-click="setCategoryFilter('Necklace')">Necklace</div>
+                <div class="filter-item" ng-click="setCategoryFilter('Ring')">Ring</div>
             </div>
         </div>
 
@@ -27,16 +24,16 @@
             <span>JEWELRIES</span>
         </div>
 
-        <div class="search-container">
+        <div class="search-container" ng-class="{'active': searchOpen}">
 
             <div class="search-wrapper">
-                <div class="search-btn">
+                <div class="search-btn" ng-click="searchOpen = !searchOpen">
                     <span class="btn-content">
                         SEARCH <i class="bi bi-search search-icon fs-5"></i>
                     </span>
                 </div>
-                <input type="text" placeholder="SEARCH..." class="search-field" />
-                <i class="bi bi-x-lg close-search"></i>
+                <input type="text" placeholder="SEARCH..." class="search-field" ng-model="jewelrySearch" ng-model-options="{ debounce: 200 }" />
+                <i class="bi bi-x-lg close-search" ng-click="jewelrySearch = ''; searchOpen = false" role="button" aria-label="Clear search"></i>
             </div>
 
         </div>
@@ -44,9 +41,11 @@
 
     <div class="view-stage" ng-class="transitionDir">
 
+        @* Featured products carousel: shown only on Home page, not on Jewelries/Products *@
+
         <div class="jewelry-grid-container" ng-show="viewMode === 'list'">
-            <div class="products-grid">
-                <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
+            <div class="products-grid products-grid-four">
+                <div class="product-card" ng-repeat="item in filteredJewelries()" ng-click="selectProduct(item, $event)">
                     <div class="image-wrapper">
                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
                         <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
@@ -163,7 +162,7 @@
         if (filterBtn) {
             filterBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                searchContainer.classList.remove('active');
+                if (searchContainer) searchContainer.classList.remove('active');
                 filterContainer.classList.toggle('active');
             });
         }
@@ -171,27 +170,22 @@
         if (searchBtn) {
             searchBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                filterContainer.classList.remove('active');
-                searchContainer.classList.add('active');
-                setTimeout(() => searchField.focus(), 300);
+                if (filterContainer) filterContainer.classList.remove('active');
+                if (searchContainer) searchContainer.classList.add('active');
+                if (searchField) setTimeout(function () { searchField.focus(); }, 300);
             });
         }
 
         if (closeBtn) {
             closeBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                searchContainer.classList.remove('active');
-                searchField.value = '';
+                if (searchContainer) searchContainer.classList.remove('active');
+                if (searchField) searchField.value = '';
             });
         }
 
         if (searchField) {
-            searchField.addEventListener('click', (e) => e.stopPropagation());
-            searchField.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    alert("Searching for: " + this.value);
-                }
-            });
+            searchField.addEventListener('click', function (e) { e.stopPropagation(); });
         }
     });
 </script>

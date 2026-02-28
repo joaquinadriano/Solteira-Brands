@@ -33,7 +33,7 @@
                             <td>{{order.orderDate | date:'MMM d, y'}}</td>
                             <td>&#8369; {{order.total | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
-                            <td class="text-center"><span class="status-weight">{{getOverallStatus(order)}}</span><span class="badge bg-warning text-dark ms-1 small" ng-if="order.status === 'Layaway Active' && order.hasSubmittedPayment">Installment Under Review</span></td>
+                            <td class="text-center"><span class="status-weight">{{getOverallStatus(order)}}</span><span class="badge bg-warning text-dark ms-1 small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Installment Under Review</span></td>
                             <td>
                                 <button type="button" class="btn-order-action" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
                             </td>
@@ -62,7 +62,7 @@
                     <p class="buyer-order-status-line">
                         <span class="buyer-order-status-label">Status:</span>
                         <span class="buyer-order-status-value">{{getOverallStatus(selectedOrderForDetails)}}</span>
-                        <span class="badge bg-warning text-dark ms-1 small" ng-if="selectedOrderForDetails.status === 'Layaway Active' && selectedOrderForDetails.hasSubmittedPayment">Installment Under Review</span>
+                        <span class="badge bg-warning text-dark ms-1 small" ng-if="getOverallStatus(selectedOrderForDetails) === 'Layaway Active' && selectedOrderForDetails.hasSubmittedPayment">Installment Under Review</span>
                     </p>
                     <div class="buyer-order-summary-card">
                         <div class="buyer-order-item" ng-repeat="item in selectedOrderForDetails.items">
@@ -87,7 +87,11 @@
                         <p class="mb-1"><strong>Payment</strong> {{selectedOrderForDetails.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</p>
                         <p ng-if="selectedOrderForDetails.status === 'Rejected' && selectedOrderForDetails.rejectionReason" class="text-danger mb-0"><strong>Rejection reason:</strong> {{selectedOrderForDetails.rejectionReason}}</p>
                         <p ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.latestPaymentRejectionReason" class="text-warning mb-0"><strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.</p>
-                        <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">This order was cancelled (e.g. payment not received within the deadline).</p>
+                        <p ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.status === 'Cancelled'" class="text-danger mb-0">
+                            Your layaway order has been cancelled due to missed payment deadline. All payments made are non-refundable.
+                        </p>
+                        <p ng-if="selectedOrderForDetails.paymentType !== 'LAYAWAY' && selectedOrderForDetails.status === 'Cancelled' && selectedOrderForDetails.rejectionReason" class="text-danger mb-0"><strong>Cancellation reason:</strong> {{selectedOrderForDetails.rejectionReason}}</p>
+                        <p ng-if="selectedOrderForDetails.paymentType !== 'LAYAWAY' && selectedOrderForDetails.status === 'Cancelled' && !selectedOrderForDetails.rejectionReason" class="text-muted mb-0">This order was cancelled.</p>
                     </div>
                     <div class="buyer-order-layaway-info mt-3 p-3 rounded" style="background:#f8f9fa;"
                          ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.installmentSchedule && selectedOrderForDetails.installmentSchedule.length">
@@ -105,6 +109,18 @@
                             <strong>Installment Plan:</strong>
                             &#8369; {{selectedOrderForDetails.monthlyInstallment | number:2}} x {{selectedOrderForDetails.installmentPlanMonths}} month(s)
                         </p>
+                        <p class="mb-2" ng-if="selectedOrderForDetails.remainingBalance > 0 && selectedOrderForDetails.nextDueDate">
+                            <strong>Next due:</strong> {{selectedOrderForDetails.nextDueDate}}
+                            <span ng-if="selectedOrderForDetails.nextDueAmount"> - &#8369; {{selectedOrderForDetails.nextDueAmount | number:2}}</span>
+                            <span class="badge bg-danger ms-1" ng-if="selectedOrderForDetails.nextDueOverdue">Overdue</span>
+                        </p>
+                        <div class="mb-2" ng-if="selectedOrderForDetails.total && selectedOrderForDetails.remainingBalance != null">
+                            <p class="mb-1"><strong>Progress:</strong> {{((selectedOrderForDetails.total - selectedOrderForDetails.remainingBalance) / selectedOrderForDetails.total * 100) | number:2}}% (&#8369; {{(selectedOrderForDetails.total - selectedOrderForDetails.remainingBalance) | number:2}} paid)</p>
+                            <div class="layaway-progress-bar rounded" style="height: 10px; background: #e9ecef;">
+                                <div class="layaway-progress-fill rounded" ng-style="{'width': (selectedOrderForDetails.total - selectedOrderForDetails.remainingBalance) / selectedOrderForDetails.total * 100 + '%'}" style="height: 10px; background: #28a745;"></div>
+                            </div>
+                            <p class="small mb-0 mt-1 text-muted" ng-if="selectedOrderForDetails.currentDate"><strong>Current Date:</strong> {{selectedOrderForDetails.currentDate}}</p>
+                        </div>
 
                         <div class="table-responsive">
                             <table class="table table-sm align-middle mb-0">
@@ -128,7 +144,8 @@
                                                   ng-class="{
                                                       'bg-success': row.status === 'Paid',
                                                       'bg-warning text-dark': row.status === 'Pending' || row.status === 'Awaiting Verification',
-                                                      'bg-danger': row.status === 'Rejected' || row.status === 'Overdue' || row.status === 'Expired'
+                                                      'bg-danger': row.status === 'Rejected' || row.status === 'Overdue' || row.status === 'Expired',
+                                                      'bg-secondary': row.status === 'Cancelled'
                                                   }">
                                                 {{row.status}}
                                             </span>
@@ -154,10 +171,32 @@
                         <p class="mb-1" ng-if="selectedOrderForDetails.eta"><strong>ETA:</strong> {{selectedOrderForDetails.eta}}</p>
                         <p class="small text-muted mb-0 mt-2" ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">Please track your shipment directly via the courier's official website.</p>
                     </div>
+                    <div class="buyer-order-meetup-info mt-3 p-3 rounded position-relative" ng-class="{'buyer-meetup-has-outcome': selectedOrderForDetails.meetupOutcomeStatus || selectedOrderForDetails.meetupRescheduledDateFormatted || selectedOrderForDetails.meetupRescheduledDate}" ng-if="selectedOrderForDetails.deliveryType === 'MEETUP'">
+                        <span class="badge buyer-meetup-status-badge bg-warning text-dark position-absolute top-0 end-0 mt-2 me-2" ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'NO_SHOW'">No Show - Rescheduled</span>
+                        <span class="badge buyer-meetup-status-badge bg-danger position-absolute top-0 end-0 mt-2 me-2" ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'CANCELLED'">Cancelled</span>
+                        <span class="badge buyer-meetup-status-badge bg-success position-absolute top-0 end-0 mt-2 me-2" ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'COMPLETED'">Completed</span>
+                        <h6 class="fw-bold mb-2">Cash Through Meetup</h6>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.meetupScheduledAtFormatted"><strong>Original meetup date &amp; time:</strong> {{selectedOrderForDetails.meetupScheduledAtFormatted}}</p>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.meetupOutcomeStatus"><strong>Outcome:</strong>
+                            <span class="fw-bold" ng-class="{'text-warning': selectedOrderForDetails.meetupOutcomeStatus === 'NO_SHOW', 'text-danger': selectedOrderForDetails.meetupOutcomeStatus === 'CANCELLED', 'text-success': selectedOrderForDetails.meetupOutcomeStatus === 'COMPLETED'}">
+                                <span ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'NO_SHOW'">No Show</span>
+                                <span ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'CANCELLED'">Cancelled</span>
+                                <span ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'COMPLETED'">Completed</span>
+                                <span ng-if="selectedOrderForDetails.meetupOutcomeStatus !== 'NO_SHOW' && selectedOrderForDetails.meetupOutcomeStatus !== 'CANCELLED' && selectedOrderForDetails.meetupOutcomeStatus !== 'COMPLETED'">{{selectedOrderForDetails.meetupOutcomeStatus}}</span>
+                            </span>
+                        </p>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.meetupReason"><strong>Reason:</strong> {{selectedOrderForDetails.meetupReason}}</p>
+                        <p class="mb-1 buyer-meetup-reschedule-highlight" ng-if="selectedOrderForDetails.meetupRescheduledDateFormatted || selectedOrderForDetails.meetupRescheduledDate"><strong>Rescheduled date &amp; time:</strong> <span class="fw-bold">{{selectedOrderForDetails.meetupRescheduledDateFormatted || selectedOrderForDetails.meetupRescheduledDate}}</span></p>
+                        <p class="mb-0" ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'COMPLETED' && selectedOrderForDetails.meetupReceiptImageUrl">
+                            <strong>Receipt:</strong> <a ng-href="{{selectedOrderForDetails.meetupReceiptImageUrl}}" target="_blank" rel="noopener">View receipt image</a>
+                        </p>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-click="closeOrderDetailsModal()">Close</button>
-                    <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved'" ng-click="closeOrderDetailsModal(); goToPayment(selectedOrderForDetails.orderId)">Pay Now</button>
+                    <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType !== 'LAYAWAY'" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">{{ (selectedOrderForDetails.latestPaymentForProof && selectedOrderForDetails.latestPaymentForProof.paymentStatus === 'REJECTED' && selectedOrderForDetails.latestPaymentForProof.allowResubmit) ? 'Resubmit' : 'Pay Now' }}</button>
+                    <button type="button" class="btn btn-success" ng-if="(selectedOrderForDetails.status === 'Layaway Active' || (selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.remainingBalance > 0 && selectedOrderForDetails.verifiedPaymentsCount >= 1)) && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Installment</button>
+                    <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType === 'LAYAWAY' && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Now</button>
                     <button type="button" class="btn btn-primary" ng-if="selectedOrderForDetails.status === 'In Delivery'" ng-click="goToTracking(selectedOrderForDetails.trackingNumber)">Track Now</button>
                 </div>
             </div>

@@ -7,17 +7,89 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.jewelries = [];
     $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
+    $scope.categoryFilter = null;
+    $scope.filterDropdownOpen = false;
+    $scope.jewelrySearch = '';
+    $scope.searchOpen = false;
+
+    $scope.setCategoryFilter = function (category) {
+        $scope.categoryFilter = category;
+        $scope.filterDropdownOpen = false;
+    };
+
+    $scope.filteredJewelries = function () {
+        if (!$scope.jewelries || !$scope.jewelries.length) return [];
+        var list = $scope.jewelries;
+        if ($scope.categoryFilter) {
+            var cat = ($scope.categoryFilter || '').toLowerCase();
+            list = list.filter(function (j) { return (j.category || '').toLowerCase() === cat; });
+        }
+        var q = ($scope.jewelrySearch || '').toString().trim().toLowerCase();
+        if (q) {
+            list = list.filter(function (j) {
+                var name = (j.name || '').toLowerCase();
+                var category = (j.category || '').toLowerCase();
+                var desc = (j.description || j.stones || j.material || '').toString().toLowerCase();
+                return name.indexOf(q) >= 0 || category.indexOf(q) >= 0 || desc.indexOf(q) >= 0;
+            });
+        }
+        return list;
+    };
 
     $scope.loadStorefrontProducts = function () {
         SolteiraBrandsService.getStorefrontProducts().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
                 $scope.jewelries = res.data.data;
+                $scope.buildFeaturedSlides();
+                $scope.startFeaturedCarousel();
             } else {
                 $scope.jewelries = [];
+                $scope.featuredProductsSlides = [];
             }
         }, function () {
             $scope.jewelries = [];
+            $scope.featuredProductsSlides = [];
         });
+    };
+
+    $scope.featuredProductsSlides = [];
+    $scope.currentFeaturedSlide = 0;
+    $scope.featuredCarouselInterval = null;
+    var FEATURED_SLIDE_INTERVAL_MS = 10000;
+
+    $scope.buildFeaturedSlides = function () {
+        var featured = ($scope.jewelries || []).filter(function (j) { return j.isBestSeller === true || j.isBestSeller === 1; });
+        var slides = [];
+        for (var i = 0; i < featured.length; i += 4) {
+            slides.push(featured.slice(i, i + 4));
+        }
+        $scope.featuredProductsSlides = slides.length ? slides : [];
+        $scope.currentFeaturedSlide = 0;
+    };
+
+    $scope.nextFeaturedSlide = function () {
+        if ($scope.featuredProductsSlides.length <= 1) return;
+        $scope.currentFeaturedSlide = ($scope.currentFeaturedSlide + 1) % $scope.featuredProductsSlides.length;
+    };
+    $scope.prevFeaturedSlide = function () {
+        if ($scope.featuredProductsSlides.length <= 1) return;
+        $scope.currentFeaturedSlide = $scope.currentFeaturedSlide <= 0
+            ? $scope.featuredProductsSlides.length - 1
+            : $scope.currentFeaturedSlide - 1;
+    };
+
+    $scope.startFeaturedCarousel = function () {
+        if ($scope.featuredCarouselInterval) $interval.cancel($scope.featuredCarouselInterval);
+        if ($scope.featuredProductsSlides.length <= 1) return;
+        $scope.featuredCarouselInterval = $interval(function () {
+            $scope.nextFeaturedSlide();
+        }, FEATURED_SLIDE_INTERVAL_MS);
+    };
+    $scope.stopFeaturedCarousel = function () {
+        if ($scope.featuredCarouselInterval) {
+            $interval.cancel($scope.featuredCarouselInterval);
+            $scope.featuredCarouselInterval = null;
+        }
     };
 
     $scope.isEnumerable = function (item) {
@@ -85,21 +157,13 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return item.id !== $scope.selectedProduct.id;
     };
 
+    /** Related products: same category only (max 4). */
     $scope.getRelatedProducts = function () {
         if (!$scope.selectedProduct) return [];
-
-        let related = $scope.jewelries.filter(j =>
-            j.category === $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
-        );
-
-        if (related.length < 4) {
-            let others = $scope.jewelries.filter(j =>
-                j.category !== $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
-            );
-            related = related.concat(others).slice(0, 4);
-        }
-
-        return related.slice(0, 4);
+        var cat = ($scope.selectedProduct.category || '').toString().trim();
+        return $scope.jewelries.filter(function (j) {
+            return j.id !== $scope.selectedProduct.id && (j.category || '').toString().trim() === cat;
+        }).slice(0, 4);
     };
 
     /** Short description for product cards: max 2 lines / ~80 chars, ellipsis. */
@@ -368,6 +432,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (angular.isDefined(timerInterval)) {
             $interval.cancel(timerInterval);
         }
+        $scope.stopFeaturedCarousel();
     });
 
     $scope.sendOTP = function () {
@@ -780,23 +845,38 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsPayment?orderId=' + encodeURIComponent(orderId);
         }
     };
+    $scope.goToPaymentFromOrderModal = function (order) {
+        if (!order || !order.orderId) return;
+        var orderId = order.orderId;
+        $scope.closeOrderDetailsModal();
+        $timeout(function () {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsPayment?orderId=' + encodeURIComponent(orderId);
+        }, 100);
+    };
 
-    /** Unified overall status for buyer display (single Status column). */
+    /** Unified overall status for buyer display. Never show raw DB values. Layaway: show Layaway Active when RemainingBalance > 0 and at least one verified payment. */
     $scope.getOverallStatus = function (order) {
         if (!order) return '-';
         var status = (order.status || '').trim();
         var statusLower = status.toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
+        var paymentType = (order.paymentType || '').toUpperCase();
+        var remaining = order.remainingBalance != null ? Number(order.remainingBalance) : null;
+        var total = order.total != null ? Number(order.total) : null;
+        var verifiedCount = order.verifiedPaymentsCount != null ? Number(order.verifiedPaymentsCount) : 0;
+        if (statusLower === 'cancelled') return 'Cancelled';
+        if (statusLower === 'completed') return 'Completed';
+        if (paymentType === 'LAYAWAY' && remaining != null && remaining > 0 && verifiedCount >= 1) return 'Layaway Active';
+        if (paymentType === 'LAYAWAY' && remaining != null && total != null && remaining > 0 && remaining < total) return 'Layaway Active';
+        if (statusLower === 'layaway active') return 'Layaway Active';
+        if (statusLower === 'awaiting payment verification') return (order.hasSubmittedPayment ? 'Under Review' : 'Awaiting Payment');
+        if (statusLower === 'paid') return 'Paid';
+        if (statusLower === 'ready for meetup') return 'Ready for Meetup';
+        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
         if (statusLower === 'pending') return 'Pending Approval';
+        if (statusLower === 'approved' && paymentType === 'LAYAWAY') return 'Awaiting Payment';
         if (statusLower === 'approved') return 'Awaiting Payment';
         if (statusLower === 'rejected') return 'Rejected';
-        if (statusLower === 'awaiting meetup') return 'Awaiting Meetup';
-        if (statusLower === 'awaiting payment verification') return 'Awaiting Payment Verification';
-        if (statusLower === 'layaway active') return 'Layaway Active';
-        if (statusLower === 'paid' || statusLower === 'ready for meetup') return 'Paid';
-        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
-        if (statusLower === 'completed') return 'Completed';
-        if (statusLower === 'cancelled') return 'Cancelled';
         return status || '-';
     };
 
@@ -804,9 +884,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!order) return 'View';
         var status = (order.status || '').toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
+        var paymentType = (order.paymentType || '').toUpperCase();
+        var remaining = order.remainingBalance != null ? Number(order.remainingBalance) : 0;
+        var isLayawayActive = (paymentType === 'LAYAWAY' && remaining > 0 && (status === 'layaway active' || (order.verifiedPaymentsCount >= 1 && (status === 'approved' || status === 'awaiting payment verification'))));
         if (status === 'rejected' || status === 'cancelled') return 'View';
-        if (status === 'approved') return 'Pay Now';
-        if (status === 'layaway active' && order.hasSubmittedPayment) return 'Under Review';
+        if (isLayawayActive) {
+            if (order.hasSubmittedPayment) return 'View';
+            return 'Pay Installment';
+        }
+        if (status === 'approved') {
+            var latest = order.latestPaymentForProof;
+            if (latest && latest.paymentStatus === 'REJECTED' && latest.allowResubmit) return 'Resubmit';
+            return 'Pay Now';
+        }
+        if (status === 'layaway active' && order.hasSubmittedPayment) return 'View';
         if (status === 'layaway active') return 'Pay Installment';
         if (status === 'awaiting payment verification') return 'View';
         if (status === 'paid' || status === 'ready for meetup') return 'View';
@@ -865,7 +956,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.handleOrderAction = function (order) {
         if (!order) return;
         var label = $scope.getOrderActionLabel(order);
-        if (label === 'Pay Now' || label === 'Pay Installment') $scope.goToPayment(order.orderId);
+        if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Resubmit') $scope.goToPayment(order.orderId);
         else if (label === 'Track Now') $scope.goToTracking(order.trackingNumber);
         else if (label === 'Under Review') $scope.openViewPaymentProofModalFromOrders(order);
         else $scope.openOrderDetailsModal(order);
@@ -1124,13 +1215,21 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.paymentOrder) return false;
         var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
         var statusU = (status || '').toUpperCase();
-        if (statusU === 'AWAITING PAYMENT VERIFICATION' || statusU === 'AWAITING MEETUP') return false;
-        if (statusU === 'LAYAWAY ACTIVE' && $scope.paymentOrder.hasSubmittedPayment) return false;
-        if (statusU === 'LAYAWAY ACTIVE') return true;
+        var paymentType = ($scope.paymentOrder.paymentType || '').toUpperCase();
+        var remaining = $scope.paymentOrder.remainingBalance != null ? Number($scope.paymentOrder.remainingBalance) : 0;
+        var latest = $scope.paymentOrder.latestPaymentForProof;
+        if (statusU === 'CANCELLED') return false;
+        if (remaining <= 0) return false;
+        if (latest && (latest.paymentStatus || '').toUpperCase() === 'SUBMITTED') return false;
+        if (statusU === 'AWAITING MEETUP') return false;
+        if (statusU === 'PAID' || statusU === 'READY FOR MEETUP') return false;
+        if (paymentType === 'LAYAWAY' && statusU === 'LAYAWAY ACTIVE' && remaining > 0) return true;
+        if (paymentType === 'LAYAWAY' && (statusU === 'APPROVED' || statusU === 'AWAITING PAYMENT VERIFICATION') && remaining > 0) return true;
+        if (statusU === 'AWAITING PAYMENT VERIFICATION') return false;
+        if (statusU === 'LAYAWAY ACTIVE') return remaining > 0;
         if (statusU !== 'APPROVED') return false;
         if ($scope.paymentOrder.hasExistingPayment) return false;
-        var latest = $scope.paymentOrder.latestPaymentForProof;
-        if (latest && latest.paymentStatus === 'REJECTED' && !latest.allowResubmit) return false;
+        if (latest && (latest.paymentStatus || '').toUpperCase() === 'REJECTED' && !latest.allowResubmit) return false;
         return true;
     };
 

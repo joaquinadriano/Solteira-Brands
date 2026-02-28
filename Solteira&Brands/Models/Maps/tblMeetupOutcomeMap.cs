@@ -13,6 +13,8 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.OrderId).HasColumnName("order_id");
             Property(x => x.Status).HasColumnName("status").HasMaxLength(50).IsRequired();
             Property(x => x.ReceiptImageId).HasColumnName("receipt_image_id");
+            Property(x => x.Reason).HasColumnName("reason").HasMaxLength(500).IsOptional();
+            Property(x => x.RescheduledAt).HasColumnName("rescheduled_at").IsOptional();
             Property(x => x.CreatedAt).HasColumnName("created_at");
 
             HasRequired(x => x.Order)

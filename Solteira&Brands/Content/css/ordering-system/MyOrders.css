@@ -398,3 +398,24 @@ body {
     text-decoration: underline;
     color: #6a8f5a;
 }
+
+/* Cash Through Meetup – highlight when there is an outcome or reschedule */
+.buyer-order-meetup-info {
+    background: #f8f9fa;
+}
+.buyer-order-meetup-info.buyer-meetup-has-outcome {
+    background: #fff8e6;
+    border-left: 4px solid #f0ad4e;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.buyer-meetup-status-badge {
+    font-size: 0.7rem;
+}
+.buyer-meetup-reschedule-highlight {
+    background: rgba(240, 173, 78, 0.15);
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    padding-left: 0.5rem;
+}

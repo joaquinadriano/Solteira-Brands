@@ -198,7 +198,7 @@
                                                     <td class="fw-bold py-3">{{row.label || ('Month ' + row.installmentNumber)}}</td>
                                                     <td>{{row.dueDate}}</td>
                                                     <td class="text-end">&#8369; {{row.amount | number:2}}</td>
-                                                    <td><span class="badge" ng-class="{'bg-success': row.status === 'Paid', 'bg-danger': row.status === 'Overdue', 'bg-secondary': row.status === 'Pending'}">{{row.status}}</span></td>
+                                                    <td><span class="badge" ng-class="{'bg-success': row.status === 'Paid', 'bg-danger': row.status === 'Overdue' || row.status === 'Rejected', 'bg-warning text-dark': row.status === 'Awaiting Verification', 'bg-secondary': row.status === 'Pending' || row.status === 'Cancelled'}">{{row.status}}</span></td>
                                                     <td>
                                                         <a ng-if="row.proofImageUrl" ng-href="{{row.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
                                                         <span ng-if="!row.proofImageUrl" class="text-muted">No data available</span>

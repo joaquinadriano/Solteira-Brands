@@ -207,6 +207,8 @@ CREATE TABLE IF NOT EXISTS tbl_meetup_outcomes (
     order_id            INT             NOT NULL,
     status              VARCHAR(50)     NOT NULL,
     receipt_image_id    INT             NULL,
+    reason              VARCHAR(500)    NULL,
+    rescheduled_at      DATETIME        NULL,
     created_at          DATETIME        NOT NULL,
     PRIMARY KEY (id),
     INDEX idx_meetup_outcomes_order_id (order_id),
@@ -522,6 +524,24 @@ WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'GCASH
 INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
 SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
+
+-- ============================================================================
+-- Meetup outcomes: reason + rescheduled_at (run once on existing DBs)
+-- ============================================================================
+-- For existing DBs that have tbl_meetup_outcomes without reason/rescheduled_at, run once:
+-- ALTER TABLE tbl_meetup_outcomes ADD COLUMN reason VARCHAR(500) NULL AFTER receipt_image_id;
+-- ALTER TABLE tbl_meetup_outcomes ADD COLUMN rescheduled_at DATETIME NULL AFTER reason;
+
+-- ============================================================================
+-- ONE-TIME FIX: Set delivery_type = 'MEETUP' for orders that are Ready for Meetup
+-- but have NULL or wrong delivery_type (so they show on Cash Through Meetup page).
+-- Run once if you see "Ready for Meetup" orders missing from that page.
+-- ============================================================================
+-- UPDATE tbl_orders
+-- SET delivery_type = 'MEETUP'
+-- WHERE (delivery_type IS NULL OR delivery_type != 'MEETUP')
+--   AND order_status = 'Ready for Meetup'
+--   AND id IN (SELECT order_id FROM tbl_payments WHERE meetup_datetime IS NOT NULL);
 
 -- ============================================================================
 -- Next step: Run the app and open in browser:

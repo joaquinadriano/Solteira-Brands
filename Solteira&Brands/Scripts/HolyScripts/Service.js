@@ -144,9 +144,11 @@ app.service("SolteiraAndBrandsService", function ($http) {
             transformRequest: angular.identity
         });
     };
-    this.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+    this.updateMeetupOutcome = function (orderId, status, receiptImageId, reason, rescheduleDate) {
         var params = { orderId: orderId, status: status };
         if (receiptImageId) params.receiptImageId = receiptImageId;
+        if (reason) params.reason = reason;
+        if (rescheduleDate) params.rescheduleDate = rescheduleDate;
         return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateMeetupOutcome", params: params });
     };
 

@@ -11,6 +11,8 @@ namespace Solteira_Brands.Models
         public int OrderId { get; set; }
         public string Status { get; set; }
         public int? ReceiptImageId { get; set; }
+        public string Reason { get; set; }
+        public DateTime? RescheduledAt { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public virtual tblOrdersModel Order { get; set; }
