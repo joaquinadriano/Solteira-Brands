@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -133,6 +134,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.datatables.net/2.3.6/js/dataTables.js"></script>
     <script>
+        window.initializeStandardTable = function (selector, orderCol) {
+            var $t = $(selector);
+            if (!$t.length) return;
+            try {
+                if ($.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(selector)) {
+                    $t.DataTable().destroy();
+                }
+            } catch (e) { }
+            var col = orderCol != null ? orderCol : 0;
+            $t.DataTable({
+                responsive: true,
+                pageLength: 10,
+                lengthChange: true,
+                autoWidth: false,
+                order: [[col, 'desc']],
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search..."
+                }
+            });
+        };
+    </script>
+    <script>
         (function () {
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/Account/GetMyProfile', true);
@@ -157,10 +181,8 @@
         $(document).ready(function () {
             if ($('#userTable').length) $('#userTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
-            // orderArchiveTable is Angular ng-repeat (archiveOrdersList) — do NOT init DataTables (causes "unknown parameter" error)
-            // activityLogsTable is plain Angular table (ng-repeat), do not init DataTables
-            // salesReportTable is inited by Angular after Generate Report
-            // inventoryTable is initialized/rebuilt by Angular controller after bindings
+            // orderArchiveTable, inventoryTable: initialized by Angular controller via initializeStandardTable() after data loads
+            // activityLogsTable, salesReportTable: plain Angular tables (ng-repeat), do not init DataTables
         });
     </script>
     <script>

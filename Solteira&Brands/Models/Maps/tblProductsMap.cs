@@ -21,6 +21,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.StockQuantity).HasColumnName("stock_quantity");
             Property(x => x.ImageId).HasColumnName("image_id");
             Property(x => x.IsBestSeller).HasColumnName("is_best_seller");
+            Property(x => x.IsFeatured).HasColumnName("is_featured");
             Property(x => x.IsArchived).HasColumnName("is_archived");
             Property(x => x.CreatedAt).HasColumnName("created_at");
             Property(x => x.UpdatedAt).HasColumnName("updated_at");

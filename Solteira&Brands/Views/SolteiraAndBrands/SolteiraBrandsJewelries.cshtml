@@ -12,14 +12,14 @@
                 <span class="btn-content">FILTER <i class="bi bi-filter fs-5"></i></span>
             </div>
             <div class="filter-dropdown">
-                <div class="filter-item">A-Z</div>
-                <div class="filter-item">Z-A</div>
-                <div class="filter-item">PRICE: L-H</div>
-                <div class="filter-item">PRICE: H-L</div>
-                <div class="filter-item">BRACELET</div>
-                <div class="filter-item">EARRING</div>
-                <div class="filter-item">NECKLACE</div>
-                <div class="filter-item">RING</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'az'}" ng-click="setJewelriesSort('az')">A-Z</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'za'}" ng-click="setJewelriesSort('za')">Z-A</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_lh'}" ng-click="setJewelriesSort('price_lh')">PRICE: L-H</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_hl'}" ng-click="setJewelriesSort('price_hl')">PRICE: H-L</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Bracelet'}" ng-click="setJewelriesCategory('Bracelet')">BRACELET</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Earring'}" ng-click="setJewelriesCategory('Earring')">EARRING</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Necklace'}" ng-click="setJewelriesCategory('Necklace')">NECKLACE</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Ring'}" ng-click="setJewelriesCategory('Ring')">RING</div>
             </div>
         </div>
 
@@ -35,8 +35,8 @@
                         SEARCH <i class="bi bi-search search-icon fs-5"></i>
                     </span>
                 </div>
-                <input type="text" placeholder="SEARCH..." class="search-field" />
-                <i class="bi bi-x-lg close-search"></i>
+                <input type="text" placeholder="SEARCH..." class="search-field" ng-model="jewelriesSearch" />
+                <i class="bi bi-x-lg close-search" ng-click="jewelriesSearch = ''" role="button" aria-label="Clear search"></i>
             </div>
 
         </div>
@@ -46,7 +46,7 @@
 
         <div class="jewelry-grid-container" ng-show="viewMode === 'list'">
             <div class="products-grid">
-                <div class="product-card" ng-repeat="item in jewelries" ng-click="selectProduct(item, $event)">
+                <div class="product-card" ng-repeat="item in getFilteredJewelries()" ng-click="selectProduct(item, $event)">
                     <div class="image-wrapper">
                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
                         <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
@@ -181,17 +181,12 @@
             closeBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 searchContainer.classList.remove('active');
-                searchField.value = '';
+                if (searchField) searchField.value = '';
             });
         }
 
         if (searchField) {
             searchField.addEventListener('click', (e) => e.stopPropagation());
-            searchField.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    alert("Searching for: " + this.value);
-                }
-            });
         }
     });
 </script>

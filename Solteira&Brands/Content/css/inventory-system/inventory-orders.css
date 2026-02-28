@@ -18,6 +18,13 @@ html, body {
 /*background-color: #FFFBE8;
 color: #87AE73;*/
 
+/* Standard DataTables layout: entries left, search right, no extra filter row */
+.dataTables_wrapper .dataTables_length { text-align: left; }
+.dataTables_wrapper .dataTables_filter { text-align: right; }
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter { margin-bottom: 0.5rem; }
+.dataTables_wrapper .row:first-child { align-items: center; }
+
 #ordersTable thead,
 #adminOrdersTable thead,
 #inventoryTable thead {

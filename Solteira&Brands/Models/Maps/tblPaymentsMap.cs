@@ -17,6 +17,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.ProofImageId).HasColumnName("proof_image_id");
             Property(x => x.ReferenceNumber).HasColumnName("reference_number").HasMaxLength(100).IsOptional();
             Property(x => x.MeetupDatetime).HasColumnName("meetup_datetime").IsOptional();
+            Property(x => x.PaymentChannel).HasColumnName("payment_channel").HasMaxLength(50).IsOptional();
             Property(x => x.VerifiedByUserId).HasColumnName("verified_by_user_id");
             Property(x => x.CreatedAt).HasColumnName("created_at");
             Property(x => x.VerifiedAt).HasColumnName("verified_at");

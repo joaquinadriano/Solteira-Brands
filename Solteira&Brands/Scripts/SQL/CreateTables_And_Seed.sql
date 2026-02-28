@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS tbl_products (
     stock_quantity  INT             NOT NULL DEFAULT 0,
     image_id        INT             NULL,
     is_best_seller  TINYINT(1)      NOT NULL DEFAULT 0,
+    is_featured     TINYINT(1)      NOT NULL DEFAULT 0,
     is_archived     TINYINT(1)      NOT NULL DEFAULT 0,
     created_at      DATETIME        NOT NULL,
     updated_at      DATETIME        NOT NULL,
@@ -130,6 +131,7 @@ CREATE TABLE IF NOT EXISTS tbl_orders (
     remaining_balance       DECIMAL(12,2)   NOT NULL DEFAULT 0,
     order_status            VARCHAR(50)     NOT NULL DEFAULT 'Pending',
     delivery_type           VARCHAR(50)     NULL DEFAULT 'COURIER',
+    meetup_datetime         DATETIME        NULL COMMENT 'Scheduled meetup (from payment or reschedule)',
     rejection_reason        VARCHAR(500)    NULL,
     created_at              DATETIME        NOT NULL,
     last_status_update_at   DATETIME        NULL,
@@ -443,6 +445,16 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add payment_channel to tbl_payments (GCash | Bank Transfer | Cash through Meetup; chosen when buyer submits proof)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_payments' AND COLUMN_NAME = 'payment_channel');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_payments ADD COLUMN payment_channel VARCHAR(50) NULL AFTER meetup_datetime;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add delivery_type to tbl_orders (COURIER | MEETUP; set at checkout; payment verification uses it)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'delivery_type');
@@ -532,6 +544,33 @@ WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'GCASH
 INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
 SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
+
+-- ----------------------------------------------------------------------------
+-- Migration: add is_featured to existing tbl_products (run if column missing)
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE tbl_products ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER is_best_seller;
+
+-- ----------------------------------------------------------------------------
+-- Migration: add meetup_datetime to tbl_orders (run once if table already existed)
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE tbl_orders ADD COLUMN meetup_datetime DATETIME NULL COMMENT 'Scheduled meetup (from payment or reschedule)' AFTER delivery_type;
+
+-- ----------------------------------------------------------------------------
+-- Migration: Fix orders already verified as "Paid" but are Cash Through Meetup
+-- (payment has meetup_datetime). Sets delivery_type, order_status, meetup_datetime
+-- so they appear on Delivery – Cash Through Meetup page.
+-- ----------------------------------------------------------------------------
+UPDATE tbl_orders o
+INNER JOIN (
+    SELECT order_id, MAX(meetup_datetime) AS meetup_datetime
+    FROM tbl_payments
+    WHERE meetup_datetime IS NOT NULL
+    GROUP BY order_id
+) p ON p.order_id = o.id
+SET o.delivery_type = 'MEETUP',
+    o.order_status = 'Ready for Meetup',
+    o.meetup_datetime = COALESCE(o.meetup_datetime, p.meetup_datetime)
+WHERE o.order_status = 'Paid';
 
 -- ============================================================================
 -- Next step: Run the app and open in browser:

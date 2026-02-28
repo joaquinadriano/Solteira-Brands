@@ -12,6 +12,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         SolteiraBrandsService.getStorefrontProducts().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
                 $scope.jewelries = res.data.data;
+                $scope.buildFeaturedSlides();
             } else {
                 $scope.jewelries = [];
                 $scope.featuredCarouselSlides = [];
@@ -29,7 +30,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     var FEATURED_MAX = 12;
 
     $scope.buildFeaturedSlides = function () {
-        var list = ($scope.jewelries || []).slice(0, FEATURED_MAX);
+        var list = ($scope.jewelries || []).filter(function (j) { return j.isFeatured === true; }).slice(0, FEATURED_MAX);
         var slides = [];
         for (var i = 0; i < list.length; i += 4) {
             slides.push(list.slice(i, i + 4));
@@ -160,6 +161,39 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!raw) return '';
         if (raw.length <= 80) return raw;
         return raw.substring(0, 77) + '...';
+    };
+
+    // Jewelries page: filter and sort
+    $scope.jewelriesSearch = '';
+    $scope.jewelriesSort = '';
+    $scope.jewelriesCategory = '';
+    $scope.setJewelriesSort = function (sort) {
+        $scope.jewelriesSort = ($scope.jewelriesSort === sort) ? '' : sort;
+    };
+    $scope.setJewelriesCategory = function (cat) {
+        $scope.jewelriesCategory = ($scope.jewelriesCategory === cat) ? '' : cat;
+    };
+    $scope.getFilteredJewelries = function () {
+        var list = $scope.jewelries || [];
+        var search = ($scope.jewelriesSearch || '').toLowerCase().trim();
+        var cat = $scope.jewelriesCategory || '';
+        if (search) {
+            list = list.filter(function (j) {
+                var name = (j.name || '').toLowerCase();
+                var category = (j.category || '').toLowerCase();
+                var desc = (j.description || '').toLowerCase();
+                return name.indexOf(search) !== -1 || category.indexOf(search) !== -1 || desc.indexOf(search) !== -1;
+            });
+        }
+        if (cat) {
+            list = list.filter(function (j) { return (j.category || '') === cat; });
+        }
+        var sort = $scope.jewelriesSort || '';
+        if (sort === 'az') list = list.slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+        else if (sort === 'za') list = list.slice().sort(function (a, b) { return (b.name || '').localeCompare(a.name || ''); });
+        else if (sort === 'price_lh') list = list.slice().sort(function (a, b) { return (a.price || 0) - (b.price || 0); });
+        else if (sort === 'price_hl') list = list.slice().sort(function (a, b) { return (b.price || 0) - (a.price || 0); });
+        return list;
     };
 
     $scope.currentMode = 'registration';
@@ -832,54 +866,65 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
     };
 
-    /** Unified overall status for buyer display (single Status column). */
+    /** Buyer ORDER STATUS: use order.status from DB directly (source of truth). No override from payment. */
     $scope.getOverallStatus = function (order) {
         if (!order) return '-';
-        var status = (order.status || '').trim();
-        var statusLower = status.toLowerCase();
-        var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
-        var paymentType = (order.paymentType || '').toUpperCase();
-        var remaining = order.remainingBalance != null ? Number(order.remainingBalance) : null;
-        var total = order.total != null ? Number(order.total) : null;
-        var verifiedCount = order.verifiedPaymentsCount != null ? Number(order.verifiedPaymentsCount) : 0;
-        if (statusLower === 'cancelled') return 'Order Cancelled';
+        var status = (order.status || order.Status || '').trim();
+        var statusLower = status.toLowerCase().replace(/\s+/g, ' ');
+        var deliveryStatus = (order.deliveryStatus || order.DeliveryStatus || '').toLowerCase();
+
+        if (statusLower === 'cancelled') return 'Cancelled';
         if (statusLower === 'completed') return 'Completed';
-        if (paymentType === 'LAYAWAY' && remaining != null && remaining > 0 && verifiedCount >= 1) return 'Layaway Active';
-        if (paymentType === 'LAYAWAY' && remaining != null && total != null && remaining > 0 && remaining < total) return 'Layaway Active';
-        if (statusLower === 'layaway active') return 'Layaway Active';
-        if (statusLower === 'awaiting payment verification') return (order.hasSubmittedPayment ? 'Under Review' : 'Awaiting Payment');
-        if (statusLower === 'paid') return 'Paid';
-        if (statusLower === 'ready for meetup') return 'Ready for Meetup';
         if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
-        if (statusLower === 'pending') return 'Pending Approval';
-        if (statusLower === 'approved') return 'Awaiting Payment';
-        if (statusLower === 'rejected') return 'Payment Rejected';
-        return status || '-';
+        if (statusLower === 'rejected') return 'Order Rejected';
+        if (statusLower === 'pending approval') return 'Pending Approval';
+        if (statusLower === 'awaiting payment verification') return 'Awaiting Payment Verification';
+        if (statusLower === 'pending payment') return 'Pending Payment';
+        if (statusLower === 'pending downpayment') return 'Pending Downpayment';
+        if (statusLower === 'layaway active') return 'Layaway Active';
+        if (statusLower === 'paid') return 'Paid – Waiting for Shipment';
+        if (statusLower === 'ready for meetup') return 'Ready for Meetup';
+        if (statusLower === 'no show') return 'No Show';
+        if (statusLower === 'meetup rescheduled') return 'Meetup Rescheduled';
+        return 'Approved';
     };
 
     $scope.getOverallStatusTooltip = function (order) {
         if (!order) return '';
-        var status = (order.status || '').toLowerCase();
-        if (status === 'rejected') return 'Payment not approved.';
+        var status = (order.status || order.Status || '').toLowerCase();
+        if (status === 'rejected') return 'Order was rejected by admin.';
+        if (status === 'pending approval') return 'Waiting for admin to approve your order.';
         if (status === 'cancelled') return 'Order permanently closed.';
+        if (status === 'no show') return 'You did not attend the meetup. Admin may reschedule.';
+        if (status === 'meetup rescheduled') return 'Meetup was rescheduled. See new date and time below.';
         return '';
     };
+    /** Order status badge class. */
+    $scope.getOrderStatusBadgeClass = function (order) {
+        if (!order) return 'order-status-gray';
+        var s = $scope.getOverallStatus(order);
+        if (s === 'Pending Approval' || s === 'Pending Payment' || s === 'Pending Downpayment' || s === 'Approved') return 'order-status-gray';
+        if (s === 'Awaiting Verification') return 'order-status-yellow';
+        if (s === 'Layaway Active') return 'order-status-blue';
+        if (s === 'Paid – Waiting for Shipment' || s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'In Delivery' || s === 'Completed') return 'order-status-green';
+        if (s === 'No Show') return 'order-status-yellow';
+        if (s === 'Order Rejected' || s === 'Cancelled') return 'order-status-muted';
+        return 'order-status-gray';
+    };
 
+    /** Action label: based on order.status (source of truth). Pay when Approved, Pending Payment, Pending Downpayment, Layaway Active. */
     $scope.getOrderActionLabel = function (order) {
-        if (!order) return 'View';
-        if (order.isArchived) return 'View';
-        var status = (order.status || '').toLowerCase();
-        var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
-        if (status === 'rejected' || status === 'cancelled') return 'View';
-        if (status === 'approved') return 'Pay Now';
-        if (status === 'layaway active' && order.hasSubmittedPayment) return 'Under Review';
-        if (status === 'layaway active') return 'Pay Installment';
-        if (status === 'awaiting payment verification') return 'View';
-        if (status === 'paid' || status === 'ready for meetup') return 'View';
-        if (status === 'in delivery' || deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'View';
-        if (status === 'completed') return 'View';
-        if (status === 'pending' || status.indexOf('pending') >= 0) return 'View';
-        return 'View';
+        if (!order) return 'View Details';
+        if (order.isArchived === true || order.IsArchived === true) return 'View Details';
+        var displayStatus = $scope.getOverallStatus(order);
+        if (displayStatus === 'Order Rejected' || displayStatus === 'Pending Approval') return 'View Details';
+        if (displayStatus === 'Awaiting Payment Verification') return 'View Details';
+        if (displayStatus === 'Pending Payment') return 'Pay Now';
+        if (displayStatus === 'Pending Downpayment') return 'Pay Downpayment';
+        if (displayStatus === 'Paid – Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled') return 'View Details';
+        if (displayStatus === 'Layaway Active') return 'Pay Installment';
+        if (displayStatus === 'Approved') return (order.paymentType || order.PaymentType || '').toUpperCase() === 'LAYAWAY' ? 'Pay Downpayment' : 'Pay Now';
+        return 'View Details';
     };
 
     $scope.goToTracking = function (trackingNumber) {
@@ -930,9 +975,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.handleOrderAction = function (order) {
         if (!order) return;
         var label = $scope.getOrderActionLabel(order);
-        if (label === 'Pay Now' || label === 'Pay Installment') $scope.goToPayment(order.orderId);
+        if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Pay Downpayment') $scope.goToPayment(order.orderId);
         else if (label === 'Track Now') $scope.goToTracking(order.trackingNumber);
-        else if (label === 'Under Review') $scope.openViewPaymentProofModalFromOrders(order);
+        else if (order.hasSubmittedPayment && order.latestPaymentForProof) $scope.openViewPaymentProofModalFromOrders(order);
         else $scope.openOrderDetailsModal(order);
     };
 
@@ -1029,16 +1074,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.getMinMeetupDate = getMinMeetupDate;
     $scope.minMeetupDate = getMinMeetupDate();
 
-    // Layaway paid percentage for Payment page (used for progress bar).
+    // Payment page: use only API values. Never compute remainingBalance, progressPercent, amountDue, installmentsRemaining locally.
     $scope.getLayawayPaidPercent = function () {
         if (!$scope.paymentOrder || $scope.paymentOrder.paymentType !== 'LAYAWAY') return 0;
-        var total = $scope.paymentOrder.totalAmount;
-        if (!total || total <= 0) return 0;
-        var remaining = ($scope.paymentOrder.remainingBalance != null ? $scope.paymentOrder.remainingBalance : 0);
-        var paid = total - remaining;
-        if (paid <= 0) return 0;
-        var pct = (paid / total) * 100;
-        return Math.round(pct * 100) / 100;
+        if ($scope.paymentOrder.progressPercent != null && !isNaN($scope.paymentOrder.progressPercent)) return Number($scope.paymentOrder.progressPercent);
+        return 0;
     };
 
     /** Ensure backend always receives yyyy-MM-dd (HTML date input can be string or Date, locale display is MM/dd/yyyy). */
@@ -1185,17 +1225,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
+    /** Show pay form when order is APPROVED, Layaway Active, or Pending Payment (resubmit after payment rejected). */
     $scope.canShowPayForm = function () {
         if (!$scope.paymentOrder) return false;
         var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
-        var statusU = (status || '').toUpperCase();
+        var statusU = (status || '').toUpperCase().replace(/\s+/g, ' ');
+        var remaining = $scope.paymentOrder.remainingBalance != null ? Number($scope.paymentOrder.remainingBalance) : null;
+        var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
+        var paymentRejectedCanResubmit = latest && (latest.paymentStatus || latest.PaymentStatus) === 'REJECTED' && latest.allowResubmit;
+
+        if (statusU === 'PENDING APPROVAL') return false;
+        if (statusU === 'REJECTED') return false;
+        if (remaining != null && remaining <= 0) return false;
+        if ($scope.paymentOrder.hasSubmittedPayment) return false;
         if (statusU === 'AWAITING PAYMENT VERIFICATION' || statusU === 'AWAITING MEETUP') return false;
-        if (statusU === 'LAYAWAY ACTIVE' && $scope.paymentOrder.hasSubmittedPayment) return false;
         if (statusU === 'LAYAWAY ACTIVE') return true;
+        if ((statusU === 'PENDING PAYMENT' || statusU === 'PENDING DOWNPAYMENT') && paymentRejectedCanResubmit) return true;
         if (statusU !== 'APPROVED') return false;
-        if ($scope.paymentOrder.hasExistingPayment) return false;
-        var latest = $scope.paymentOrder.latestPaymentForProof;
-        if (latest && latest.paymentStatus === 'REJECTED' && !latest.allowResubmit) return false;
+        if (latest && (latest.paymentStatus || latest.PaymentStatus) === 'REJECTED' && !latest.allowResubmit) return false;
         return true;
     };
 
@@ -1324,7 +1371,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var amountToSubmit = isMeetup ? $scope.getMeetupDownpaymentAmount() : $scope.paymentOrder.amountDue;
         logPaymentButtonState('Submitting payment');
         console.log('[PAYMENT DEBUG] Submit payload:', { orderId: $scope.paymentOrder.orderId, amount: amountToSubmit, proofImageId: proofId, referenceNumber: refNum, isMeetup: isMeetup });
-        SolteiraBrandsService.submitPayment($scope.paymentOrder.orderId, amountToSubmit, proofId, refNum, mDate, mTime).then(function (r) {
+        var channel = ($scope.paymentFormData && $scope.paymentFormData.channel) ? $scope.paymentFormData.channel : (isMeetup ? 'Cash through Meetup' : '');
+        SolteiraBrandsService.submitPayment($scope.paymentOrder.orderId, amountToSubmit, proofId, refNum, mDate, mTime, channel).then(function (r) {
             $scope.submitting = false;
             if (r.data && r.data.success) {
                 Swal.fire({ icon: 'success', title: isMeetup ? 'Meetup scheduled & payment submitted' : 'Payment submitted', text: r.data.message || 'We will verify and update your order status.', confirmButtonText: 'OK' }).then(function () {

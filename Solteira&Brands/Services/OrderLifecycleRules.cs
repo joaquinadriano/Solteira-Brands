@@ -26,18 +26,38 @@ namespace Solteira_Brands.Services
             switch (current)
             {
                 case null:
-                    // New order: must start at Pending.
-                    return target == OrderStatus.Pending;
+                    // New order: must start at Pending Approval.
+                    return target == OrderStatus.PendingApproval;
 
-                case OrderStatus.Pending:
-                    // Initial admin decision or timed cancellation.
+                case OrderStatus.PendingApproval:
+                    // Order approval: admin Approve or Reject only. No payment until Approved.
                     return target == OrderStatus.Approved
                         || target == OrderStatus.Rejected
                         || target == OrderStatus.Cancelled;
 
-                case OrderStatus.Approved:
-                    // Payment flow starts here or admin cancels/rejects.
+                case OrderStatus.Pending:
+                    return target == OrderStatus.Approved
+                        || target == OrderStatus.Rejected
+                        || target == OrderStatus.Cancelled;
+
+                case OrderStatus.PendingPayment:
+                    // Full payment: buyer can submit payment or admin cancels/rejects.
                     return target == OrderStatus.AwaitingPaymentVerification
+                        || target == OrderStatus.Approved
+                        || target == OrderStatus.Rejected
+                        || target == OrderStatus.Cancelled;
+
+                case OrderStatus.PendingDownpayment:
+                    // Layaway: buyer can submit downpayment, or admin approves/rejects/cancels.
+                    return target == OrderStatus.AwaitingPaymentVerification
+                        || target == OrderStatus.Approved
+                        || target == OrderStatus.Rejected
+                        || target == OrderStatus.Cancelled;
+
+                case OrderStatus.Approved:
+                    // Payment flow starts here; admin can revoke (back to Pending Approval) or reject/cancel.
+                    return target == OrderStatus.AwaitingPaymentVerification
+                        || target == OrderStatus.PendingApproval
                         || target == OrderStatus.Rejected
                         || target == OrderStatus.Cancelled;
 
@@ -46,12 +66,15 @@ namespace Solteira_Brands.Services
                     return target == OrderStatus.Paid
                         || target == OrderStatus.ReadyForMeetup
                         || target == OrderStatus.LayawayActive
-                        || target == OrderStatus.Approved   // payment rejected; back to Approved
+                        || target == OrderStatus.PendingPayment   // payment rejected (full)
+                        || target == OrderStatus.PendingDownpayment  // payment rejected (layaway downpayment)
+                        || target == OrderStatus.Approved         // legacy: payment rejected
                         || target == OrderStatus.Cancelled;
 
                 case OrderStatus.LayawayActive:
-                    // Layaway continues with further payments until fully paid or cancelled.
-                    return target == OrderStatus.Paid
+                    // Layaway: submit next installment → Awaiting Verification, or fully paid/cancelled.
+                    return target == OrderStatus.AwaitingPaymentVerification
+                        || target == OrderStatus.Paid
                         || target == OrderStatus.ReadyForMeetup
                         || target == OrderStatus.Cancelled;
 
@@ -68,6 +91,15 @@ namespace Solteira_Brands.Services
 
                 case OrderStatus.ReadyForMeetup:
                     return target == OrderStatus.Completed
+                        || target == OrderStatus.NoShow
+                        || target == OrderStatus.Cancelled;
+
+                case OrderStatus.NoShow:
+                    return target == OrderStatus.MeetupRescheduled;
+
+                case OrderStatus.MeetupRescheduled:
+                    return target == OrderStatus.Completed
+                        || target == OrderStatus.NoShow
                         || target == OrderStatus.Cancelled;
 
                 // Terminal states: no automatic transitions out.

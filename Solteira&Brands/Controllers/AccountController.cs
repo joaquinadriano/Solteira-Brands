@@ -50,12 +50,15 @@ namespace Solteira_Brands.Controllers
             {
                 return Json(new { success = false, message = "Username and password are required." });
             }
+            var loginUsername = username.Trim();
+            if (loginUsername.Length > 14)
+                return Json(new { success = false, message = "Username must not exceed 14 characters." });
 
             using (var db = new SolteiraBrandsContext())
             {
                 var user = db.tbl_users
                     .Include("Role")
-                    .FirstOrDefault(u => u.Username == username.Trim() && u.IsActive);
+                    .FirstOrDefault(u => u.Username == loginUsername && u.IsActive);
                 if (user == null)
                 {
                     return Json(new { success = false, message = "Invalid username or password." });

@@ -33,6 +33,14 @@ app.service("SolteiraAndBrandsService", function ($http) {
         });
     };
 
+    this.toggleFeatured = function (productId) {
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/ToggleFeatured",
+            data: { productId: productId }
+        });
+    };
+
     this.uploadProductImage = function (file) {
         var formData = new FormData();
         formData.append("file", file);
@@ -160,6 +168,10 @@ app.service("SolteiraAndBrandsService", function ($http) {
         var params = { orderId: orderId, status: status };
         if (receiptImageId) params.receiptImageId = receiptImageId;
         return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateMeetupOutcome", params: params });
+    };
+
+    this.rescheduleMeetup = function (orderId, meetupDate, meetupTime) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/RescheduleMeetup", params: { orderId: orderId, meetupDate: meetupDate, meetupTime: meetupTime } });
     };
 
     this.markReadyForMeetup = function (orderId) {

@@ -11,5 +11,6 @@ namespace Solteira_Brands.Models
         public string ReferenceNumber { get; set; }
         public string MeetupDate { get; set; }
         public string MeetupTime { get; set; }
+        public string PaymentChannel { get; set; }
     }
 }

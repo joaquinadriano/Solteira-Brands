@@ -1,4 +1,4 @@
-app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval', 'SolteiraAndBrandsService', function ($scope, $timeout, $interval, SolteiraAndBrandsService) {
+app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval', '$sce', 'SolteiraAndBrandsService', function ($scope, $timeout, $interval, $sce, SolteiraAndBrandsService) {
 
     // Low-stock notifications (navbar bell) — display list is mutable for dismiss
     $scope.lowStockItems = [];
@@ -110,7 +110,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     // ----- Orders (Admin): list, details modal, status update -----
     $scope.ordersList = [];
     $scope.selectedOrderDetails = null;
-    $scope.orderStatusOptions = ['Pending', 'Approved', 'Rejected', 'Awaiting Payment Verification', 'Paid', 'In Delivery', 'Ready for Meetup', 'Completed', 'Cancelled'];
+    $scope.orderStatusOptions = ['Pending Approval', 'Approved', 'Rejected', 'Awaiting Payment Verification', 'Pending Payment', 'Pending Downpayment', 'Paid', 'Layaway Active', 'In Delivery', 'Ready for Meetup', 'No Show', 'Meetup Rescheduled', 'Completed', 'Cancelled'];
 
     $scope.loadOrders = function () {
         SolteiraAndBrandsService.getOrders().then(function (res) {
@@ -119,6 +119,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             } else {
                 $scope.ordersList = [];
             }
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#adminOrdersTable').length && $.fn.DataTable.isDataTable('#adminOrdersTable')) {
+                        $('#adminOrdersTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.ordersList && $scope.ordersList.length > 0) {
+                    window.initializeStandardTable('#adminOrdersTable', 0);
+                }
+            }, 150);
         }, function () {
             $scope.ordersList = [];
         });
@@ -133,6 +144,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             } else {
                 $scope.archiveOrdersList = [];
             }
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#orderArchiveTable').length && $.fn.DataTable.isDataTable('#orderArchiveTable')) {
+                        $('#orderArchiveTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.archiveOrdersList && $scope.archiveOrdersList.length > 0) {
+                    window.initializeStandardTable('#orderArchiveTable', 0);
+                }
+            }, 150);
         }, function () {
             $scope.archiveOrdersList = [];
         });
@@ -157,10 +179,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!orderId || !newStatus) return;
         SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus, rejectionReason).then(function (res) {
             if (res.data && res.data.success) {
-                var order = $scope.ordersList.find(function (o) { return o.id === orderId; });
-                if (order) order.orderStatus = res.data.orderStatus || newStatus;
+                $scope.loadOrders();
                 if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
-                    $scope.selectedOrderDetails.orderStatus = res.data.orderStatus || newStatus;
+                    $scope.refreshSelectedOrderDetails();
                 }
                 if (newStatus === 'Approved') {
                     Swal.fire({ title: 'Order approved', text: 'Order has been approved. Buyer can now submit payment.', icon: 'success', confirmButtonColor: '#28a745' });
@@ -223,6 +244,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!orderId) return;
         SolteiraAndBrandsService.revokeApproval(orderId).then(function (res) {
             if (res.data && res.data.success) {
+                $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
                 Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' });
             } else {
@@ -394,18 +416,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.ordersForShipments = [];
     $scope.shipmentsList = [];
     $scope.loadDeliveryShipments = function () {
-        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryShipmentsTable').length && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) {
-            try { $('#deliveryShipmentsTable').DataTable().destroy(); } catch (e) { }
-        }
         SolteiraAndBrandsService.getOrdersForDeliveryShipments().then(function (res) {
             $scope.ordersForShipments = (res.data && res.data.success && res.data.data) ? res.data.data : [];
         });
         SolteiraAndBrandsService.getDeliveryShipments().then(function (res) {
             $scope.shipmentsList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
             $timeout(function () {
-                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#deliveryShipmentsTable').length) return;
-                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) return;
-                $('#deliveryShipmentsTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryShipmentsTable').length && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) {
+                        $('#deliveryShipmentsTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.shipmentsList && $scope.shipmentsList.length > 0) {
+                    window.initializeStandardTable('#deliveryShipmentsTable', 0);
+                }
             }, 150);
         });
     };
@@ -441,19 +466,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.meetupOrdersList = [];
     $scope.loadDeliveryMeetup = function () {
-        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryMeetupTable').length && $.fn.DataTable.isDataTable('#deliveryMeetupTable')) {
-            try { $('#deliveryMeetupTable').DataTable().destroy(); } catch (e) { }
-        }
         SolteiraAndBrandsService.getOrdersForDeliveryMeetup().then(function (res) {
             var raw = res.data;
             var list = (raw && raw.success && raw.data) ? raw.data : [];
             $scope.meetupOrdersList = list;
             $timeout(function () {
-                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#deliveryMeetupTable').length) return;
-                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#deliveryMeetupTable')) return;
-                $('#deliveryMeetupTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryMeetupTable').length && $.fn.DataTable.isDataTable('#deliveryMeetupTable')) {
+                        $('#deliveryMeetupTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.meetupOrdersList && $scope.meetupOrdersList.length > 0) {
+                    window.initializeStandardTable('#deliveryMeetupTable', 0);
+                }
             }, 150);
-            if (window.console && window.console.log) { window.console.log('GetOrdersForDeliveryMeetup: success=', raw && raw.success, 'count=', list && list.length); }
         }, function (err) {
             if (window.console && window.console.error) { window.console.error('GetOrdersForDeliveryMeetup failed', err && err.data); }
             $scope.meetupOrdersList = [];
@@ -516,11 +543,101 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         $scope.meetupDetail = null;
     };
 
+    // Reschedule meetup (same date/time format as buyer: yyyy-MM-dd + time slots 10:00 AM – 5:00 PM)
+    var MEETUP_TIME_SLOTS = ['10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM'];
+    function getMinMeetupDateReschedule() {
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        if (now.getHours() >= 17) {
+            var tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return tomorrow.getFullYear() + '-' + String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrow.getDate()).padStart(2, '0');
+        }
+        return yyyy + '-' + mm + '-' + dd;
+    }
+    $scope.rescheduleOrderId = null;
+    $scope.rescheduleDate = null;
+    $scope.rescheduleTime = null;
+    $scope.rescheduleTimeOptions = MEETUP_TIME_SLOTS.slice();
+    $scope.getMinMeetupDateReschedule = getMinMeetupDateReschedule;
+    function parseTimeToMinutesReschedule(timeStr) {
+        if (!timeStr) return -1;
+        var m = (timeStr + '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!m) return -1;
+        var h = parseInt(m[1], 10);
+        var min = parseInt(m[2], 10);
+        if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        return h * 60 + min;
+    }
+    $scope.onRescheduleDateChange = function () {
+        var selected = $scope.rescheduleDate;
+        if (!selected) {
+            $scope.rescheduleTimeOptions = MEETUP_TIME_SLOTS.slice();
+            return;
+        }
+        var now = new Date();
+        var todayStr = now.toISOString().split('T')[0];
+        var currentMinutes = now.getHours() * 60 + now.getMinutes();
+        if (selected === todayStr) {
+            $scope.rescheduleTimeOptions = MEETUP_TIME_SLOTS.filter(function (t) {
+                var slotMin = parseTimeToMinutesReschedule(t);
+                return slotMin > currentMinutes && slotMin >= 10 * 60 && slotMin <= 17 * 60;
+            });
+            if ($scope.rescheduleTime && $scope.rescheduleTimeOptions.indexOf($scope.rescheduleTime) === -1)
+                $scope.rescheduleTime = null;
+        } else {
+            $scope.rescheduleTimeOptions = MEETUP_TIME_SLOTS.slice();
+        }
+    };
+    $scope.openRescheduleModal = function (o) {
+        if (!o || !o.id) return;
+        $scope.rescheduleOrderId = o.id;
+        $scope.rescheduleDate = getMinMeetupDateReschedule();
+        $scope.rescheduleTime = $scope.rescheduleTimeOptions.length ? $scope.rescheduleTimeOptions[0] : null;
+        $scope.onRescheduleDateChange();
+        var modalEl = document.getElementById('rescheduleMeetupModal');
+        if (modalEl && window.bootstrap) { var m = new bootstrap.Modal(modalEl); m.show(); }
+    };
+    $scope.closeRescheduleModal = function () {
+        $scope.rescheduleOrderId = null;
+        $scope.rescheduleDate = null;
+        $scope.rescheduleTime = null;
+        var modalEl = document.getElementById('rescheduleMeetupModal');
+        if (modalEl && window.bootstrap) { var m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); }
+    };
+    $scope.confirmReschedule = function () {
+        var orderId = $scope.rescheduleOrderId;
+        if (!orderId || !$scope.rescheduleDate || !$scope.rescheduleTime) {
+            Swal.fire({ icon: 'warning', title: 'Required', text: 'Please select date and time.' });
+            return;
+        }
+        SolteiraAndBrandsService.rescheduleMeetup(orderId, $scope.rescheduleDate, $scope.rescheduleTime).then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.loadDeliveryMeetup();
+                $scope.closeRescheduleModal();
+                if ($scope.meetupDetail && $scope.meetupDetail.orderSummary && $scope.meetupDetail.orderSummary.id === orderId) {
+                    $scope.meetupDetail.orderSummary.orderStatus = res.data.orderStatus;
+                    if (res.data.scheduledAtFormatted) $scope.meetupDetail.scheduledAtFormatted = res.data.scheduledAtFormatted;
+                }
+                Swal.fire({ title: 'Meetup rescheduled', icon: 'success', confirmButtonText: 'OK' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+            }
+        }, function (err) {
+            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        });
+    };
+
     $scope.verifyPayment = function (paymentId) {
         if (!paymentId) return;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'VERIFIED').then(function (res) {
             if (res.data && res.data.success) {
+                if ($scope.loadOrders) $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
+                if ($scope.loadDeliveryMeetup) $scope.loadDeliveryMeetup();
                 Swal.fire({ title: 'Payment verified', icon: 'success', confirmButtonText: 'OK' });
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -570,9 +687,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.selectedPayment = null;
     $scope.paymentDetail = null;
     $scope.loadPayments = function () {
-        if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#paymentTable').length && $.fn.DataTable.isDataTable('#paymentTable')) {
-            try { $('#paymentTable').DataTable().destroy(); } catch (e) { }
-        }
         SolteiraAndBrandsService.getPaymentsForAdmin().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
                 $scope.paymentsList = res.data.data;
@@ -580,9 +694,15 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.paymentsList = [];
             }
             $timeout(function () {
-                if (typeof $ === 'undefined' || !$.fn.DataTable || !$('#paymentTable').length) return;
-                if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#paymentTable')) return;
-                $('#paymentTable').DataTable({ responsive: true, pageLength: 10, order: [] });
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#paymentTable').length && $.fn.DataTable.isDataTable('#paymentTable')) {
+                        $('#paymentTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.paymentsList && $scope.paymentsList.length > 0) {
+                    window.initializeStandardTable('#paymentTable', 0);
+                }
             }, 150);
         }, function () {
             $scope.paymentsList = [];
@@ -637,6 +757,27 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (s === 'OVERDUE') return 'bg-danger';
         return 'bg-secondary';
     };
+    /** Payment status display text only (for payment tables/proof). SUBMITTED → Awaiting Verification, VERIFIED → Verified, REJECTED → Rejected – Please Resubmit. */
+    $scope.getPaymentStatusDisplayText = function (status) {
+        if (!status) return '-';
+        var s = (status + '').toUpperCase();
+        if (s === 'SUBMITTED') return 'Awaiting Verification';
+        if (s === 'VERIFIED') return 'Verified';
+        if (s === 'REJECTED') return 'Rejected – Please Resubmit';
+        return status;
+    };
+    /** Order status display: use order.status from DB directly. Map only for consistent labels. */
+    $scope.getDisplayOrderStatus = function (orderStatus) {
+        if (!orderStatus) return '-';
+        var s = (orderStatus + '').trim();
+        if (s === 'Rejected') return 'Order Rejected';
+        if (s === 'Paid') return 'Paid – Waiting for Shipment';
+        if (s === 'Awaiting Payment Verification') return 'Awaiting Payment Verification';
+        if (s === 'Pending Approval') return 'Pending Approval';
+        if (s === 'Pending Payment') return 'Pending Payment';
+        if (s === 'Pending Downpayment') return 'Pending Downpayment';
+        return orderStatus;
+    };
     $scope.verifyPaymentFromModal = function () {
         if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
         var paymentId = $scope.selectedPayment.paymentId;
@@ -644,7 +785,11 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (res.data && res.data.success) {
                 $scope.loadPayments();
                 $scope.closePaymentProofModal();
-                Swal.fire({ title: 'Payment verified', icon: 'success', confirmButtonText: 'OK' });
+                if ($scope.loadOrders) $scope.loadOrders();
+                if ($scope.loadDeliveryMeetup) $scope.loadDeliveryMeetup();
+                var orderStatus = (res.data && res.data.orderStatus) ? res.data.orderStatus : '';
+                var msg = orderStatus === 'Ready for Meetup' ? 'Payment verified. Order is now Ready for Meetup — check Delivery - Cash through Meetup.' : 'Payment verified';
+                Swal.fire({ title: 'Payment verified', text: msg, icon: 'success', confirmButtonText: 'OK' });
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
             }
@@ -817,7 +962,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         material: "",
         weight: "",
         length: "",
-        isBestSeller: false
+        isBestSeller: false,
+        isFeatured: false
     };
     $scope.inventoryPhotoFile = null;
     $scope.inventoryEditPhotoFile = null;
@@ -826,45 +972,40 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.loadInventoryProducts = function () {
         SolteiraAndBrandsService.getInventoryProducts($scope.showArchivedInventory).then(function (res) {
-            // Destroy existing DataTable so the table can be re-rendered by Angular and re-inited
-            if (typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
-                try { $('#inventoryTable').DataTable().destroy(); } catch (e) { }
-            }
             var list = [];
             if (angular.isArray(res.data)) {
                 list = res.data;
             } else if (res.data && res.data.data) {
                 list = res.data.data;
             }
-            $scope.inventoryProducts = list || [];
 
-            if (!$scope.showArchivedInventory) {
-                // Compute next display Product ID (P-001 style) based on max existing id among active items
-                var maxId = 0;
-                angular.forEach($scope.inventoryProducts, function (p) {
-                    if (p && p.id && p.id > maxId) {
-                        maxId = p.id;
-                    }
-                });
-                $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
-            }
-
-            // Standard DataTables: search box, entries per page, column sorting (no per-column filter row)
             $timeout(function () {
-                if (typeof $ === 'undefined' || !$.fn.DataTable) return;
-                var $table = $('#inventoryTable');
-                if (!$table.length) return;
                 try {
-                    if ($.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#inventoryTable')) {
-                        $table.DataTable().destroy();
+                    if (window.jQuery && window.jQuery.fn.DataTable && window.jQuery.fn.DataTable.isDataTable && $('#inventoryTable').length && window.jQuery.fn.DataTable.isDataTable('#inventoryTable')) {
+                        $('#inventoryTable').DataTable().destroy();
                     }
                 } catch (e) { }
-                if (!$scope.inventoryProducts.length) return;
-                $table.DataTable({
-                    responsive: true,
-                    pageLength: 10
-                });
-            }, 200);
+
+                $scope.inventoryProducts = list || [];
+
+                if (!$scope.showArchivedInventory) {
+                    var maxId = 0;
+                    angular.forEach($scope.inventoryProducts, function (p) {
+                        if (p && p.id && p.id > maxId) maxId = p.id;
+                    });
+                    $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
+                }
+
+                $timeout(function () {
+                    if (typeof window.initializeStandardTable !== 'function') return;
+                    if (!$scope.inventoryProducts || $scope.inventoryProducts.length === 0) return;
+                    try {
+                        if ($('#inventoryTable').length && (!window.jQuery.fn.DataTable.isDataTable || !window.jQuery.fn.DataTable.isDataTable('#inventoryTable'))) {
+                            window.initializeStandardTable('#inventoryTable', 1);
+                        }
+                    } catch (e2) { }
+                }, 200);
+            }, 0);
         }, function () {
             $scope.inventoryProducts = [];
         });
@@ -917,26 +1058,25 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Length: $scope.newProduct.length,
                 StockQuantity: parseInt($scope.newProduct.stockQuantity) || 0,
                 ImageId: imageId,
-                IsBestSeller: !!$scope.newProduct.isBestSeller
+                IsBestSeller: !!$scope.newProduct.isBestSeller,
+                IsFeatured: !!$scope.newProduct.isFeatured
             };
 
             SolteiraAndBrandsService.createProduct(payload).then(function (res) {
                 if (res.data && res.data.success) {
+                    $('#inventoryAddItemModal').modal('hide');
+                    $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
+                    $scope.inventoryPhotoFile = null;
                     Swal.fire({
                         title: 'Inventory item added!',
+                        text: 'Refresh the page to see it in the list.',
                         icon: 'success',
                         iconColor: '#FFFBE8',
                         background: '#8eb078',
                         confirmButtonText: 'OK',
                         confirmButtonColor: '#FFFBE8',
                         buttonsStyling: true,
-                        customClass: {
-                            title: 'status-title',
-                            confirmButton: 'status-button'
-                        }
-                    }).then(function () {
-                        $('#inventoryAddItemModal').modal('hide');
-                        $scope.loadInventoryProducts();
+                        customClass: { title: 'status-title', confirmButton: 'status-button' }
                     });
                 } else {
                     Swal.fire({
@@ -982,6 +1122,43 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
     };
 
+    $scope.viewPhotoItem = null;
+    $scope.openViewPhotoModal = function (item) {
+        if (!item) return;
+        $scope.viewPhotoItem = item;
+        $('#inventoryViewPhotoModal').modal('show');
+    };
+    $scope.closeViewPhotoAndEdit = function (item) {
+        $('#inventoryViewPhotoModal').modal('hide');
+        $scope.viewPhotoItem = null;
+        if (item) $scope.openEditProduct(item);
+    };
+    $scope.openImagePreview = function (src) {
+        if (!src) return;
+        var overlay = document.createElement('div');
+        overlay.className = 'image-overlay';
+        var img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        overlay.appendChild(img);
+        overlay.onclick = function () { overlay.remove(); };
+        document.body.appendChild(overlay);
+    };
+    $scope.formatProductPrice = function (price) {
+        if (price == null || price === undefined) return '';
+        return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(price);
+    };
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    $scope.getViewProductDescriptionHtml = function (item) {
+        if (!item || item.description == null) return $sce.trustAsHtml('');
+        var safe = escapeHtml(String(item.description)).replace(/\n/g, '<br>');
+        return $sce.trustAsHtml(safe);
+    };
     $scope.openEditProduct = function (item) {
         if (!item) return;
         $scope.editProduct = angular.copy(item);
@@ -1014,26 +1191,25 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Length: $scope.editProduct.length,
                 StockQuantity: parseInt($scope.editProduct.stockQuantity) || 0,
                 ImageId: imageId,
-                IsBestSeller: !!$scope.editProduct.isBestSeller
+                IsBestSeller: !!$scope.editProduct.isBestSeller,
+                IsFeatured: !!$scope.editProduct.isFeatured
             };
 
             SolteiraAndBrandsService.updateProduct(payload).then(function (res) {
                 if (res.data && res.data.success) {
+                    $('#inventoryEditItemModal').modal('hide');
+                    $scope.editProduct = null;
+                    $scope.inventoryEditPhotoFile = null;
                     Swal.fire({
                         title: 'Inventory item updated!',
+                        text: 'Refresh the page to see changes.',
                         icon: 'success',
                         iconColor: '#FFFBE8',
                         background: '#8eb078',
                         confirmButtonText: 'OK',
                         confirmButtonColor: '#FFFBE8',
                         buttonsStyling: true,
-                        customClass: {
-                            title: 'status-title',
-                            confirmButton: 'status-button'
-                        }
-                    }).then(function () {
-                        $('#inventoryEditItemModal').modal('hide');
-                        $scope.loadInventoryProducts();
+                        customClass: { title: 'status-title', confirmButton: 'status-button' }
                     });
                 } else {
                     Swal.fire({
@@ -1272,6 +1448,34 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     //for when archive/restore is clicked in INVENTORY Page
+    $scope.onFeaturedCheckboxChange = function (item) {
+        if (!item || !item.id) return;
+        SolteiraAndBrandsService.toggleFeatured(item.id).then(function (res) {
+            if (res.data && res.data.success) {
+                item.isFeatured = res.data.isFeatured;
+                if ($scope.viewPhotoItem && $scope.viewPhotoItem.id === item.id) {
+                    $scope.viewPhotoItem.isFeatured = res.data.isFeatured;
+                }
+            } else {
+                item.isFeatured = !item.isFeatured;
+                Swal.fire({
+                    title: 'Unable to update featured status.',
+                    text: (res.data && res.data.message) || 'Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }, function () {
+            item.isFeatured = !item.isFeatured;
+            Swal.fire({
+                title: 'Unable to update featured status.',
+                text: 'Please try again.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        });
+    };
+
     $scope.inventoryArchiveAlert = function (item) {
         if (!item || !item.id) return;
 

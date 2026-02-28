@@ -76,6 +76,13 @@
         background-color: #ECECEC;
     }
 
+.filter-item-active,
+    .filter-item.filter-item-active:hover {
+        background-color: #87AE73;
+        color: white;
+        border-color: #87AE73;
+    }
+
 .nav-jewelry .jewelry-label span {
     font-family: "Kaisei Tokumin";
     font-size: 1.75rem;

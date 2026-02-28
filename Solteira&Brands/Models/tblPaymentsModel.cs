@@ -15,6 +15,7 @@ namespace Solteira_Brands.Models
         public int? ProofImageId { get; set; }
         public string ReferenceNumber { get; set; }
         public DateTime? MeetupDatetime { get; set; }
+        public string PaymentChannel { get; set; }
         public int? VerifiedByUserId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? VerifiedAt { get; set; }

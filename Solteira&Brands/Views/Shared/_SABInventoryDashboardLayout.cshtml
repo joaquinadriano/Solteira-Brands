@@ -193,7 +193,29 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
         <script src="https://cdn.datatables.net/2.3.6/js/dataTables.js"></script>
-
+        <script>
+            window.initializeStandardTable = function (selector, orderCol) {
+                var $t = $(selector);
+                if (!$t.length) return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(selector)) {
+                        $t.DataTable().destroy();
+                    }
+                } catch (e) { }
+                var col = orderCol != null ? orderCol : 0;
+                $t.DataTable({
+                    responsive: true,
+                    pageLength: 10,
+                    lengthChange: true,
+                    autoWidth: false,
+                    order: [[col, 'desc']],
+                    language: {
+                        search: "",
+                        searchPlaceholder: "Search..."
+                    }
+                });
+            };
+        </script>
         <script>
             (function () {
                 var xhr = new XMLHttpRequest();
@@ -234,31 +256,8 @@
                 $('#ordersTable').DataTable();
             });
 
-            //----------Orders Archive Page----------
-            // orderArchiveTable is Angular ng-repeat (archiveOrdersList) — do NOT init DataTables (causes "unknown parameter" error)
-
-            //----------Activity Logs Page----------
-            $(document).ready(function () {
-                // activityLogsTable is plain Angular table (ng-repeat), do not init DataTables
-            });
-
-            //---------Payment Page----------
-            $(document).ready(function () {
-                $('#paymentTable').DataTable();
-            });
-
-            //----------Delivery Page----------
-            // deliveryShipmentsTable, deliveryMeetupTable are Angular ng-repeat — do NOT init DataTables (causes "unknown parameter" error)
-
-            //----------Reports Page----------
-            $(document).ready(function () {
-                // salesReportTable is plain Angular table (ng-repeat), do not init DataTables
-            });
-
-            //----------Inventory Page----------
-            $(document).ready(function () {
-                $('#inventoryTable').DataTable();
-            });
+            //----------Orders Archive, Payment, Delivery, Inventory----------
+            // adminOrdersTable, orderArchiveTable, paymentTable, deliveryShipmentsTable, deliveryMeetupTable, inventoryTable: initialized by Angular via initializeStandardTable() after data loads
 
         </script>
         @*tooltip*@

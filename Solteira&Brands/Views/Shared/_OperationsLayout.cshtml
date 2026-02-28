@@ -148,6 +148,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.datatables.net/2.3.6/js/dataTables.js"></script>
     <script>
+        window.initializeStandardTable = function (selector, orderCol) {
+            var $t = $(selector);
+            if (!$t.length) return;
+            try {
+                if ($.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(selector)) {
+                    $t.DataTable().destroy();
+                }
+            } catch (e) { }
+            var col = orderCol != null ? orderCol : 0;
+            $t.DataTable({
+                responsive: true,
+                pageLength: 10,
+                lengthChange: true,
+                autoWidth: false,
+                order: [[col, 'desc']],
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search..."
+                }
+            });
+        };
+    </script>
+    <script>
         (function () {
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/Account/GetMyProfile', true);
@@ -173,10 +196,7 @@
             if ($('#userTable').length) $('#userTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#usersTable').length) $('#usersTable').DataTable({ searching: false, paging: false, info: false });
             if ($('#ordersTable').length) $('#ordersTable').DataTable();
-            // adminOrdersTable, deliveryShipmentsTable, deliveryMeetupTable, orderArchiveTable are Angular ng-repeat tables — do NOT init DataTables (causes "unknown parameter '1'" error)
-            // paymentTable is plain Angular (ng-repeat), do not init DataTables
-            // salesReportTable is plain Angular table (ng-repeat), do not init DataTables
-            // inventoryTable is initialized/rebuilt by Angular controller after bindings
+            // adminOrdersTable, orderArchiveTable, paymentTable, deliveryShipmentsTable, deliveryMeetupTable, inventoryTable: initialized by Angular controller via initializeStandardTable() after data loads
         });
     </script>
     <script>

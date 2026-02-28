@@ -10,32 +10,32 @@
     <div class="payment-card" ng-if="paymentOrder">
         <h2 class="payment-title">PAYMENT</h2>
 
-        <div ng-if="paymentOrder && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() !== 'APPROVED' && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() !== 'LAYAWAY ACTIVE' && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() !== 'AWAITING PAYMENT VERIFICATION' && !paymentOrder.hasExistingPayment" class="alert alert-warning mb-3">
+        @* Order Rejected: show only this, no payment banners. *@
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') === 'REJECTED')" class="alert alert-danger mb-3">
+            <strong>Order Rejected.</strong> This order was rejected by admin.
+        </div>
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') === 'PENDING APPROVAL')" class="alert alert-warning mb-3">
             <strong>Order not yet approved.</strong> Your order is pending admin approval. After approval you can pay here.
             <button type="button" class="btn btn-sm btn-outline-dark ms-2" ng-click="reloadPaymentOrder()">Refresh</button>
         </div>
-        <div ng-if="paymentOrder && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'AWAITING PAYMENT VERIFICATION'" class="alert alert-info mb-3">
-            <strong>Under Review.</strong> Your payment proof has been submitted and is being verified.
-            <button type="button" class="btn btn-sm btn-outline-primary ms-2" ng-click="openViewPaymentProofModal()">View Payment Proof</button>
+        @* Payment banners only when order is NOT rejected. *@
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') !== 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof) && ((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus === 'REJECTED' || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus === 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit" class="alert alert-danger mb-3">
+            <strong>Payment was rejected. Please resubmit.</strong>
+            <span ng-if="(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason"> {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}</span>
+        </div>
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') !== 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof) && ((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus === 'REJECTED' || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus === 'REJECTED') && !(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit" class="alert alert-danger mb-3">
+            <strong>Payment was rejected and cannot be resubmitted.</strong>
+            <span ng-if="(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason"> {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}</span>
+            <span class="d-block">Please contact the administrator for assistance.</span>
+        </div>
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') !== 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof) && ((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus === 'SUBMITTED' || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus === 'SUBMITTED')" class="alert alert-warning mb-3">
+            <strong>Your payment is under review.</strong>
+            <button type="button" class="btn btn-sm btn-outline-dark ms-2" ng-click="openViewPaymentProofModal()">View Payment Proof</button>
             <a href="@Url.Action("SolteiraBrandsMyOrders", "SolteiraAndBrands")" class="btn btn-sm btn-outline-dark ms-2">Back to My Orders</a>
         </div>
         <div ng-if="paymentOrder && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'AWAITING MEETUP'" class="alert alert-info mb-3">
             <strong>Meetup scheduled.</strong> Your Cash through Meetup schedule has been saved. Please proceed on your selected date and time.
             <a href="@Url.Action("SolteiraBrandsMyOrders", "SolteiraAndBrands")" class="btn btn-sm btn-outline-dark ms-2">Back to My Orders</a>
-        </div>
-        <div ng-if="paymentOrder && paymentOrder.latestPaymentForProof && paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' && paymentOrder.latestPaymentForProof.allowResubmit" class="alert alert-warning mb-3">
-            <strong>Payment was rejected.</strong>
-            <span ng-if="paymentOrder.latestPaymentForProof.rejectionReason">Reason: {{paymentOrder.latestPaymentForProof.rejectionReason}}</span>
-            <span class="d-block">You can submit a new payment below.</span>
-        </div>
-        <div ng-if="paymentOrder && paymentOrder.latestPaymentForProof && paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' && !paymentOrder.latestPaymentForProof.allowResubmit" class="alert alert-danger mb-3">
-            <strong>Payment was rejected and cannot be resubmitted.</strong>
-            <span ng-if="paymentOrder.latestPaymentForProof.rejectionReason">Reason: {{paymentOrder.latestPaymentForProof.rejectionReason}}</span>
-            <span class="d-block">Please contact the administrator for assistance.</span>
-        </div>
-        <div ng-if="paymentOrder && (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'LAYAWAY ACTIVE' && paymentOrder.hasSubmittedPayment" class="alert alert-info mb-3">
-            <strong>Installment Under Review.</strong> Your payment proof for this installment has been submitted.
-            <button type="button" class="btn btn-sm btn-outline-primary ms-2" ng-click="openViewPaymentProofModal()">View Payment Proof</button>
         </div>
 
         <div class="customer-info-box">
@@ -60,7 +60,7 @@
                     <p ng-if="paymentOrder.monthsAllowed"><strong>Installment Plan:</strong> <span>{{paymentOrder.monthsAllowed}} months</span></p>
                     <p ng-if="paymentOrder.monthlyInstallment != null"><strong>Monthly Installment:</strong> <span>&#8369; {{paymentOrder.monthlyInstallment | number:2}} per month</span></p>
                     <p ng-if="paymentOrder.installmentsRemaining != null"><strong>Installments Remaining:</strong> <span>{{paymentOrder.installmentsRemaining}}</span></p>
-                    <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'APPROVED'"><strong>Amount Due (Downpayment):</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
+                    <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'APPROVED' || (paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'REJECTED'"><strong>Amount Due (Downpayment):</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
                     <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'LAYAWAY ACTIVE' && paymentOrder.installmentMonthNumber"><strong>Amount Due (Month {{paymentOrder.installmentMonthNumber}} of {{paymentOrder.monthsAllowed}}):</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
                     <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'LAYAWAY ACTIVE' && paymentOrder.dueDateThisMonth"><strong>Due Date:</strong> <span>{{paymentOrder.dueDateThisMonth}}</span></p>
                     <div class="layaway-progress" ng-if="paymentOrder.totalAmount && paymentOrder.remainingBalance != null">
@@ -154,7 +154,7 @@
                 </div>
             </div>
             <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3">
-                <label class="section-label">30% Down Payment — Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
+                <label class="section-label">30% Down Payment - Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
                 <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
                 <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
                 <label class="section-label">Proof of 30% Down Payment <span class="text-danger">*</span></label>
@@ -205,7 +205,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" ng-if="paymentOrder.latestPaymentForProof">
-                    <p class="mb-2"><strong>Status:</strong> <span ng-class="{'text-warning': paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED'}">{{paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED' ? 'Under Review' : paymentOrder.latestPaymentForProof.paymentStatus}}</span></p>
+                    <p class="mb-2"><strong>Status:</strong> <span ng-class="{'text-warning': paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED'}">{{paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED' ? 'Awaiting Verification' : (paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' ? 'Rejected – Please Resubmit' : (paymentOrder.latestPaymentForProof.paymentStatus === 'VERIFIED' ? 'Verified' : 'Awaiting Verification'))}}</span></p>
                     <p class="mb-2"><strong>Amount:</strong> &#8369; {{paymentOrder.latestPaymentForProof.amount | number:2}}</p>
                     <p class="mb-2"><strong>Date submitted:</strong> {{paymentOrder.latestPaymentForProof.createdAt}}</p>
                     <p class="mb-2" ng-if="paymentOrder.latestPaymentForProof.referenceNumber"><strong>Reference number:</strong> {{paymentOrder.latestPaymentForProof.referenceNumber}}</p>

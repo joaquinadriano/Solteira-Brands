@@ -19,6 +19,7 @@ namespace Solteira_Brands.Models
         public int StockQuantity { get; set; }
         public int? ImageId { get; set; }
         public bool IsBestSeller { get; set; }
+        public bool IsFeatured { get; set; }
         public bool IsArchived { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
