@@ -788,9 +788,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var statusLower = status.toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
         if (statusLower === 'pending') return 'Pending Approval';
+        if (statusLower === 'approved') return 'Awaiting Payment';
         if (statusLower === 'rejected') return 'Rejected';
         if (statusLower === 'awaiting meetup') return 'Awaiting Meetup';
-        if (statusLower === 'awaiting payment verification') return 'Under Review';
+        if (statusLower === 'awaiting payment verification') return 'Awaiting Payment Verification';
         if (statusLower === 'layaway active') return 'Layaway Active';
         if (statusLower === 'paid' || statusLower === 'ready for meetup') return 'Paid';
         if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
@@ -962,6 +963,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.getMinMeetupDate = getMinMeetupDate;
     $scope.minMeetupDate = getMinMeetupDate();
+
+    // Layaway paid percentage for Payment page (used for progress bar).
+    $scope.getLayawayPaidPercent = function () {
+        if (!$scope.paymentOrder || $scope.paymentOrder.paymentType !== 'LAYAWAY') return 0;
+        var total = $scope.paymentOrder.totalAmount;
+        if (!total || total <= 0) return 0;
+        var remaining = ($scope.paymentOrder.remainingBalance != null ? $scope.paymentOrder.remainingBalance : 0);
+        var paid = total - remaining;
+        if (paid <= 0) return 0;
+        var pct = (paid / total) * 100;
+        return Math.round(pct * 100) / 100;
+    };
 
     /** Ensure backend always receives yyyy-MM-dd (HTML date input can be string or Date, locale display is MM/dd/yyyy). */
     function toMeetupDateYYYYMMDD(val) {

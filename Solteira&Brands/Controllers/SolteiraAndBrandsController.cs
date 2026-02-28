@@ -13,6 +13,7 @@ using Solteira_Brands.Constants;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
 using Solteira_Brands.Security;
+using Solteira_Brands.Services;
 
 namespace Solteira_Brands.Controllers
 {
@@ -619,7 +620,9 @@ namespace Solteira_Brands.Controllers
                     decimal? monthlyInstallment = null;
                     int? installmentPlanMonths = null;
                     var isLayaway = string.Equals(o.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase);
-                    if (orderMonths > 0 && (string.Equals(o.OrderStatus, "Layaway Active", StringComparison.OrdinalIgnoreCase) || (string.Equals(o.OrderStatus, "Approved", StringComparison.OrdinalIgnoreCase) && isLayaway)))
+                    // Build layaway installment schedule for all layaway orders except Cancelled,
+                    // regardless of temporary order status (Approved, Awaiting Payment Verification, etc.).
+                    if (orderMonths > 0 && isLayaway && !string.Equals(o.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
                     {
                         var totalAmount = o.TotalAmount;
                         var downpaymentAmount = Math.Round(totalAmount * (downpaymentPct / 100m), 2);
@@ -1067,7 +1070,7 @@ namespace Solteira_Brands.Controllers
                     {
                         OrderId = order.Id,
                         Amount = amount,
-                        PaymentStatus = "SUBMITTED",
+                        PaymentStatus = PaymentStatus.Submitted,
                         ProofImageId = proofImageId,
                         ReferenceNumber = string.IsNullOrEmpty(refTrimmed) ? null : refTrimmed,
                         MeetupDatetime = meetupDt,
@@ -1076,8 +1079,11 @@ namespace Solteira_Brands.Controllers
                     db.tbl_payments.Add(payment);
                     if (orderPaymentType != "LAYAWAY")
                     {
-                        order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
-                        order.LastStatusUpdateAt = now;
+                        if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.AwaitingPaymentVerification))
+                        {
+                            order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
+                            order.LastStatusUpdateAt = now;
+                        }
                         if (isMeetup && string.IsNullOrEmpty(order.DeliveryType))
                             order.DeliveryType = "MEETUP";
                     }
@@ -1643,6 +1649,8 @@ namespace Solteira_Brands.Controllers
 
                 if (string.Equals(statusTrim, "Rejected", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (!OrderLifecycleRules.CanTransitionOrder(current, OrderStatus.Rejected))
+                        return Json(new { success = false, message = "Invalid order status transition." });
                     if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase) && !current.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                         return Json(new { success = false, message = "Only Pending or Approved orders can be rejected." });
                     if (current.Equals("Approved", StringComparison.OrdinalIgnoreCase) && order.Payments != null && order.Payments.Any())
@@ -1662,6 +1670,8 @@ namespace Solteira_Brands.Controllers
                 }
                 else
                 {
+                    if (!OrderLifecycleRules.CanTransitionOrder(current, OrderStatus.Approved))
+                        return Json(new { success = false, message = "Invalid order status transition." });
                     if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase))
                         return Json(new { success = false, message = "Only Pending orders can be approved." });
                     order.OrderStatus = OrderStatus.Approved;
@@ -1680,8 +1690,8 @@ namespace Solteira_Brands.Controllers
         [HttpPost]
         public JsonResult UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null, bool? allowResubmit = null)
         {
-            var statusTrim = (status ?? "").Trim();
-            if (statusTrim != "VERIFIED" && statusTrim != "REJECTED")
+            var statusTrim = (status ?? "").Trim().ToUpperInvariant();
+            if (statusTrim != PaymentStatus.Verified && statusTrim != PaymentStatus.Rejected)
                 return Json(new { success = false, message = "Status must be VERIFIED or REJECTED." });
             if (statusTrim == "REJECTED" && string.IsNullOrWhiteSpace(rejectionReason))
                 return Json(new { success = false, message = "Rejection reason is required when rejecting payment." });
@@ -1694,7 +1704,7 @@ namespace Solteira_Brands.Controllers
                 var payment = db.tbl_payments.Include("Order").Include("Order.Payments").FirstOrDefault(p => p.Id == paymentId);
                 if (payment == null) return Json(new { success = false, message = "Payment not found." });
                 if (payment.Order == null) return Json(new { success = false, message = "Order not found." });
-                if (!string.Equals(payment.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase))
+                if (!OrderLifecycleRules.CanTransitionPayment(payment.PaymentStatus, statusTrim))
                     return Json(new { success = false, message = "Only SUBMITTED payments can be verified or rejected." });
                 var now = DateTime.Now;
                 payment.PaymentStatus = statusTrim;
@@ -1729,7 +1739,8 @@ namespace Solteira_Brands.Controllers
                             var verifiedCount = order.Payments != null ? order.Payments.Count(p => p.Id != payment.Id && string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)) : 0;
                             if (verifiedCount == 0)
                             {
-                                order.OrderStatus = "Layaway Active";
+                                if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.LayawayActive))
+                                    order.OrderStatus = OrderStatus.LayawayActive;
                                 order.RemainingBalance = order.TotalAmount - payment.Amount;
                                 if (order.RemainingBalance < 0) order.RemainingBalance = 0;
                                 LogActivity(db, "Payment Verified (Layaway downpayment)", "Payments", payment.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + "; remaining: " + order.RemainingBalance.ToString("N2"));
@@ -1740,7 +1751,9 @@ namespace Solteira_Brands.Controllers
                                 if (order.RemainingBalance < 0) order.RemainingBalance = 0;
                                 if (order.RemainingBalance <= 0)
                                 {
-                                    order.OrderStatus = deliveryType == "MEETUP" ? "Ready for Meetup" : "Paid";
+                                    var target = deliveryType == "MEETUP" ? OrderStatus.ReadyForMeetup : OrderStatus.Paid;
+                                    if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, target))
+                                        order.OrderStatus = target;
                                     LogActivity(db, "Payment Verified (Layaway final)", "Payments", payment.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + " fully paid.");
                                 }
                                 else
@@ -1753,14 +1766,16 @@ namespace Solteira_Brands.Controllers
                             var isMeetupOrder = deliveryType == "MEETUP" || payment.MeetupDatetime.HasValue;
                             if (isMeetupOrder)
                             {
-                                order.OrderStatus = "Ready for Meetup";
+                                if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.ReadyForMeetup))
+                                    order.OrderStatus = OrderStatus.ReadyForMeetup;
                                 if (!payment.MeetupDatetime.HasValue && string.IsNullOrEmpty(order.DeliveryType))
                                     order.DeliveryType = "MEETUP";
                                 LogActivity(db, "Payment Verified", "Payments", payment.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + " → Ready for Meetup.");
                             }
                             else
                             {
-                                order.OrderStatus = "Paid";
+                                if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.Paid))
+                                    order.OrderStatus = OrderStatus.Paid;
                                 LogActivity(db, "Payment Verified", "Payments", payment.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()));
                             }
                         }
@@ -1852,8 +1867,8 @@ namespace Solteira_Brands.Controllers
         [HttpPost]
         public JsonResult UpdateDeliveryStatus(int deliveryId, string status)
         {
-            var statusTrim = (status ?? "").Trim();
-            if (statusTrim != "IN_TRANSIT" && statusTrim != "DELIVERED")
+            var statusTrim = (status ?? "").Trim().ToUpperInvariant();
+            if (statusTrim != DeliveryStatus.InTransit && statusTrim != DeliveryStatus.Delivered)
                 return Json(new { success = false, message = "Status must be IN_TRANSIT or DELIVERED." });
             var now = DateTime.Now;
             using (var db = new SolteiraBrandsContext())
@@ -1861,20 +1876,22 @@ namespace Solteira_Brands.Controllers
                 var delivery = db.tbl_deliveries.Include("Order").FirstOrDefault(d => d.Id == deliveryId);
                 if (delivery == null || delivery.Order == null) return Json(new { success = false, message = "Delivery not found." });
                 var orderStatus = delivery.Order.OrderStatus ?? "";
-                if (statusTrim == "IN_TRANSIT" && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase) && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                if (!OrderLifecycleRules.CanTransitionDelivery(delivery.DeliveryStatus, statusTrim))
+                    return Json(new { success = false, message = "Invalid delivery status transition." });
+                if (statusTrim == DeliveryStatus.InTransit && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase) && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Order must be Paid or In Delivery." });
-                if (statusTrim == "DELIVERED" && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase))
+                if (statusTrim == DeliveryStatus.Delivered && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Order must be In Delivery before marking Delivered." });
                 delivery.DeliveryStatus = statusTrim;
                 delivery.UpdatedAt = now;
-                if (statusTrim == "IN_TRANSIT")
+                if (statusTrim == DeliveryStatus.InTransit)
                 {
-                    delivery.Order.OrderStatus = "In Delivery";
+                    delivery.Order.OrderStatus = OrderStatus.InDelivery;
                     delivery.Order.LastStatusUpdateAt = now;
                 }
-                else if (statusTrim == "DELIVERED")
+                else if (statusTrim == DeliveryStatus.Delivered)
                 {
-                    delivery.Order.OrderStatus = "Completed";
+                    delivery.Order.OrderStatus = OrderStatus.Completed;
                     delivery.Order.LastStatusUpdateAt = now;
                     LogActivity(db, "Order Completed", "Orders", delivery.Order.Id, "Order #" + (delivery.Order.OrderNumber ?? delivery.OrderId.ToString()));
                 }
@@ -1895,7 +1912,9 @@ namespace Solteira_Brands.Controllers
                 if (order == null) return Json(new { success = false, message = "Order not found." });
                 if (!order.OrderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Only Paid orders can be marked Ready for Meetup." });
-                order.OrderStatus = "Ready for Meetup";
+                if (!OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.ReadyForMeetup))
+                    return Json(new { success = false, message = "Invalid order status transition." });
+                order.OrderStatus = OrderStatus.ReadyForMeetup;
                 order.LastStatusUpdateAt = DateTime.Now;
                 db.SaveChanges();
                 LogActivity(db, "Ready for Meetup", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
@@ -1914,7 +1933,9 @@ namespace Solteira_Brands.Controllers
                 if (order == null) return Json(new { success = false, message = "Order not found." });
                 if (!order.OrderStatus.Equals("Ready for Meetup", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Only Ready for Meetup orders can be completed." });
-                order.OrderStatus = "Completed";
+                if (!OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.Completed))
+                    return Json(new { success = false, message = "Invalid order status transition." });
+                order.OrderStatus = OrderStatus.Completed;
                 order.LastStatusUpdateAt = DateTime.Now;
                 db.SaveChanges();
                 LogActivity(db, "Meetup Completed", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
@@ -1949,7 +1970,8 @@ namespace Solteira_Brands.Controllers
             {
                 var deliveries = db.tbl_deliveries
                     .Include("Order")
-                    .Where(d => d.Order != null && (d.Order.OrderStatus == "In Delivery" || d.Order.OrderStatus == "Paid"))
+                    // Show full shipment history (including Delivered), not just active ones.
+                    .Where(d => d.Order != null)
                     .OrderByDescending(d => d.CreatedAt)
                     .ToList();
                 var list = deliveries.Select(d => new
@@ -2041,27 +2063,33 @@ namespace Solteira_Brands.Controllers
                 if (delivery == null || delivery.Order == null)
                     return Json(new { success = false, message = "Delivery not found." });
                 var currentStatus = (delivery.DeliveryStatus ?? "").Trim();
-                if (string.Equals(currentStatus, "DELIVERED", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(currentStatus, DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Cannot edit a delivered shipment." });
 
                 var now = DateTime.Now;
                 var newStatus = (deliveryStatus ?? "").Trim();
-                if (!string.IsNullOrEmpty(newStatus) && (newStatus.Equals("PENDING", StringComparison.OrdinalIgnoreCase) || newStatus.Equals("IN_TRANSIT", StringComparison.OrdinalIgnoreCase) || newStatus.Equals("DELIVERED", StringComparison.OrdinalIgnoreCase)))
+                if (!string.IsNullOrEmpty(newStatus) &&
+                    (newStatus.Equals(DeliveryStatus.Pending, StringComparison.OrdinalIgnoreCase)
+                     || newStatus.Equals(DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase)
+                     || newStatus.Equals(DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase)))
                 {
+                    if (!OrderLifecycleRules.CanTransitionDelivery(delivery.DeliveryStatus, newStatus))
+                        return Json(new { success = false, message = "Invalid delivery status transition." });
+
                     delivery.DeliveryStatus = newStatus;
-                    if (newStatus.Equals("IN_TRANSIT", StringComparison.OrdinalIgnoreCase))
+                    if (newStatus.Equals(DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase))
                     {
-                        delivery.Order.OrderStatus = "In Delivery";
+                        delivery.Order.OrderStatus = OrderStatus.InDelivery;
                         delivery.Order.LastStatusUpdateAt = now;
                     }
-                    else if (newStatus.Equals("DELIVERED", StringComparison.OrdinalIgnoreCase))
+                    else if (newStatus.Equals(DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase))
                     {
-                        delivery.Order.OrderStatus = "Completed";
+                        delivery.Order.OrderStatus = OrderStatus.Completed;
                         delivery.Order.LastStatusUpdateAt = now;
                     }
                 }
                 var status = (delivery.DeliveryStatus ?? "").Trim();
-                if (string.Equals(status, "PENDING", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(status, DeliveryStatus.Pending, StringComparison.OrdinalIgnoreCase))
                 {
                     if (courier != null) delivery.Courier = courier.Trim();
                     if (trackingNumber != null) delivery.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
@@ -2071,7 +2099,7 @@ namespace Solteira_Brands.Controllers
                     if (!string.IsNullOrWhiteSpace(eta) && DateTime.TryParse(eta, out d))
                         delivery.Eta = d;
                 }
-                else if (string.Equals(status, "IN_TRANSIT", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(status, DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase))
                 {
                     if (trackingNumber != null) delivery.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
                 }

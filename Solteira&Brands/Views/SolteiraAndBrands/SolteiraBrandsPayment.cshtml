@@ -63,6 +63,14 @@
                     <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'APPROVED'"><strong>Amount Due (Downpayment):</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
                     <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'LAYAWAY ACTIVE' && paymentOrder.installmentMonthNumber"><strong>Amount Due (Month {{paymentOrder.installmentMonthNumber}} of {{paymentOrder.monthsAllowed}}):</strong> <span class="amount-to-pay">&#8369; {{paymentOrder.amountDue | number:2}}</span></p>
                     <p ng-if="(paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase() === 'LAYAWAY ACTIVE' && paymentOrder.dueDateThisMonth"><strong>Due Date:</strong> <span>{{paymentOrder.dueDateThisMonth}}</span></p>
+                    <div class="layaway-progress" ng-if="paymentOrder.totalAmount && paymentOrder.remainingBalance != null">
+                        <div class="layaway-progress-label">
+                            <span>{{getLayawayPaidPercent() | number:2}}% PAID</span>
+                        </div>
+                        <div class="layaway-progress-bar">
+                            <div class="layaway-progress-fill" ng-style="{'width': getLayawayPaidPercent() + '%'}"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

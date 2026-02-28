@@ -89,6 +89,63 @@
                         <p ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.latestPaymentRejectionReason" class="text-warning mb-0"><strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.</p>
                         <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">This order was cancelled (e.g. payment not received within the deadline).</p>
                     </div>
+                    <div class="buyer-order-layaway-info mt-3 p-3 rounded" style="background:#f8f9fa;"
+                         ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.installmentSchedule && selectedOrderForDetails.installmentSchedule.length">
+                        <h6 class="fw-bold mb-2">Layaway Progress</h6>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.downpaymentPercentage">
+                            <strong>Downpayment:</strong>
+                            {{selectedOrderForDetails.downpaymentPercentage | number:0}}%
+                            (&#8369; {{(selectedOrderForDetails.downpaymentPaid || 0) | number:2}} paid)
+                        </p>
+                        <p class="mb-1">
+                            <strong>Remaining Balance:</strong>
+                            &#8369; {{(selectedOrderForDetails.remainingBalance || 0) | number:2}}
+                        </p>
+                        <p class="mb-2" ng-if="selectedOrderForDetails.monthlyInstallment && selectedOrderForDetails.installmentPlanMonths">
+                            <strong>Installment Plan:</strong>
+                            &#8369; {{selectedOrderForDetails.monthlyInstallment | number:2}} x {{selectedOrderForDetails.installmentPlanMonths}} month(s)
+                        </p>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Installment #</th>
+                                        <th>Due Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Proof</th>
+                                        <th>Rejection Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="row in selectedOrderForDetails.installmentSchedule">
+                                        <td>{{row.label}}</td>
+                                        <td>{{row.dueDate}}</td>
+                                        <td>&#8369; {{row.amount | number:2}}</td>
+                                        <td>
+                                            <span class="badge"
+                                                  ng-class="{
+                                                      'bg-success': row.status === 'Paid',
+                                                      'bg-warning text-dark': row.status === 'Pending' || row.status === 'Awaiting Verification',
+                                                      'bg-danger': row.status === 'Rejected' || row.status === 'Overdue' || row.status === 'Expired'
+                                                  }">
+                                                {{row.status}}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span ng-if="row.proofImageUrl">
+                                                <a ng-href="{{row.proofImageUrl}}" target="_blank" rel="noopener">View proof</a>
+                                            </span>
+                                            <span class="text-muted" ng-if="!row.proofImageUrl">No data available</span>
+                                        </td>
+                                        <td>{{row.rejectionReason || '-'}}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div class="buyer-order-delivery-info mt-3 p-3 rounded" style="background:#f8f9fa;" ng-if="selectedOrderForDetails.courier || selectedOrderForDetails.trackingNumber">
                         <h6 class="fw-bold mb-2">Delivery</h6>
                         <p class="mb-1"><strong>Courier:</strong> {{selectedOrderForDetails.courier || '-'}}</p>
