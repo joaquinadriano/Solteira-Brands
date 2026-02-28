@@ -881,15 +881,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.getOrderActionLabel = function (order) {
-        if (!order) return 'View';
+        if (!order) return 'View Details';
         var status = (order.status || '').toLowerCase();
         var deliveryStatus = (order.deliveryStatus || '').toLowerCase();
         var paymentType = (order.paymentType || '').toUpperCase();
         var remaining = order.remainingBalance != null ? Number(order.remainingBalance) : 0;
         var isLayawayActive = (paymentType === 'LAYAWAY' && remaining > 0 && (status === 'layaway active' || (order.verifiedPaymentsCount >= 1 && (status === 'approved' || status === 'awaiting payment verification'))));
-        if (status === 'rejected' || status === 'cancelled') return 'View';
+        if (status === 'rejected' || status === 'cancelled') return 'View Details';
         if (isLayawayActive) {
-            if (order.hasSubmittedPayment) return 'View';
+            if (order.hasSubmittedPayment) return 'View Details';
             return 'Pay Installment';
         }
         if (status === 'approved') {
@@ -897,15 +897,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (latest && latest.paymentStatus === 'REJECTED' && latest.allowResubmit) return 'Resubmit';
             return 'Pay Now';
         }
-        if (status === 'layaway active' && order.hasSubmittedPayment) return 'View';
+        if (status === 'layaway active' && order.hasSubmittedPayment) return 'View Details';
         if (status === 'layaway active') return 'Pay Installment';
-        if (status === 'awaiting payment verification') return 'View';
-        if (status === 'paid' || status === 'ready for meetup') return 'View';
-        if (status === 'in delivery') return 'Track Now';
-        if (status === 'completed') return 'View';
-        if (status === 'pending' || status.indexOf('pending') >= 0) return 'View';
-        if (deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'Track Now';
-        return 'View';
+        if (status === 'awaiting payment verification') return 'View Details';
+        if (status === 'paid' || status === 'ready for meetup') return 'View Details';
+        if (status === 'in delivery') return 'View Details';
+        if (status === 'completed') return 'View Details';
+        if (status === 'pending' || status.indexOf('pending') >= 0) return 'View Details';
+        if (deliveryStatus === 'in_transit' || deliveryStatus === 'delivered') return 'View Details';
+        return 'View Details';
     };
 
     $scope.goToTracking = function (trackingNumber) {

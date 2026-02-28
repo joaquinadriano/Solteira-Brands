@@ -197,7 +197,7 @@
                     <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType !== 'LAYAWAY'" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">{{ (selectedOrderForDetails.latestPaymentForProof && selectedOrderForDetails.latestPaymentForProof.paymentStatus === 'REJECTED' && selectedOrderForDetails.latestPaymentForProof.allowResubmit) ? 'Resubmit' : 'Pay Now' }}</button>
                     <button type="button" class="btn btn-success" ng-if="(selectedOrderForDetails.status === 'Layaway Active' || (selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.remainingBalance > 0 && selectedOrderForDetails.verifiedPaymentsCount >= 1)) && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Installment</button>
                     <button type="button" class="btn btn-success" ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.paymentType === 'LAYAWAY' && !selectedOrderForDetails.hasSubmittedPayment" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Now</button>
-                    <button type="button" class="btn btn-primary" ng-if="selectedOrderForDetails.status === 'In Delivery'" ng-click="goToTracking(selectedOrderForDetails.trackingNumber)">Track Now</button>
+                    <button type="button" class="btn btn-primary" ng-if="selectedOrderForDetails.trackingNumber" ng-click="goToTracking(selectedOrderForDetails.trackingNumber)">Track Now</button>
                 </div>
             </div>
         </div>

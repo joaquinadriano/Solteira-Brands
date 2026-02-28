@@ -1248,16 +1248,14 @@ namespace Solteira_Brands.Controllers
                         CreatedAt = now
                     };
                     db.tbl_payments.Add(payment);
-                    if (orderPaymentType != "LAYAWAY")
+                    // For both FULL and LAYAWAY: set order to Awaiting Payment Verification when payment is submitted
+                    if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.AwaitingPaymentVerification))
                     {
-                        if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.AwaitingPaymentVerification))
-                        {
-                            order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
-                            order.LastStatusUpdateAt = now;
-                        }
-                        if (isMeetup && string.IsNullOrEmpty(order.DeliveryType))
-                            order.DeliveryType = "MEETUP";
+                        order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
+                        order.LastStatusUpdateAt = now;
                     }
+                    if (isMeetup && string.IsNullOrEmpty(order.DeliveryType))
+                        order.DeliveryType = "MEETUP";
                     db.SaveChanges();
                     var msg = isMeetup ? "Meetup scheduled. We will verify and update your order status." : "Payment submitted. We will verify and update your order status.";
                     return Json(new { success = true, message = msg });
