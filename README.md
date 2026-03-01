@@ -11,10 +11,10 @@
 | Feature | Description | Status |
 |----------|-------------|--------|
 | Orders Module | Handles order creation, updates, and retrieval | ✅ Completed |
-| Payment Integration | Payment processing and transaction handling | 🚧 In Progress |
+| Payment Integration | Payment processing and transaction handling | ✅ Completed |
 | Account Creation | User registration logic and validation | ✅ Completed |
 | Account Verification | Email/OTP verification system | 🚧 In Progress |
-| Delivery Module | Delivery status tracking and updates | 🚧 In Progress |
+| Delivery Module | Delivery status tracking and updates | ✅ Completed |
 
 ---
 
@@ -26,7 +26,7 @@
 | Charts & Analytics | Data visualization endpoints | ✅ Completed |
 | Inventory CRUD | Create, Read, Update, Delete inventory items | ✅ Completed |
 | Archive System | Archiving inactive or old records | ✅ Completed |
-| Audit / Action Logs | Tracks system and user activity logs | 🟠 Functioning but incomplete |
+| Audit / Action Logs | Tracks system and user activity logs | ✅ Completed |
 
 ---
 
