@@ -69,7 +69,7 @@
                                 <td><span class="badge" ng-class="getActivityLogRoleClass(log.roleName)" ng-bind="log.roleName"></span></td>
                                 <td class="fw-bold" ng-class="getActivityLogActionClass(log.action)" ng-bind="log.action"></td>
                                 <td>{{log.module}}</td>
-                                <td>{{log.entityId != null ? log.entityId : '—'}}</td>
+                                <td>{{log.entityId != null ? log.entityId : '-'}}</td>
                                 <td>{{log.createdAtString}}</td>
                             </tr>
                             <tr ng-if="activityLogsList.length === 0">

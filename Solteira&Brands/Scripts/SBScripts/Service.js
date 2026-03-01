@@ -102,6 +102,58 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    this.verifyAccount = function (email, otp, requestVerificationToken) {
+        var params = new URLSearchParams();
+        params.append("email", email || "");
+        params.append("otp", otp || "");
+        params.append("__RequestVerificationToken", requestVerificationToken || "");
+        return $http({
+            method: "POST",
+            url: "/Account/VerifyAccount",
+            data: params.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
+    this.forgotPassword = function (email, requestVerificationToken) {
+        var params = new URLSearchParams();
+        params.append("email", email || "");
+        params.append("__RequestVerificationToken", requestVerificationToken || "");
+        return $http({
+            method: "POST",
+            url: "/Account/ForgotPassword",
+            data: params.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
+    this.validatePasswordResetOtp = function (email, otp, requestVerificationToken) {
+        var params = new URLSearchParams();
+        params.append("email", email || "");
+        params.append("otp", otp || "");
+        params.append("__RequestVerificationToken", requestVerificationToken || "");
+        return $http({
+            method: "POST",
+            url: "/Account/ValidatePasswordResetOtp",
+            data: params.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
+    this.resetPassword = function (email, newPassword, confirmPassword, requestVerificationToken) {
+        var params = new URLSearchParams();
+        params.append("email", email || "");
+        params.append("newPassword", newPassword || "");
+        params.append("confirmPassword", confirmPassword || "");
+        params.append("__RequestVerificationToken", requestVerificationToken || "");
+        return $http({
+            method: "POST",
+            url: "/Account/ResetPassword",
+            data: params.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
     this.isEmailAvailable = function (email) {
         return $http({
             method: "GET",

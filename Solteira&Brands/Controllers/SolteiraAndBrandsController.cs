@@ -10,6 +10,7 @@ using System.Web;
 using System.Web.Mvc;
 using System.Web.Script.Serialization;
 using Solteira_Brands.Constants;
+using Solteira_Brands.Helpers;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
 using Solteira_Brands.Security;
@@ -1832,7 +1833,7 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                var order = db.tbl_orders.Include("OrderItems").Include("Payments").FirstOrDefault(o => o.Id == id);
+                var order = db.tbl_orders.Include("OrderItems").Include("Payments").Include("User").FirstOrDefault(o => o.Id == id);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
                 if (order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
                 var current = order.OrderStatus ?? "";
@@ -1872,6 +1873,20 @@ namespace Solteira_Brands.Controllers
                 }
 
                 db.SaveChanges();
+
+                // Notify buyer by email when order is approved (next step: pay).
+                if (string.Equals(order.OrderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase))
+                {
+                    var buyerEmail = order.User?.Email;
+                    if (!string.IsNullOrWhiteSpace(buyerEmail))
+                    {
+                        var orderNum = order.OrderNumber ?? id.ToString();
+                        var subject = "Your order has been approved – next step: payment";
+                        var body = "Hello,\r\n\r\nYour order #" + orderNum + " has been approved. Please proceed to payment at your earliest convenience.\r\n\r\nThank you.";
+                        EmailHelper.SendEmail(buyerEmail.Trim(), subject, body);
+                    }
+                }
+
                 return Json(new { success = true, message = "Order status updated.", orderStatus = order.OrderStatus });
             }
         }
@@ -1892,7 +1907,7 @@ namespace Solteira_Brands.Controllers
             {
                 var adminUser = db.tbl_users.FirstOrDefault(u => u.Username == username);
                 if (adminUser == null) return Json(new { success = false, message = "User not found." });
-                var payment = db.tbl_payments.Include("Order").Include("Order.Payments").FirstOrDefault(p => p.Id == paymentId);
+                var payment = db.tbl_payments.Include("Order").Include("Order.Payments").Include("Order.User").FirstOrDefault(p => p.Id == paymentId);
                 if (payment == null) return Json(new { success = false, message = "Payment not found." });
                 if (payment.Order == null) return Json(new { success = false, message = "Order not found." });
                 if (payment.Order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
@@ -1962,6 +1977,17 @@ namespace Solteira_Brands.Controllers
                         LogActivity(db, "Order status after verification", "Orders", order.Id, "Order status after verification: " + (order.OrderStatus ?? ""));
                         db.SaveChanges();
                         trans.Commit();
+
+                        // Thank-you email to buyer when payment is verified (order completed from payment perspective).
+                        var buyerEmail = payment.Order?.User?.Email;
+                        if (!string.IsNullOrWhiteSpace(buyerEmail))
+                        {
+                            var orderNum = payment.Order.OrderNumber ?? payment.OrderId.ToString();
+                            var subject = "Thank you – your order is complete";
+                            var body = "Hello,\r\n\r\nThank you for your order. Payment for order #" + orderNum + " has been verified. We appreciate your business.\r\n\r\nBest regards.";
+                            EmailHelper.SendEmail(buyerEmail.Trim(), subject, body);
+                        }
+
                         return Json(new { success = true, message = "Payment verified.", orderStatus = order.OrderStatus });
                     }
                     catch
