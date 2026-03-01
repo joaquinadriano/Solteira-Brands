@@ -13,7 +13,7 @@
 | Orders Module | Handles order creation, updates, and retrieval | ✅ Completed |
 | Payment Integration | Payment processing and transaction handling | ✅ Completed |
 | Account Creation | User registration logic and validation | ✅ Completed |
-| Account Verification | Email/OTP verification system | 🚧 In Progress |
+| Account Verification | Email/OTP verification system | ✅ Completed |
 | Delivery Module | Delivery status tracking and updates | ✅ Completed |
 
 ---
