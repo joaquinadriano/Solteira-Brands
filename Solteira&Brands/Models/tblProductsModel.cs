@@ -17,6 +17,7 @@ namespace Solteira_Brands.Models
         public string Weight { get; set; }
         public string Length { get; set; }
         public int StockQuantity { get; set; }
+        public int? InitialStock { get; set; }
         public int? ImageId { get; set; }
         public bool IsBestSeller { get; set; }
         public bool IsFeatured { get; set; }

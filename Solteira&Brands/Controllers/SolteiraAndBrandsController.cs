@@ -278,6 +278,7 @@ namespace Solteira_Brands.Controllers
                                 weight = p.Weight,
                                 length = p.Length,
                                 stockQuantity = p.StockQuantity,
+                                initialStock = p.InitialStock,
                                 imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : null,
                                 isBestSeller = p.IsBestSeller,
                                 isFeatured = p.IsFeatured,
@@ -296,6 +297,7 @@ namespace Solteira_Brands.Controllers
                                 x.weight,
                                 x.length,
                                 x.stockQuantity,
+                                x.initialStock,
                                 sold = soldByProductId.ContainsKey(x.id) ? soldByProductId[x.id] : 0,
                                 x.imageUrl,
                                 x.isBestSeller,
@@ -350,6 +352,7 @@ namespace Solteira_Brands.Controllers
                     Weight = request.Weight,
                     Length = request.Length,
                     StockQuantity = request.StockQuantity,
+                    InitialStock = request.StockQuantity,
                     ImageId = request.ImageId,
                     IsBestSeller = request.IsBestSeller,
                     IsFeatured = request.IsFeatured,
@@ -1710,26 +1713,41 @@ namespace Solteira_Brands.Controllers
                 var ordersInRange = db.tbl_orders.Where(o => !o.IsArchived && o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange).ToList();
                 var orderIdsInRange = ordersInRange.Select(o => o.Id).ToList();
 
-                var totalSales = ordersInRange.Sum(o => o.TotalAmount);
-                var productSold = db.tbl_order_items.Where(oi => orderIdsInRange.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
+                // Only count as "sales" orders that have at least one VERIFIED payment
+                var verifiedSaleOrderIds = db.tbl_payments
+                    .Where(p => p.PaymentStatus == PaymentStatus.Verified)
+                    .Select(p => p.OrderId)
+                    .Distinct()
+                    .Where(id => orderIdsInRange.Contains(id))
+                    .ToList();
+
+                var totalSales = ordersInRange.Where(o => verifiedSaleOrderIds.Contains(o.Id)).Sum(o => o.TotalAmount);
+                var productSold = db.tbl_order_items.Where(oi => verifiedSaleOrderIds.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
                 var pendingOrders = ordersInRange.Count(o => o.OrderStatus == "Pending Approval" || o.OrderStatus == "Pending");
                 var approvedOrders = ordersInRange.Count(o => o.OrderStatus == "Approved");
                 // Count Completed (and legacy Shipped if any) for dashboard Orders card
                 var shippedOrders = ordersInRange.Count(o => o.OrderStatus == "Completed" || o.OrderStatus == "Shipped");
 
-                // Daily sales: one value per day in range
+                // Daily sales: only verified-payment orders, by order date
                 var lineLabels = new List<string>();
                 var lineData = new List<double>();
+                var verifiedOrdersInRange = ordersInRange.Where(o => verifiedSaleOrderIds.Contains(o.Id)).ToList();
                 for (var i = 0; i < daysInRange; i++)
                 {
                     var dayStart = startOfRange.AddDays(i);
                     var dayEnd = dayStart.AddDays(1);
-                    var dayTotal = ordersInRange.Where(o => o.CreatedAt >= dayStart && o.CreatedAt < dayEnd).Sum(o => o.TotalAmount);
+                    var dayTotal = verifiedOrdersInRange.Where(o => o.CreatedAt >= dayStart && o.CreatedAt < dayEnd).Sum(o => o.TotalAmount);
                     lineLabels.Add(dayStart.ToString("M/d"));
                     lineData.Add((double)dayTotal);
                 }
+                // Line chart needs at least 2 points to draw; for "today" (single day) duplicate so the segment is visible
+                if (daysInRange == 1 && lineLabels.Count == 1)
+                {
+                    lineLabels.Add(lineLabels[0]);
+                    lineData.Add(lineData[0]);
+                }
 
-                // Sales by category: only order items from orders in range
+                // Sales by category: only order items from orders with verified payment
                 var categories = new[] { "Ring", "Earring", "Necklace", "Bracelet" };
                 var pieLabels = new List<string>();
                 var pieDataList = new List<double>();
@@ -1737,13 +1755,13 @@ namespace Solteira_Brands.Controllers
                 {
                     var total = (from oi in db.tbl_order_items
                                  join p in db.tbl_products on oi.ProductId equals p.Id
-                                 where p.Category == cat && orderIdsInRange.Contains(oi.OrderId)
+                                 where p.Category == cat && verifiedSaleOrderIds.Contains(oi.OrderId)
                                  select (decimal?)(oi.Quantity * oi.UnitPrice)).Sum() ?? 0;
                     pieLabels.Add(cat);
                     pieDataList.Add((double)total);
                 }
 
-                // Inventory stock: non-archived products with id, name, stockQuantity, imageUrl (status = Low Stock if quantity < 3, computed on frontend)
+                // Inventory stock: non-archived products with id, name, stockQuantity, initialStock, imageUrl (status = Low Stock if quantity < 3, computed on frontend)
                 var inventoryStock = (from p in db.tbl_products
                                      where !p.IsArchived
                                      join img in db.tbl_images on p.ImageId equals img.Id into imgs
@@ -1754,12 +1772,13 @@ namespace Solteira_Brands.Controllers
                                          id = p.Id,
                                          name = p.Name,
                                          stockQuantity = p.StockQuantity,
+                                         initialStock = p.InitialStock,
                                          imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : (string)null
                                      }).ToList();
 
-                // Top selling products: group order_items by ProductId, sum Quantity, then get product details
+                // Top selling products: only from orders with verified payment
                 var topSold = db.tbl_order_items
-                    .Where(oi => oi.ProductId != null)
+                    .Where(oi => oi.ProductId != null && verifiedSaleOrderIds.Contains(oi.OrderId))
                     .GroupBy(oi => oi.ProductId)
                     .Select(g => new { ProductId = g.Key.Value, TotalSold = g.Sum(x => x.Quantity) })
                     .OrderByDescending(x => x.TotalSold)

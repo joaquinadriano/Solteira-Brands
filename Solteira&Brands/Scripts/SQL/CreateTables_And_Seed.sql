@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS tbl_products (
     weight          VARCHAR(50)     NULL,
     length          VARCHAR(50)     NULL,
     stock_quantity  INT             NOT NULL DEFAULT 0,
+    initial_stock   INT             NULL COMMENT 'Original quantity when product was created',
     image_id        INT             NULL,
     is_best_seller  TINYINT(1)      NOT NULL DEFAULT 0,
     is_featured     TINYINT(1)      NOT NULL DEFAULT 0,
@@ -357,6 +358,27 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add is_featured to tbl_products (featured products on storefront)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_products' AND COLUMN_NAME = 'is_featured');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_products ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER is_best_seller;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add initial_stock to tbl_products (original quantity at creation; backfill from stock_quantity)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_products' AND COLUMN_NAME = 'initial_stock');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_products ADD COLUMN initial_stock INT NULL COMMENT ''Original quantity when product was created'' AFTER stock_quantity;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+UPDATE tbl_products SET initial_stock = stock_quantity WHERE initial_stock IS NULL;
+
 -- Add payment_type to tbl_orders (FULL | LAYAWAY | CASH_MEETUP)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_type');
@@ -392,6 +414,16 @@ SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'rejection_reason');
 SET @ddl := IF(@col_exists = 0,
     'ALTER TABLE tbl_orders ADD COLUMN rejection_reason VARCHAR(500) NULL AFTER order_status;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add meetup_datetime to tbl_orders (scheduled meetup from payment or reschedule)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'meetup_datetime');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN meetup_datetime DATETIME NULL COMMENT ''Scheduled meetup (from payment or reschedule)'' AFTER delivery_type;',
     'SELECT 1;');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

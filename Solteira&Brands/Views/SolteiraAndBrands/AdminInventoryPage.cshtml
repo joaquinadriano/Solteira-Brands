@@ -210,7 +210,7 @@
                                 <span ng-if="item.weight">{{item.weight}}</span><span ng-if="item.length">, {{item.length}}</span>
                             </td>
                             <td>&#8369; {{item.price | number:2}}</td>
-                            <td>{{item.stockQuantity}}</td>
+                            <td>{{item.initialStock != null ? (item.stockQuantity + ' / ' + item.initialStock) : item.stockQuantity}}</td>
                             <td>{{item.sold != null ? item.sold : 0}}</td>
                             <td>{{item.createdAtString}}</td>
                             <td>{{item.updatedAtString}}</td>
@@ -272,7 +272,7 @@
                                 <p class="product-view-detail-row"><strong>Product ID:</strong> {{viewPhotoItem.id}}</p>
                                 <p class="product-view-detail-row"><strong>Category:</strong> {{viewPhotoItem.category}}</p>
                                 <p class="product-view-detail-row"><strong>Selling Price:</strong> {{formatProductPrice(viewPhotoItem.price)}}</p>
-                                <p class="product-view-detail-row"><strong>Stock Left:</strong> {{viewPhotoItem.stockQuantity}}</p>
+                                <p class="product-view-detail-row"><strong>Stock Left:</strong> {{viewPhotoItem.initialStock != null ? (viewPhotoItem.stockQuantity + ' / ' + viewPhotoItem.initialStock) : viewPhotoItem.stockQuantity}}</p>
                                 <p class="product-view-detail-row"><strong>Sold:</strong> {{viewPhotoItem.sold != null ? viewPhotoItem.sold : 0}}</p>
                                 <p class="product-view-detail-row"><strong>Date Added:</strong> {{viewPhotoItem.createdAtString}}</p>
                                 <p class="product-view-detail-row"><strong>Date Updated:</strong> {{viewPhotoItem.updatedAtString}}</p>

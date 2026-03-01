@@ -1547,6 +1547,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.lineOptions = {
         responsive: true,
         maintainAspectRatio: true,
+        aspectRatio: 2,
         scales: {
             yAxes: [{
                 id: 'y-axis-1',
@@ -1577,8 +1578,49 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             'rgba(255, 159, 64, 0.85)',   // orange - Necklace
             'rgba(255, 99, 132, 0.85)'    // red - Bracelet
         ];
+        // Ensure datalabels plugin shows on pie/doughnut (angular-chart may not pass plugins through)
+        Chart.defaults.global.plugins = Chart.defaults.global.plugins || {};
+        Chart.defaults.global.plugins.datalabels = Chart.defaults.global.plugins.datalabels || {};
+        Chart.defaults.global.plugins.datalabels.display = function (context) {
+            var value = context.dataset && context.dataset.data && context.dataset.data[context.dataIndex];
+            return value != null && Number(value) > 0;
+        };
+        Chart.defaults.global.plugins.datalabels.color = '#fff';
+        Chart.defaults.global.plugins.datalabels.font = { size: 13, weight: 'bold' };
+        Chart.defaults.global.plugins.datalabels.formatter = function (value, ctx) {
+            var data = ctx.dataset && ctx.dataset.data;
+            if (!data || data.length === 0) return value;
+            var total = data.reduce(function (a, b) { return a + b; }, 0);
+            var pct = total === 0 ? 0 : Math.round((value / total) * 100);
+            var numStr = typeof value === 'number' && value % 1 !== 0 ? value.toFixed(2) : String(value);
+            return pct + '%\n(' + numStr + ')';
+        };
     }
-    $scope.pieOptions = { responsive: true, maintainAspectRatio: true, legend: { display: true } };
+    $scope.pieOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        legend: { display: true },
+        tooltips: { enabled: true },
+        plugins: {
+            datalabels: {
+                display: function (context) {
+                    var value = context.dataset && context.dataset.data && context.dataset.data[context.dataIndex];
+                    return value != null && Number(value) > 0;
+                },
+                color: '#fff',
+                font: { size: 13, weight: 'bold' },
+                formatter: function (value, ctx) {
+                    var data = ctx.dataset && ctx.dataset.data;
+                    if (!data || data.length === 0) return value;
+                    var total = data.reduce(function (a, b) { return a + b; }, 0);
+                    var pct = total === 0 ? 0 : Math.round((value / total) * 100);
+                    var numStr = typeof value === 'number' && value % 1 !== 0 ? value.toFixed(2) : String(value);
+                    return pct + '%\n(' + numStr + ')';
+                }
+            }
+        }
+    };
 
     // Dashboard stats (cards)
     $scope.dashboardStats = {
@@ -1608,8 +1650,15 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     shippedOrders: stats.shippedOrders || 0
                 };
                 var daily = res.data.dailySales || {};
-                $scope.lineLabels = daily.labels || [];
-                $scope.lineData = [(daily.data || [])];
+                var labels = daily.labels || [];
+                var data = daily.data || [];
+                // Line chart needs at least 2 points to draw; duplicate single point so "Today" and single-day ranges show
+                if (labels.length === 1 && data.length === 1) {
+                    labels = [labels[0], labels[0]];
+                    data = [data[0], data[0]];
+                }
+                $scope.lineLabels = labels;
+                $scope.lineData = [data];
                 var byCat = res.data.salesByCategory || {};
                 $scope.pieLabels = byCat.labels || [];
                 $scope.pieData = byCat.data || [];

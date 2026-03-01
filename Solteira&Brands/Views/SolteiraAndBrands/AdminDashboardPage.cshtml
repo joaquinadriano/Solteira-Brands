@@ -67,7 +67,7 @@
             <div class="col-6">
                 <p class="fw-bold text-center h4">Total Sales (Daily Breakdown)</p>
                 @*----------Line Chart----------*@
-                <div class="chart-container">
+                <div class="chart-container chart-container--line">
                     <canvas id="line" class="chart chart-line" chart-data="lineData"
                             chart-labels="lineLabels" chart-series="series" chart-options="lineOptions"
                             chart-dataset-override="datasetOverride" chart-colors="lineChartColors" chart-click="onClick">
@@ -77,7 +77,7 @@
             <div class="col-6">
                 <p class="fw-bold text-center h4">Sales by Category</p>
                 @*----------Pie Chart----------*@
-                <div class="chart-container" style="min-height: 300px;">
+                <div class="chart-container chart-container--pie">
                     <canvas id="pie" class="chart chart-pie" ng-if="pieLabels.length && pieData.length"
                             chart-data="pieData" chart-labels="pieLabels" chart-options="pieOptions">
                     </canvas>
@@ -110,7 +110,7 @@
                             </td>
                             <td>P-{{item.id | numberPad:3}}</td>
                             <td>{{item.name}}</td>
-                            <td>{{item.stockQuantity}}</td>
+                            <td>{{item.initialStock != null ? (item.stockQuantity + ' / ' + item.initialStock) : item.stockQuantity}}</td>
                             <td>{{getStockStatus(item.stockQuantity)}}</td>
                         </tr>
                         <tr ng-if="dashboardInventoryStock.length === 0">

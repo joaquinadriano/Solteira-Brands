@@ -19,6 +19,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.Weight).HasColumnName("weight").HasMaxLength(50);
             Property(x => x.Length).HasColumnName("length").HasMaxLength(50);
             Property(x => x.StockQuantity).HasColumnName("stock_quantity");
+            Property(x => x.InitialStock).HasColumnName("initial_stock");
             Property(x => x.ImageId).HasColumnName("image_id");
             Property(x => x.IsBestSeller).HasColumnName("is_best_seller");
             Property(x => x.IsFeatured).HasColumnName("is_featured");
