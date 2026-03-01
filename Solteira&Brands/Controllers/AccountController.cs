@@ -1,10 +1,16 @@
 using System;
+using System.Configuration;
 using System.Data.Entity;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Security;
+using Solteira_Brands.Helpers;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
 using Solteira_Brands.Security;
@@ -40,6 +46,31 @@ namespace Solteira_Brands.Controllers
             Response.Cookies.Set(cookie);
         }
 
+        private const string TokenTypeEmailVerification = "EmailVerification";
+        private const string TokenTypePasswordReset = "PasswordReset";
+        private const string SessionPasswordResetEmail = "PasswordResetEmail";
+        private const string SessionPasswordResetExpiry = "PasswordResetExpiry";
+
+        /// <summary>
+        /// Generate a cryptographically random 6-digit OTP and its SHA256 hash for storage.
+        /// </summary>
+        private static (string otpPlain, string otpHash) GenerateOtp()
+        {
+            var bytes = new byte[4];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(bytes);
+            }
+            int value = Math.Abs(BitConverter.ToInt32(bytes, 0)) % 1000000;
+            string otpPlain = value.ToString("D6");
+            using (var sha = SHA256.Create())
+            {
+                var hashBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(otpPlain));
+                string otpHash = Convert.ToBase64String(hashBytes);
+                return (otpPlain, otpHash);
+            }
+        }
+
         /// <summary>
         /// POST: Validate username/password, create Forms auth cookie with role, return redirect URL.
         /// </summary>
@@ -72,9 +103,14 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid username or password." });
                 }
 
+                var roleName = user.Role?.Name ?? "BUYER";
+                if (roleName == "BUYER" && !user.IsVerified)
+                {
+                    return Json(new { success = false, message = "Please verify your email before signing in. Check your inbox for the 6-digit OTP." });
+                }
+
                 IssueAuthCookie(user);
 
-                var roleName = user.Role?.Name ?? "BUYER";
                 var redirectUrl = (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
                     ? Url.Action("AdminDashboardPage", "SolteiraAndBrands")
                     : Url.Action("SolteiraBrandsHome", "SolteiraAndBrands");
@@ -270,6 +306,7 @@ namespace Solteira_Brands.Controllers
                 errors["password"] = passwordError;
             }
 
+            bool emailSent = false;
             using (var db = new SolteiraBrandsContext())
             {
                 if (db.tbl_users.Any(u => u.Email == email))
@@ -308,9 +345,220 @@ namespace Solteira_Brands.Controllers
 
                 db.tbl_users.Add(user);
                 db.SaveChanges();
+
+                var (otpPlain, otpHash) = GenerateOtp();
+                var expiresAt = DateTime.UtcNow.AddMinutes(15);
+                var token = new tblVerificationTokenModel
+                {
+                    UserId = user.Id,
+                    TokenValue = otpHash,
+                    TokenType = TokenTypeEmailVerification,
+                    ExpiresAt = expiresAt,
+                    IsUsed = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.tbl_verification_tokens.Add(token);
+                db.SaveChanges();
+
+                emailSent = EmailHelper.SendEmail(
+                    user.Email,
+                    "Verify your Solteira & Brands account",
+                    "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 15 minutes. If you did not create an account, please ignore this email.");
             }
 
-            return Json(new { success = true, message = "Account created. You can now log in." });
+            return Json(new
+            {
+                success = true,
+                requireVerification = true,
+                emailSent,
+                message = emailSent
+                    ? "Account created. Check your email for a 6-digit verification code to activate your account."
+                    : "Account created but we could not send the verification email. Please check your email address, check spam, or try again later.",
+                email = email.Trim()
+            });
+        }
+
+        /// <summary>
+        /// POST: Verify email OTP for account activation. Accepts email and otp; validates token, marks it used, sets user.IsVerified = true.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult VerifyAccount(string email, string otp)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { success = false, message = "Email is required." });
+            if (string.IsNullOrWhiteSpace(otp) || otp.Trim().Length != 6)
+                return Json(new { success = false, message = "Please enter the 6-digit code from your email." });
+
+            var emailTrim = email.Trim();
+            var otpTrim = otp.Trim();
+            string otpHash;
+            using (var sha = SHA256.Create())
+            {
+                otpHash = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(otpTrim)));
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim);
+                if (user == null)
+                    return Json(new { success = false, message = "Invalid or expired code. Please request a new one." });
+
+                var token = db.tbl_verification_tokens
+                    .Where(t => t.UserId == user.Id && t.TokenType == TokenTypeEmailVerification && !t.IsUsed && t.ExpiresAt > nowUtc)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefault();
+                if (token == null || token.TokenValue != otpHash)
+                    return Json(new { success = false, message = "Invalid or expired code. Please check the code or request a new one." });
+
+                token.IsUsed = true;
+                user.IsVerified = true;
+                db.SaveChanges();
+            }
+
+            return Json(new { success = true, message = "Email verified. You can now sign in." });
+        }
+
+        /// <summary>
+        /// POST: Forgot password - send OTP to email. Finds user by email, generates 6-digit OTP, stores token (PasswordReset), emails OTP.
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public ActionResult ForgotPassword(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { success = false, message = "Email is required." });
+            var emailTrim = email.Trim();
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
+                if (user == null)
+                    return Json(new { success = false, message = "No account found with that email address." });
+
+                var (otpPlain, otpHash) = GenerateOtp();
+                var nowUtc = DateTime.UtcNow;
+                var expiresAt = nowUtc.AddMinutes(15);
+                var token = new tblVerificationTokenModel
+                {
+                    UserId = user.Id,
+                    TokenValue = otpHash,
+                    TokenType = TokenTypePasswordReset,
+                    ExpiresAt = expiresAt,
+                    IsUsed = false,
+                    CreatedAt = nowUtc
+                };
+                db.tbl_verification_tokens.Add(token);
+                db.SaveChanges();
+
+                var emailSent = EmailHelper.SendEmail(
+                    user.Email,
+                    "Reset your Solteira & Brands password",
+                    "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 15 minutes. If you did not request a password reset, please ignore this email.");
+                if (!emailSent)
+                    return Json(new { success = false, message = "We could not send the email. Please try again later." });
+            }
+            return Json(new { success = true, message = "Check your email for the verification code.", email = emailTrim });
+        }
+
+        /// <summary>
+        /// POST: Validate OTP for password reset. On success, stores email in session so ResetPassword can be called.
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public ActionResult ValidatePasswordResetOtp(string email, string otp)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { success = false, message = "Email is required." });
+            if (string.IsNullOrWhiteSpace(otp) || otp.Trim().Length != 6)
+                return Json(new { success = false, message = "Please enter the 6-digit code from your email." });
+
+            var emailTrim = email.Trim();
+            var otpTrim = otp.Trim();
+            string otpHash;
+            using (var sha = SHA256.Create())
+            {
+                otpHash = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(otpTrim)));
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
+                if (user == null)
+                    return Json(new { success = false, message = "Invalid or expired code." });
+
+                var token = db.tbl_verification_tokens
+                    .Where(t => t.UserId == user.Id && t.TokenType == TokenTypePasswordReset && !t.IsUsed && t.ExpiresAt > nowUtc)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefault();
+                if (token == null || token.TokenValue != otpHash)
+                    return Json(new { success = false, message = "Invalid or expired code. Please try again." });
+            }
+
+            if (Session != null)
+            {
+                Session[SessionPasswordResetEmail] = emailTrim;
+                Session[SessionPasswordResetExpiry] = nowUtc.AddMinutes(10);
+            }
+            return Json(new { success = true, message = "Code verified. You can now set a new password.", email = emailTrim });
+        }
+
+        /// <summary>
+        /// POST: Set new password after OTP validation. Requires session set by ValidatePasswordResetOtp. Updates password, marks token used.
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public ActionResult ResetPassword(string email, string newPassword, string confirmPassword)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { success = false, message = "Email is required." });
+            if (string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
+                return Json(new { success = false, message = "Password and confirmation are required." });
+            if (newPassword != confirmPassword)
+                return Json(new { success = false, message = "Passwords do not match." });
+            if (!PasswordValidation.IsValid(newPassword, out string passwordError))
+                return Json(new { success = false, message = passwordError });
+
+            var emailTrim = email.Trim();
+            if (Session == null || Session[SessionPasswordResetEmail] as string != emailTrim)
+                return Json(new { success = false, message = "Session expired. Please request a new code from the Forgot Password page." });
+            var expiry = Session[SessionPasswordResetExpiry] as DateTime?;
+            if (expiry == null || DateTime.UtcNow > expiry.Value)
+            {
+                if (Session != null) { Session.Remove(SessionPasswordResetEmail); Session.Remove(SessionPasswordResetExpiry); }
+                return Json(new { success = false, message = "Session expired. Please request a new code from the Forgot Password page." });
+            }
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
+                if (user == null)
+                {
+                    Session.Remove(SessionPasswordResetEmail);
+                    Session.Remove(SessionPasswordResetExpiry);
+                    return Json(new { success = false, message = "Account not found." });
+                }
+                var token = db.tbl_verification_tokens
+                    .Where(t => t.UserId == user.Id && t.TokenType == TokenTypePasswordReset && !t.IsUsed)
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefault();
+                if (token != null)
+                    token.IsUsed = true;
+                var (hashBase64, saltBase64) = PasswordHasher.HashPassword(newPassword);
+                user.PasswordHash = hashBase64;
+                user.PasswordSalt = saltBase64;
+                db.SaveChanges();
+            }
+            if (Session != null)
+            {
+                Session.Remove(SessionPasswordResetEmail);
+                Session.Remove(SessionPasswordResetExpiry);
+            }
+            return Json(new { success = true, message = "Password updated. You can now sign in." });
         }
 
         /// <summary>

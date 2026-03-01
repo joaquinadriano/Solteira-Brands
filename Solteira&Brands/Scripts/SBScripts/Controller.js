@@ -219,6 +219,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (mode) {
             $scope.currentMode = mode;
         }
+        const emailParam = urlParams.get('email');
+        if (emailParam) {
+            $scope.verificationEmail = decodeURIComponent(emailParam);
+        }
     };
 
     $scope.init();
@@ -255,7 +259,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     function validateUsernameFormat(u) {
         if (!u) return "Username is required.";
-        if (u.length < 5 || u.length > 20) return "Username must be 5–20 characters.";
+        if (u.length < 5 || u.length > 20) return "Username must be 5-20 characters.";
         if (!/^[A-Za-z0-9_]+$/.test(u)) return "Use letters, numbers, and underscore only.";
         return "";
     }
@@ -347,6 +351,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var token = tokenEl ? tokenEl.value : '';
         SolteiraBrandsService.register($scope.registerData, token).then(function (r) {
             if (r.data && r.data.success) {
+                if (r.data.requireVerification && r.data.email) {
+                    if (r.data.emailSent === false) {
+                        Swal.fire({ icon: 'warning', title: 'Check your email', text: r.data.message || 'We could not send the verification email. Check spam or try again later.' }).then(function () {
+                            window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?email=' + encodeURIComponent(r.data.email);
+                        });
+                    } else {
+                        window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?email=' + encodeURIComponent(r.data.email);
+                    }
+                    return;
+                }
                 Swal.fire({ icon: 'success', title: 'Account created', text: r.data.message || 'You can now log in.' }).then(function () {
                     window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
                 });
@@ -455,8 +469,100 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
     });
 
+    $scope.forgotPasswordSubmitting = false;
+    $scope.forgotPasswordError = '';
+
+    $scope.submitForgotPassword = function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        $scope.forgotPasswordError = '';
+        var email = ($scope.userEmail || '').trim();
+        if (!email) {
+            $scope.forgotPasswordError = 'Email is required.';
+            return;
+        }
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        $scope.forgotPasswordSubmitting = true;
+        SolteiraBrandsService.forgotPassword(email, token).then(function (r) {
+            $scope.forgotPasswordSubmitting = false;
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: 'Check your email', text: r.data.message || 'We sent you a verification code.' }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?mode=forgot&email=' + encodeURIComponent(r.data.email || email);
+                });
+            } else {
+                $scope.forgotPasswordError = (r.data && r.data.message) || 'Something went wrong. Please try again.';
+            }
+        }, function (err) {
+            $scope.forgotPasswordSubmitting = false;
+            $scope.forgotPasswordError = (err.data && err.data.message) || 'Request failed. Please try again.';
+        });
+    };
+
     $scope.sendOTP = function () {
-        window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?mode=forgot&email=' + $scope.userEmail;
+        window.location.href = '/SolteiraAndBrands/SolteiraBrandsOTP?mode=forgot&email=' + encodeURIComponent($scope.userEmail || '');
+    };
+
+    $scope.otpValue = '';
+    $scope.otpVerifying = false;
+    $scope.otpError = '';
+
+    $scope.submitOtp = function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        $scope.otpError = '';
+        if ($scope.currentMode === 'forgot') {
+            var email = $scope.verificationEmail || '';
+            var otp = ($scope.otpValue || '').trim();
+            if (!email) {
+                $scope.otpError = 'Session missing. Please request a new code from the Forgot Password page.';
+                return;
+            }
+            if (otp.length !== 6) {
+                $scope.otpError = 'Please enter the 6-digit code from your email.';
+                return;
+            }
+            var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+            var token = tokenEl ? tokenEl.value : '';
+            $scope.otpVerifying = true;
+            SolteiraBrandsService.validatePasswordResetOtp(email, otp, token).then(function (r) {
+                $scope.otpVerifying = false;
+                if (r.data && r.data.success) {
+                    Swal.fire({ icon: 'success', title: 'Code verified', text: r.data.message || 'Set your new password.' }).then(function () {
+                        window.location.href = '/SolteiraAndBrands/SolteiraBrandsNewPassword?email=' + encodeURIComponent(r.data.email || email);
+                    });
+                } else {
+                    $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+                }
+            }, function (err) {
+                $scope.otpVerifying = false;
+                $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+            });
+            return;
+        }
+        if (!$scope.verificationEmail) {
+            $scope.otpError = 'Session missing. Please register again.';
+            return;
+        }
+        var otp = ($scope.otpValue || '').trim();
+        if (otp.length !== 6) {
+            $scope.otpError = 'Please enter the 6-digit code from your email.';
+            return;
+        }
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        $scope.otpVerifying = true;
+        SolteiraBrandsService.verifyAccount($scope.verificationEmail, otp, token).then(function (r) {
+            $scope.otpVerifying = false;
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: 'Email verified', text: r.data.message || 'You can now sign in.' }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                });
+            } else {
+                $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+            }
+        }, function (err) {
+            $scope.otpVerifying = false;
+            $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+        });
     };
 
     $scope.handleOTPSuccess = function () {
@@ -465,6 +571,45 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         } else {
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
         }
+    };
+
+    $scope.resetPasswordSubmitting = false;
+    $scope.resetPasswordError = '';
+
+    $scope.submitResetPassword = function (ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        $scope.resetPasswordError = '';
+        var email = $scope.verificationEmail || '';
+        var p = ($scope.registerData && $scope.registerData.password) || '';
+        var v = ($scope.registerData && $scope.registerData.verifyPassword) || '';
+        if (!email) {
+            $scope.resetPasswordError = 'Session missing. Please start again from Forgot Password.';
+            return;
+        }
+        if (!p || p.length < 8) {
+            $scope.resetPasswordError = 'Password must be at least 8 characters with upper, lower, number, and special character.';
+            return;
+        }
+        if (p !== v) {
+            $scope.resetPasswordError = 'Passwords do not match.';
+            return;
+        }
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        $scope.resetPasswordSubmitting = true;
+        SolteiraBrandsService.resetPassword(email, p, v, token).then(function (r) {
+            $scope.resetPasswordSubmitting = false;
+            if (r.data && r.data.success) {
+                Swal.fire({ icon: 'success', title: 'Password updated', text: r.data.message || 'You can now sign in.' }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                });
+            } else {
+                $scope.resetPasswordError = (r.data && r.data.message) || 'Failed to update password. Please try again.';
+            }
+        }, function (err) {
+            $scope.resetPasswordSubmitting = false;
+            $scope.resetPasswordError = (err.data && err.data.message) || 'Request failed. Please try again.';
+        });
     };
 
     // Only BUYERs should have a persisted cart. Anonymous or non-buyer roles see an empty cart.
@@ -832,7 +977,6 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 $scope.orders = [];
             }
             $scope.checkOpenOrderDetailsFromQuery();
-            $timeout(function () { $scope.initMyOrdersDataTable(); }, 150);
         }, function () {
             $scope.orders = [];
         });
@@ -882,7 +1026,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (statusLower === 'pending payment') return 'Pending Payment';
         if (statusLower === 'pending downpayment') return 'Pending Downpayment';
         if (statusLower === 'layaway active') return 'Layaway Active';
-        if (statusLower === 'paid') return 'Paid – Waiting for Shipment';
+        if (statusLower === 'paid') return 'Paid - Waiting for Shipment';
         if (statusLower === 'ready for meetup') return 'Ready for Meetup';
         if (statusLower === 'no show') return 'No Show';
         if (statusLower === 'meetup rescheduled') return 'Meetup Rescheduled';
@@ -906,7 +1050,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (s === 'Pending Approval' || s === 'Pending Payment' || s === 'Pending Downpayment' || s === 'Approved') return 'order-status-gray';
         if (s === 'Awaiting Verification') return 'order-status-yellow';
         if (s === 'Layaway Active') return 'order-status-blue';
-        if (s === 'Paid – Waiting for Shipment' || s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'In Delivery' || s === 'Completed') return 'order-status-green';
+        if (s === 'Paid - Waiting for Shipment' || s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'In Delivery' || s === 'Completed') return 'order-status-green';
         if (s === 'No Show') return 'order-status-yellow';
         if (s === 'Order Rejected' || s === 'Cancelled') return 'order-status-muted';
         return 'order-status-gray';
@@ -921,7 +1065,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (displayStatus === 'Awaiting Payment Verification') return 'View Details';
         if (displayStatus === 'Pending Payment') return 'Pay Now';
         if (displayStatus === 'Pending Downpayment') return 'Pay Downpayment';
-        if (displayStatus === 'Paid – Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled') return 'View Details';
+        if (displayStatus === 'Paid - Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled') return 'View Details';
         if (displayStatus === 'Layaway Active') return 'Pay Installment';
         if (displayStatus === 'Approved') return (order.paymentType || order.PaymentType || '').toUpperCase() === 'LAYAWAY' ? 'Pay Downpayment' : 'Pay Now';
         return 'View Details';

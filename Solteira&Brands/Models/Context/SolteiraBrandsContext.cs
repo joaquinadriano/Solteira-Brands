@@ -26,6 +26,7 @@ namespace Solteira_Brands.Models.Context
         public virtual DbSet<tblMeetupSettingsModel> tbl_meetup_settings { get; set; }
         public virtual DbSet<tblLayawaySettingsModel> tbl_layaway_settings { get; set; }
         public virtual DbSet<tblMeetupOutcomeModel> tbl_meetup_outcomes { get; set; }
+        public virtual DbSet<tblVerificationTokenModel> tbl_verification_tokens { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -43,6 +44,7 @@ namespace Solteira_Brands.Models.Context
             modelBuilder.Configurations.Add(new tblMeetupSettingsMap());
             modelBuilder.Configurations.Add(new tblLayawaySettingsMap());
             modelBuilder.Configurations.Add(new tblMeetupOutcomeMap());
+            modelBuilder.Configurations.Add(new tblVerificationTokenMap());
         }
     }
 }

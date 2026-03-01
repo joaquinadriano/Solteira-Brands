@@ -34,7 +34,7 @@
                             <td>{{o.deliveryAddress}}</td>
                             <td>&#8369; {{o.totalAmount | number:2}}</td>
                             <td><span class="badge bg-secondary">{{o.orderStatus}}</span></td>
-                            <td>{{o.scheduledAtFormatted || '—'}}</td>
+                            <td>{{o.scheduledAtFormatted || '-'}}</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-success me-1" ng-click="completeMeetupWithReceipt(o.id)" ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">Mark Completed (upload receipt)</button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')" ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">Mark No Show</button>
@@ -162,7 +162,7 @@
                 </div>
             </div>
         </div>
-        @* Modal: Reschedule meetup (same date/time format as buyer: 10:00 AM – 5:00 PM) *@
+        @* Modal: Reschedule meetup (same date/time format as buyer: 10:00 AM - 5:00 PM) *@
         <div class="modal fade" id="rescheduleMeetupModal" tabindex="-1" data-bs-backdrop="static">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content delivery-form-box">
@@ -175,7 +175,7 @@
                         <input type="date" class="form-control form-control-sm mb-2" ng-model="rescheduleDate" min="{{getMinMeetupDateReschedule()}}" ng-change="onRescheduleDateChange()" />
                         <label class="form-label">Time</label>
                         <select class="form-select form-select-sm" ng-model="rescheduleTime" ng-options="t for t in rescheduleTimeOptions"></select>
-                        <small class="text-muted">Business hours 10:00 AM – 5:00 PM.</small>
+                        <small class="text-muted">Business hours 10:00 AM - 5:00 PM.</small>
                         <div class="d-flex justify-content-end gap-2 mt-3">
                             <button type="button" class="delivery-btn-cancel" ng-click="closeRescheduleModal()">Cancel</button>
                             <button type="button" class="delivery-btn-add" ng-click="confirmReschedule()">Reschedule</button>

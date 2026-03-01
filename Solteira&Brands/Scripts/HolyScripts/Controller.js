@@ -757,13 +757,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (s === 'OVERDUE') return 'bg-danger';
         return 'bg-secondary';
     };
-    /** Payment status display text only (for payment tables/proof). SUBMITTED → Awaiting Verification, VERIFIED → Verified, REJECTED → Rejected – Please Resubmit. */
+    /** Payment status display text only (for payment tables/proof). SUBMITTED → Awaiting Verification, VERIFIED → Verified, REJECTED → Rejected - Please Resubmit. */
     $scope.getPaymentStatusDisplayText = function (status) {
         if (!status) return '-';
         var s = (status + '').toUpperCase();
         if (s === 'SUBMITTED') return 'Awaiting Verification';
         if (s === 'VERIFIED') return 'Verified';
-        if (s === 'REJECTED') return 'Rejected – Please Resubmit';
+        if (s === 'REJECTED') return 'Rejected - Please Resubmit';
         return status;
     };
     /** Order status display: use order.status from DB directly. Map only for consistent labels. */
@@ -771,7 +771,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!orderStatus) return '-';
         var s = (orderStatus + '').trim();
         if (s === 'Rejected') return 'Order Rejected';
-        if (s === 'Paid') return 'Paid – Waiting for Shipment';
+        if (s === 'Paid') return 'Paid - Waiting for Shipment';
         if (s === 'Awaiting Payment Verification') return 'Awaiting Payment Verification';
         if (s === 'Pending Approval') return 'Pending Approval';
         if (s === 'Pending Payment') return 'Pending Payment';
@@ -930,11 +930,11 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var pct = parseFloat($scope.paymentSettingsForm.downpaymentPercentage, 10);
         var months = parseInt($scope.paymentSettingsForm.monthsAllowed, 10);
         if (isNaN(pct) || pct < 1 || pct > 100) {
-            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Downpayment % must be 1–100.' });
+            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Downpayment % must be 1-100.' });
             return;
         }
         if (isNaN(months) || months < 1 || months > 24) {
-            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Months allowed must be 1–24.' });
+            Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Months allowed must be 1-24.' });
             return;
         }
         SolteiraAndBrandsService.updateLayawaySettings(pct, months).then(function (res) {

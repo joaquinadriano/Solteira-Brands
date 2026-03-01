@@ -147,6 +147,7 @@
     <Compile Include="Constants\OrderStatus.cs" />
     <Compile Include="Constants\PaymentStatus.cs" />
     <Compile Include="Constants\DeliveryStatus.cs" />
+    <Compile Include="Helpers\EmailHelper.cs" />
     <Compile Include="Services\OrderLifecycleRules.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
@@ -165,6 +166,7 @@
     <Compile Include="Models\Maps\tblMeetupSettingsMap.cs" />
     <Compile Include="Models\Maps\tblPaymentSettingsMap.cs" />
     <Compile Include="Models\Maps\tblMeetupOutcomeMap.cs" />
+    <Compile Include="Models\Maps\tblVerificationTokenMap.cs" />
     <Compile Include="Models\CreateOrderRequest.cs" />
     <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\SubmitPaymentRequest.cs" />
@@ -179,6 +181,7 @@
     <Compile Include="Models\tblActivityLogModel.cs" />
     <Compile Include="Models\tblLayawaySettingsModel.cs" />
     <Compile Include="Models\tblMeetupOutcomeModel.cs" />
+    <Compile Include="Models\tblVerificationTokenModel.cs" />
     <Compile Include="Models\tblMeetupSettingsModel.cs" />
     <Compile Include="Models\tblPaymentSettingsModel.cs" />
     <Compile Include="Security\BuyerAuthorizeAttribute.cs" />

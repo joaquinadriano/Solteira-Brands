@@ -24,8 +24,145 @@ body {
 }
 
 .my-orders-container {
-    width: 80%;
-    max-width: 45vw;
+    width: 100%;
+    max-width: 1200px;
+}
+
+/* Card layout - reference design: white card, soft shadow, green accents */
+.my-orders-main-wrapper {
+    background-color: #f8f6f1;
+    min-height: 60vh;
+    padding-bottom: 2rem;
+}
+.my-orders-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: none;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+.my-orders-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.my-orders-card-header-left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.my-orders-card-order-label {
+    font-size: 1rem;
+    color: #1a1a1a;
+    margin-right: 0.35rem;
+}
+.my-orders-card-status {
+    font-weight: 600;
+    color: #87AE73;
+    font-size: 1rem;
+}
+.my-orders-card-payment-type {
+    font-size: 0.875rem;
+}
+.my-orders-card-header-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    text-align: right;
+}
+.my-orders-card-delivery-label {
+    font-size: 0.95rem;
+    color: #1a1a1a;
+    margin-right: 0.35rem;
+}
+.my-orders-card-track-link {
+    color: #87AE73;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+.my-orders-card-track-link:hover {
+    color: #5a7a4a;
+    text-decoration: underline;
+}
+.my-orders-card-body {
+    padding: 1.25rem 1.5rem;
+}
+.my-orders-card-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.my-orders-card-item:last-child {
+    border-bottom: none;
+}
+.my-orders-card-item-img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.my-orders-card-item-details {
+    flex: 1;
+    min-width: 0;
+}
+.my-orders-card-item-name {
+    font-weight: bold;
+    color: #1a1a1a;
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+.my-orders-card-item-specs {
+    color: #737373;
+    font-size: 0.875rem;
+}
+.my-orders-card-item-price {
+    font-weight: bold;
+    color: #1a1a1a;
+    font-size: 1rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.my-orders-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid #f0f0f0;
+    background: rgba(248,246,241,0.4);
+}
+.my-orders-card-total-label {
+    font-size: 1rem;
+    color: #1a1a1a;
+}
+.my-orders-card-total-value {
+    font-weight: bold;
+    color: #87AE73;
+    font-size: 1.1rem;
+}
+.my-orders-card-action {
+    background: transparent;
+    color: #87AE73;
+    border: none;
+    padding: 0.35rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.my-orders-card-action:hover {
+    color: #5a7a4a;
+    text-decoration: underline;
 }
 
 .my-orders-container .search-container {

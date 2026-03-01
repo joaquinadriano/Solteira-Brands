@@ -154,7 +154,7 @@
                 </div>
             </div>
             <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3">
-                <label class="section-label">30% Down Payment - Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
+                <label class="section-label">30% Down Payment &#45; Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
                 <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
                 <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
                 <label class="section-label">Proof of 30% Down Payment <span class="text-danger">*</span></label>
@@ -205,7 +205,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" ng-if="paymentOrder.latestPaymentForProof">
-                    <p class="mb-2"><strong>Status:</strong> <span ng-class="{'text-warning': paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED'}">{{paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED' ? 'Awaiting Verification' : (paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' ? 'Rejected – Please Resubmit' : (paymentOrder.latestPaymentForProof.paymentStatus === 'VERIFIED' ? 'Verified' : 'Awaiting Verification'))}}</span></p>
+                    <p class="mb-2"><strong>Status:</strong> <span ng-class="{'text-warning': paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED'}">{{paymentOrder.latestPaymentForProof.paymentStatus === 'SUBMITTED' ? 'Awaiting Verification' : (paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' ? 'Rejected - Please Resubmit' : (paymentOrder.latestPaymentForProof.paymentStatus === 'VERIFIED' ? 'Verified' : 'Awaiting Verification'))}}</span></p>
                     <p class="mb-2"><strong>Amount:</strong> &#8369; {{paymentOrder.latestPaymentForProof.amount | number:2}}</p>
                     <p class="mb-2"><strong>Date submitted:</strong> {{paymentOrder.latestPaymentForProof.createdAt}}</p>
                     <p class="mb-2" ng-if="paymentOrder.latestPaymentForProof.referenceNumber"><strong>Reference number:</strong> {{paymentOrder.latestPaymentForProof.referenceNumber}}</p>
