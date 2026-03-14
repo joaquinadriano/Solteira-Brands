@@ -42,7 +42,10 @@
                                id="email" name="email"
                                ng-model="registerData.email"
                                ng-blur="onEmailBlur(registerForm)"
-                               placeholder="name@example.com" required />
+                               placeholder="name@example.com"
+                               ng-attr-title="{{registerErrors.email || undefined}}"
+                               required />
+                               <small class="helper-text">Enter a valid email address.</small>
                         <div class="error-text" ng-if="registerErrors.email">{{registerErrors.email}}</div>
                     </div>
 
@@ -57,8 +60,10 @@
                                id="registerUsername" name="username"
                                ng-model="registerData.username"
                                ng-blur="onUsernameBlur(registerForm)"
-                               placeholder="Enter username" required />
-                        <small class="helper-text">Max 14 characters. No spaces.</small>
+                               placeholder="Enter username"
+                               ng-attr-title="{{registerErrors.username || undefined}}"
+                               required />
+                        <small class="helper-text">Max 14 characters. No spaces. Must be unique.</small>
                         <small class="error-text username-error-text" id="registerUsernameError" style="display:none;"></small>
                         <small class="error-text" ng-if="registerErrors.username">{{registerErrors.username}}</small>
                     </div>
@@ -74,13 +79,16 @@
                                    id="password" name="password"
                                    ng-model="registerData.password"
                                    ng-change="onPasswordInput()"
-                                   placeholder="Enter password" required />
+                                   placeholder="Enter password"
+                                   minlength="8"
+                                   maxlength="16"
+                                   ng-attr-title="{{registerErrors.password || undefined}}"
+                                   required />
                             <button type="button" class="toggle-password" aria-label="Toggle password">
                                 <i class="bi bi-eye-slash"></i>
                             </button>
                         </div>
-                        <small class="helper-text">Min 8 characters: upper, lower, number, special.</small>
-                        <small class="error-text" ng-if="registerErrors.password">{{registerErrors.password}}</small>
+                        <small class="helper-text">8,16 characters: uppercase, lowercase, numbers, and symbols</small>
                     </div>
 
                     <div class="form-group text-start mb-4 w-100">
@@ -95,13 +103,16 @@
                                    id="verifyPassword"
                                    ng-model="registerData.verifyPassword"
                                    ng-change="onVerifyPasswordInput()"
-                                   placeholder="Enter password again" required />
+                                   placeholder="Enter password again"
+                                   minlength="8"
+                                   maxlength="16"
+                                   ng-attr-title="{{registerErrors.verifyPassword || undefined}}"
+                                   required />
                             <button type="button" class="toggle-password" aria-label="Toggle password">
                                 <i class="bi bi-eye-slash"></i>
                             </button>
                         </div>
                         <small class="helper-text">Must match password.</small>
-                        <small class="error-text" ng-if="registerErrors.verifyPassword">{{registerErrors.verifyPassword}}</small>
                     </div>
 
                     <button type="submit"

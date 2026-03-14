@@ -33,13 +33,38 @@
                             <td>{{o.customerName}}</td>
                             <td>{{o.deliveryAddress}}</td>
                             <td>&#8369; {{o.totalAmount | number:2}}</td>
-                            <td><span class="badge bg-secondary">{{o.orderStatus}}</span></td>
+                            <td>
+                                <span class="badge"
+                                      ng-class="{
+                                          'bg-secondary': o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled' || o.orderStatus === 'No Show',
+                                          'bg-success': o.orderStatus === 'Completed',
+                                          'bg-danger': o.orderStatus === 'Cancelled'
+                                      }">
+                                    {{o.orderStatus}}
+                                </span>
+                            </td>
                             <td>{{o.scheduledAtFormatted || '-'}}</td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-success me-1" ng-click="completeMeetupWithReceipt(o.id)" ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">Mark Completed (upload receipt)</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')" ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">Mark No Show</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary me-1" ng-click="openRescheduleModal(o)" ng-if="o.orderStatus === 'No Show' || o.orderStatus === 'Meetup Rescheduled'">Reschedule</button>
-                                <button type="button" class="btn btn-sm btn-danger me-1" ng-click="updateMeetupOutcome(o.id, 'CANCELLED')">Cancel</button>
+                                <button type="button" class="btn btn-sm btn-success me-1"
+                                        ng-click="completeMeetupWithReceipt(o.id)"
+                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
+                                    Mark Completed (upload receipt)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                                        ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')"
+                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
+                                    Mark No Show
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                                        ng-click="openRescheduleModal(o)"
+                                        ng-if="o.orderStatus === 'No Show'">
+                                    Reschedule
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger me-1"
+                                        ng-click="updateMeetupOutcome(o.id, 'CANCELLED')"
+                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled' || o.orderStatus === 'No Show'">
+                                    Cancel
+                                </button>
                             </td>
                             <td>
                                 <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
@@ -48,7 +73,7 @@
                             </td>
                         </tr>
                         <tr ng-if="meetupOrdersList.length === 0">
-                            <td colspan="8" class="text-muted py-4">No Ready for Meetup / Meetup Rescheduled / No Show orders.</td>
+                            <td colspan="8" class="text-muted py-4">No meetup orders found.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -132,13 +157,27 @@
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 p-4 flex-wrap">
-                        <span class="me-2">Actions:</span>
-                        <button type="button" class="btn btn-success me-2" ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">Mark Completed (upload receipt)</button>
-                        <button type="button" class="btn btn-outline-secondary me-2" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();" ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">Mark No Show</button>
-                        <button type="button" class="btn btn-outline-primary me-2" ng-click="closeMeetupViewModal(); openRescheduleModal({ id: meetupDetail.orderSummary.id });" ng-if="meetupDetail.orderSummary.orderStatus === 'No Show' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">Reschedule</button>
-                        <button type="button" class="btn btn-danger me-2" ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'CANCELLED'); closeMeetupViewModal();">Cancel</button>
-                        <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal" ng-click="closeMeetupViewModal()"><span>CLOSE</span></button>
+                    <div class="modal-footer border-0 p-4 flex-wrap"
+                         ng-if="meetupDetail.orderSummary.orderStatus !== 'Completed' && meetupDetail.orderSummary.orderStatus !== 'Cancelled'">
+                        <button type="button" class="btn btn-success me-2"
+                                ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();"
+                                ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">
+                            Mark Completed (upload receipt)
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary me-2"
+                                ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();"
+                                ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">
+                            Mark No Show
+                        </button>
+                        <button type="button" class="btn btn-outline-primary me-2"
+                                ng-click="closeMeetupViewModal(); openRescheduleModal({ id: meetupDetail.orderSummary.id });"
+                                ng-if="meetupDetail.orderSummary.orderStatus === 'No Show'">
+                            Reschedule
+                        </button>
+                        <button type="button" class="btn btn-danger me-2"
+                                ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'CANCELLED'); closeMeetupViewModal();">
+                            Cancel
+                        </button>
                     </div>
                 </div>
             </div>
@@ -155,7 +194,6 @@
                         <input type="file" class="form-control" id="meetupReceiptFile" accept=".jpg,.jpeg,.png" />
                         <small class="text-muted">JPG or PNG, max 5MB.</small>
                         <div class="d-flex justify-content-end gap-2 mt-3">
-                            <button type="button" class="delivery-btn-cancel" data-bs-dismiss="modal">Cancel</button>
                             <button type="button" class="delivery-btn-add" ng-click="confirmMeetupCompleted()">Confirm</button>
                         </div>
                     </div>
@@ -177,7 +215,6 @@
                         <select class="form-select form-select-sm" ng-model="rescheduleTime" ng-options="t for t in rescheduleTimeOptions"></select>
                         <small class="text-muted">Business hours 10:00 AM - 5:00 PM.</small>
                         <div class="d-flex justify-content-end gap-2 mt-3">
-                            <button type="button" class="delivery-btn-cancel" ng-click="closeRescheduleModal()">Cancel</button>
                             <button type="button" class="delivery-btn-add" ng-click="confirmReschedule()">Reschedule</button>
                         </div>
                     </div>

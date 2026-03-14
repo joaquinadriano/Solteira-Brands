@@ -127,7 +127,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.ordersList && $scope.ordersList.length > 0) {
-                    window.initializeStandardTable('#adminOrdersTable', 0);
+                    // Sort by Order Date column (index 1) so newest orders appear first.
+                    window.initializeStandardTable('#adminOrdersTable', 1);
                 }
             }, 150);
         }, function () {
@@ -152,7 +153,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.archiveOrdersList && $scope.archiveOrdersList.length > 0) {
-                    window.initializeStandardTable('#orderArchiveTable', 0);
+                    // Sort archived orders by Order Date column (index 1) descending.
+                    window.initializeStandardTable('#orderArchiveTable', 1);
                 }
             }, 150);
         }, function () {
@@ -175,10 +177,22 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
-    $scope.updateOrderStatusFor = function (orderId, newStatus, rejectionReason) {
+    $scope.updateOrderStatusFor = function (orderId, newStatus, rejectionReason, restoreStock) {
         if (!orderId || !newStatus) return;
-        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus, rejectionReason).then(function (res) {
+        SolteiraAndBrandsService.updateOrderStatus(orderId, newStatus, rejectionReason, restoreStock).then(function (res) {
             if (res.data && res.data.success) {
+                // Optimistic local update so status reflects instantly in the list.
+                var updatedStatus = (res.data.orderStatus || newStatus);
+                if ($scope.ordersList && $scope.ordersList.length) {
+                    for (var i = 0; i < $scope.ordersList.length; i++) {
+                        var o = $scope.ordersList[i];
+                        if (o && (o.id === orderId || o.Id === orderId)) {
+                            o.orderStatus = updatedStatus;
+                            o.status = updatedStatus;
+                            break;
+                        }
+                    }
+                }
                 $scope.loadOrders();
                 if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
                     $scope.refreshSelectedOrderDetails();
@@ -217,7 +231,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 }
             }).then(function (result) {
                 if (result.isConfirmed && result.value) {
-                    $scope.updateOrderStatusFor(orderId, 'Rejected', result.value.trim());
+                    var reason = result.value.trim();
+                    Swal.fire({
+                        title: 'Return items to stock?',
+                        text: 'Order will be cancelled. Do you want to return these items to active inventory?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, return to stock',
+                        cancelButtonText: 'No, keep stock as is'
+                    }).then(function (choice) {
+                        if (choice.isConfirmed) {
+                            // Yes → reject and restore stock.
+                            $scope.updateOrderStatusFor(orderId, 'Rejected', reason, true);
+                        } else if (choice.dismiss === 'cancel') {
+                            // "No, keep stock as is" → proceed with reject but do not change stock.
+                            $scope.updateOrderStatusFor(orderId, 'Rejected', reason, false);
+                        } else {
+                            // X / backdrop / Esc → abort without changing anything.
+                            return;
+                        }
+                    });
                 }
             });
         } else {
@@ -242,16 +275,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.revokeApproval = function (orderId) {
         if (!orderId) return;
-        SolteiraAndBrandsService.revokeApproval(orderId).then(function (res) {
-            if (res.data && res.data.success) {
-                $scope.loadOrders();
-                $scope.refreshSelectedOrderDetails();
-                Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' });
-            } else {
-                Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Cannot revoke (e.g. payment already submitted).' });
-            }
-        }, function (err) {
-            Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+        Swal.fire({
+            title: 'Revoke approval?',
+            text: 'This will move the order back to Pending Approval and the buyer will not be able to proceed with payment until you approve again.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, revoke approval',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            SolteiraAndBrandsService.revokeApproval(orderId).then(function (res) {
+                if (res.data && res.data.success) {
+                    $scope.loadOrders();
+                    $scope.refreshSelectedOrderDetails();
+                    Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Cannot revoke (e.g. payment already submitted).' });
+                }
+            }, function (err) {
+                Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+            });
         });
     };
 
@@ -288,6 +331,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!deliveryId || !status) return;
         SolteiraAndBrandsService.updateDeliveryStatus(deliveryId, status).then(function (res) {
             if (res.data && res.data.success) {
+                // Update local shipments list immediately.
+                var newDeliveryStatus = (res.data.deliveryStatus || status);
+                if ($scope.shipmentsList && $scope.shipmentsList.length) {
+                    for (var i = 0; i < $scope.shipmentsList.length; i++) {
+                        var d = $scope.shipmentsList[i];
+                        if (d && d.id === deliveryId) {
+                            d.deliveryStatus = newDeliveryStatus;
+                            break;
+                        }
+                    }
+                }
                 $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
                 $scope.loadDeliveryShipments();
@@ -304,6 +358,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         SolteiraAndBrandsService.updateDeliveryStatus(deliveryId, status).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.closeDeliveryViewModal();
+                // Update local shipments list immediately.
+                var newDeliveryStatus = (res.data.deliveryStatus || status);
+                if ($scope.shipmentsList && $scope.shipmentsList.length) {
+                    for (var i = 0; i < $scope.shipmentsList.length; i++) {
+                        var d = $scope.shipmentsList[i];
+                        if (d && d.id === deliveryId) {
+                            d.deliveryStatus = newDeliveryStatus;
+                            break;
+                        }
+                    }
+                }
                 $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
                 $scope.loadDeliveryShipments();
@@ -335,7 +400,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.editingDelivery = null;
-    $scope.editDeliveryForm = { courier: '', trackingNumber: '', dispatchDate: '', eta: '', deliveryStatus: '' };
+    $scope.editDeliveryForm = { courierChoice: 'LBC', customCourierName: '', trackingNumber: '', trackingLink: '', dispatchDate: '', eta: '', deliveryStatus: '' };
     $scope.openDeliveryEditModal = function (d) {
         if (!d || !d.id) return;
         if ((d.deliveryStatus || '').toUpperCase() === 'DELIVERED') {
@@ -346,9 +411,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (res.data && res.data.success) {
                 var ov = res.data.deliveryOverview;
                 $scope.editingDelivery = res.data;
+                var isCustom = ov.courier && ov.courier.indexOf('Custom - ') === 0;
+                var customName = isCustom ? ov.courier.substring('Custom - '.length) : '';
+                var tn = ov.trackingNumber || '';
+                var tnParts = tn.split('||');
+                var tnNumber = tnParts[0] || '';
+                var tnLink = tnParts.length > 1 ? tnParts[1] : '';
                 $scope.editDeliveryForm = {
-                    courier: ov.courier || '',
-                    trackingNumber: ov.trackingNumber || '',
+                    courierChoice: isCustom ? 'Custom' : (ov.courier || 'LBC'),
+                    customCourierName: customName,
+                    trackingNumber: tnNumber,
+                    trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
                     eta: ov.etaIso || '',
                     deliveryStatus: ov.deliveryStatus || 'PENDING'
@@ -367,8 +440,27 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!$scope.editingDelivery || !$scope.editingDelivery.deliveryOverview) return;
         var id = $scope.editingDelivery.deliveryOverview.id;
         var currentStatus = ($scope.editingDelivery.deliveryOverview.deliveryStatus || '').toUpperCase();
-        var courier = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.courier || null) : null;
-        var trackingNumber = $scope.editDeliveryForm.trackingNumber || null;
+        var courier = null;
+        var rawNumberEdit = ($scope.editDeliveryForm.trackingNumber || '').trim();
+        var rawLinkEdit = ($scope.editDeliveryForm.trackingLink || '').trim();
+        var trackingNumber = null;
+        if (currentStatus === 'PENDING') {
+            if ($scope.editDeliveryForm.courierChoice === 'Custom') {
+                var customName = ($scope.editDeliveryForm.customCourierName || '').trim();
+                if (!customName) {
+                    Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
+                    return;
+                }
+                courier = 'Custom - ' + customName;
+            } else {
+                courier = $scope.editDeliveryForm.courierChoice || 'LBC';
+            }
+        }
+        if (rawLinkEdit) {
+            trackingNumber = rawNumberEdit ? (rawNumberEdit + '||' + rawLinkEdit) : ('||' + rawLinkEdit);
+        } else {
+            trackingNumber = rawNumberEdit || null;
+        }
         var dispatchDate = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.dispatchDate || null) : null;
         var eta = (currentStatus === 'PENDING') ? ($scope.editDeliveryForm.eta || null) : null;
         var deliveryStatus = ($scope.editDeliveryForm.deliveryStatus || '').trim() || null;
@@ -434,6 +526,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }, 150);
         });
     };
+    $scope.getDisplayTrackingNumber = function (raw) {
+        if (!raw) return '-';
+        var s = (raw + '').trim();
+        if (!s) return '-';
+        var parts = s.split('||');
+        return parts[0] || parts[1] || '-';
+    };
     function toYyyyMmDd(val) {
         if (!val) return null;
         if (val instanceof Date) return val.toISOString().split('T')[0];
@@ -444,7 +543,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var orderId = $scope.selectedOrderForDelivery ? ($scope.selectedOrderForDelivery.id || $scope.selectedOrderForDelivery.orderId) : null;
         if (!orderId) { Swal.fire({ icon: 'warning', title: 'Select an order', text: 'Choose a Paid order from the list.' }); return; }
         var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
-        var trackingNumber = ($scope.trackingNumberForNew || '').trim() || null;
+        var rawNumber = ($scope.trackingNumberForNew || '').trim();
+        var rawLink = ($scope.trackingLinkForNew || '').trim();
+        var trackingNumber = null;
+        if (rawLink) {
+            trackingNumber = rawNumber ? (rawNumber + '||' + rawLink) : ('||' + rawLink);
+        } else {
+            trackingNumber = rawNumber || null;
+        }
         var customName = ($scope.customCourierNameForNew || '').trim();
         if ($scope.courierChoiceForNew === 'Custom' && !customName) {
             Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
@@ -456,7 +562,12 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber, courier, dispatchDate, eta).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryShipments();
-                $scope.selectedOrderForDelivery = null; $scope.trackingNumberForNew = ''; $scope.customCourierNameForNew = ''; $scope.dispatchDateForNew = ''; $scope.etaForNew = '';
+                $scope.selectedOrderForDelivery = null;
+                $scope.trackingNumberForNew = '';
+                $scope.trackingLinkForNew = '';
+                $scope.customCourierNameForNew = '';
+                $scope.dispatchDateForNew = '';
+                $scope.etaForNew = '';
                 var modalEl = document.getElementById('deliveryAddShipmentModal');
                 if (modalEl && window.bootstrap) { var m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); }
                 Swal.fire({ title: 'Delivery created', icon: 'success', confirmButtonText: 'OK' });
@@ -478,6 +589,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.meetupOrdersList && $scope.meetupOrdersList.length > 0) {
+                    // Sort meetup list by Order ID column (index 0) so latest ORD-* appears first.
                     window.initializeStandardTable('#deliveryMeetupTable', 0);
                 }
             }, 150);
@@ -517,6 +629,56 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
     $scope.updateMeetupOutcome = function (orderId, status, receiptImageId) {
         if (!orderId || !status) return;
+
+        // Special handling for final cancellation: capture reason + stock decision,
+        // then pass through to backend so order is Cancelled with optional stock restore.
+        if (status === 'CANCELLED') {
+            Swal.fire({
+                title: 'Cancel meetup order',
+                input: 'textarea',
+                inputLabel: 'Cancellation reason (required)',
+                inputPlaceholder: 'Enter reason for cancelling this meetup order...',
+                inputAttributes: { 'aria-label': 'Cancellation reason', rows: 4 },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Cancel order',
+                cancelButtonText: 'Back',
+                confirmButtonColor: '#dc3545',
+                inputValidator: function (value) {
+                    if (!value || !value.trim()) return 'Please enter a cancellation reason.';
+                    return null;
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed || !result.value) return;
+                var reason = result.value.trim();
+                Swal.fire({
+                    title: 'Return items to stock?',
+                    text: 'Order will be cancelled. Do you want to return these items to active inventory?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, return to stock',
+                    cancelButtonText: 'No, keep stock as is'
+                }).then(function (choice) {
+                    if (!choice.isConfirmed && !(choice.dismiss || choice.isDismissed || choice.isDenied)) {
+                        return;
+                    }
+                    var restoreStock = !!choice.isConfirmed;
+                    SolteiraAndBrandsService.updateMeetupOutcome(orderId, 'CANCELLED', null, reason, restoreStock).then(function (res) {
+                        if (res.data && res.data.success) {
+                            $scope.loadDeliveryMeetup();
+                            if ($scope.loadOrders) $scope.loadOrders();
+                            Swal.fire({ title: 'Order cancelled', icon: 'success', confirmButtonText: 'OK' });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                        }
+                    }, function (err) {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
+                    });
+                });
+            });
+            return;
+        }
+
         SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, receiptImageId).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryMeetup();
@@ -614,7 +776,23 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ icon: 'warning', title: 'Required', text: 'Please select date and time.' });
             return;
         }
-        SolteiraAndBrandsService.rescheduleMeetup(orderId, $scope.rescheduleDate, $scope.rescheduleTime).then(function (res) {
+
+        // Normalise date value coming from <input type="date"> / ng-model.
+        // The backend expects a string in yyyy-MM-dd format.
+        var rawDate = $scope.rescheduleDate;
+        var dateStr;
+        if (rawDate instanceof Date) {
+            var yyyy = rawDate.getFullYear();
+            var mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+            var dd = String(rawDate.getDate()).padStart(2, '0');
+            dateStr = yyyy + '-' + mm + '-' + dd;
+        } else {
+            // Fallback: strip time component if present (e.g. 2026-03-15T00:00:00.000Z)
+            var asStr = (rawDate + '');
+            dateStr = asStr.indexOf('T') > -1 ? asStr.split('T')[0] : asStr;
+        }
+
+        SolteiraAndBrandsService.rescheduleMeetup(orderId, dateStr, $scope.rescheduleTime).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryMeetup();
                 $scope.closeRescheduleModal();
@@ -635,6 +813,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!paymentId) return;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'VERIFIED').then(function (res) {
             if (res.data && res.data.success) {
+                // Update local payments list immediately.
+                if ($scope.paymentsList && $scope.paymentsList.length) {
+                    for (var i = 0; i < $scope.paymentsList.length; i++) {
+                        var p = $scope.paymentsList[i];
+                        if (p && p.paymentId === paymentId) {
+                            p.paymentStatus = 'VERIFIED';
+                            break;
+                        }
+                    }
+                }
                 if ($scope.loadOrders) $scope.loadOrders();
                 $scope.refreshSelectedOrderDetails();
                 if ($scope.loadDeliveryMeetup) $scope.loadDeliveryMeetup();
@@ -669,6 +857,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 // Quick reject from list: default to allow resubmission
                 SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim(), true).then(function (res) {
                     if (res.data && res.data.success) {
+                        // Immediate local update for rejected payment.
+                        if ($scope.paymentsList && $scope.paymentsList.length) {
+                            for (var i = 0; i < $scope.paymentsList.length; i++) {
+                                var p = $scope.paymentsList[i];
+                                if (p && p.paymentId === paymentId) {
+                                    p.paymentStatus = 'REJECTED';
+                                    p.rejectionReason = result.value.trim();
+                                    break;
+                                }
+                            }
+                        }
                         $scope.refreshSelectedOrderDetails();
                         if ($scope.loadPayments) $scope.loadPayments();
                         $scope.closePaymentProofModal();
@@ -701,6 +900,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.paymentsList && $scope.paymentsList.length > 0) {
+                    // Sort by PMT ID column (index 0) so highest/newest ID is on top.
                     window.initializeStandardTable('#paymentTable', 0);
                 }
             }, 150);
@@ -757,13 +957,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (s === 'OVERDUE') return 'bg-danger';
         return 'bg-secondary';
     };
-    /** Payment status display text only (for payment tables/proof). SUBMITTED → Awaiting Verification, VERIFIED → Verified, REJECTED → Rejected - Please Resubmit. */
-    $scope.getPaymentStatusDisplayText = function (status) {
+    /**
+     * Payment status display text only (for payment tables/proof).
+     * SUBMITTED → Awaiting Verification
+     * VERIFIED  → Verified
+     * REJECTED  → "Rejected - Please Resubmit" when allowResubmit=true, otherwise just "Rejected".
+     */
+    $scope.getPaymentStatusDisplayText = function (status, payment) {
         if (!status) return '-';
         var s = (status + '').toUpperCase();
         if (s === 'SUBMITTED') return 'Awaiting Verification';
         if (s === 'VERIFIED') return 'Verified';
-        if (s === 'REJECTED') return 'Rejected - Please Resubmit';
+        if (s === 'REJECTED') {
+            var canResubmit = payment && payment.allowResubmit === true;
+            return canResubmit ? 'Rejected - Please Resubmit' : 'Rejected';
+        }
         return status;
     };
     /** Order status display: use order.status from DB directly. Map only for consistent labels. */
@@ -783,6 +991,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var paymentId = $scope.selectedPayment.paymentId;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'VERIFIED').then(function (res) {
             if (res.data && res.data.success) {
+                // Reflect VERIFIED status immediately in the payments list.
+                if ($scope.paymentsList && $scope.paymentsList.length) {
+                    for (var i = 0; i < $scope.paymentsList.length; i++) {
+                        var p = $scope.paymentsList[i];
+                            if (p && p.paymentId === paymentId) {
+                                p.paymentStatus = 'VERIFIED';
+                                break;
+                            }
+                    }
+                }
                 $scope.loadPayments();
                 $scope.closePaymentProofModal();
                 if ($scope.loadOrders) $scope.loadOrders();
@@ -823,10 +1041,48 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (res.data && res.data.success) {
                 $scope.paymentModalForm.rejectionReason = '';
                 $scope.paymentModalForm.allowResubmit = true;
+                // Reflect REJECTED status immediately in the payments list.
+                if ($scope.paymentsList && $scope.paymentsList.length) {
+                    for (var i = 0; i < $scope.paymentsList.length; i++) {
+                        var p = $scope.paymentsList[i];
+                        if (p && p.paymentId === paymentId) {
+                            p.paymentStatus = 'REJECTED';
+                            p.rejectionReason = reason;
+                            break;
+                        }
+                    }
+                }
                 $scope.loadPayments();
                 $scope.closePaymentProofModal();
                 var msg = allowResubmit ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
-                Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' });
+
+                // For final rejections (no resubmit), also ask whether to return items to stock.
+                if (!allowResubmit && $scope.paymentDetail && $scope.paymentDetail.orderSummary && $scope.paymentDetail.orderSummary.id) {
+                    var orderId = $scope.paymentDetail.orderSummary.id;
+                    Swal.fire({
+                        title: 'Return items to stock?',
+                        text: 'Order will be rejected. Do you want to return these items to active inventory?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, return to stock',
+                        cancelButtonText: 'No, keep stock as is'
+                    }).then(function (choice) {
+                        if (choice.isConfirmed) {
+                            // Yes → cancel and restore stock.
+                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, true);
+                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                        } else if (choice.dismiss === 'cancel') {
+                            // "No, keep stock as is" → cancel order but do not touch stock.
+                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, false);
+                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                        } else {
+                            // X / backdrop / Esc → abort without cancelling the order.
+                            return;
+                        }
+                    });
+                } else {
+                    Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                }
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
             }
@@ -1202,7 +1458,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     $scope.inventoryEditPhotoFile = null;
                     Swal.fire({
                         title: 'Inventory item updated!',
-                        text: 'Refresh the page to see changes.',
+                        text: 'Inventory has been updated.',
                         icon: 'success',
                         iconColor: '#FFFBE8',
                         background: '#8eb078',
@@ -1210,6 +1466,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         confirmButtonColor: '#FFFBE8',
                         buttonsStyling: true,
                         customClass: { title: 'status-title', confirmButton: 'status-button' }
+                    }).then(function () {
+                        // Refresh inventory list so the edited stockQuantity is visible immediately.
+                        $scope.loadInventoryProducts();
                     });
                 } else {
                     Swal.fire({

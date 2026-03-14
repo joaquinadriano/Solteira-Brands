@@ -110,7 +110,7 @@
                             </td>
                             <td>P-{{item.id | numberPad:3}}</td>
                             <td>{{item.name}}</td>
-                            <td>{{item.initialStock != null ? (item.stockQuantity + ' / ' + item.initialStock) : item.stockQuantity}}</td>
+                            <td>{{item.stockQuantity}}</td>
                             <td>{{getStockStatus(item.stockQuantity)}}</td>
                         </tr>
                         <tr ng-if="dashboardInventoryStock.length === 0">

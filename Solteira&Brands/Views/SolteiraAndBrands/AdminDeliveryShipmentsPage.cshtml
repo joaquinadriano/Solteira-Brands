@@ -56,6 +56,12 @@
                                         <input type="text" class="form-control delivery-input-field" ng-model="trackingNumberForNew" placeholder="e.g. 1234567890" />
                                     </div>
                                 </div>
+                                <div class="row mb-3 align-items-center" ng-if="courierChoiceForNew === 'Custom'">
+                                    <div class="col-sm-5"><label class="delivery-label">Tracking link (optional)</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control delivery-input-field" ng-model="trackingLinkForNew" placeholder="Paste tracking URL here" />
+                                    </div>
+                                </div>
                                 <div class="row mb-3 align-items-center">
                                     <div class="col-sm-5"><label class="delivery-label">Dispatch date (optional)</label></div>
                                     <div class="col-sm-7">
@@ -105,7 +111,7 @@
                             <td>{{d.customerName}}</td>
                             <td>{{d.deliveryAddress}}</td>
                             <td>{{d.courier || d.deliveryType || 'COURIER'}}</td>
-                            <td>{{d.trackingNumber || '-'}}</td>
+                            <td>{{getDisplayTrackingNumber(d.trackingNumber)}}</td>
                             <td>{{d.dispatchDateFormatted || (d.createdAt | date:'MMM d, y')}}</td>
                             <td>{{d.etaFormatted || '-'}}</td>
                             <td>{{d.deliveryStatus}}</td>
@@ -233,7 +239,6 @@
                     <div class="modal-footer border-0 p-4">
                         <button type="button" class="btn btn-outline-primary" ng-if="deliveryDetail.deliveryOverview.deliveryStatus === 'PENDING'" ng-click="updateDeliveryStatusFromViewModal(deliveryDetail.deliveryOverview.id, 'IN_TRANSIT')">Mark In Transit</button>
                         <button type="button" class="btn btn-success" ng-if="deliveryDetail.deliveryOverview.deliveryStatus === 'IN_TRANSIT'" ng-click="updateDeliveryStatusFromViewModal(deliveryDetail.deliveryOverview.id, 'DELIVERED')">Mark Delivered</button>
-                        <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal" ng-click="closeDeliveryViewModal()"><span>CLOSE</span></button>
                     </div>
                 </div>
             </div>
@@ -260,11 +265,22 @@
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">Courier</label>
-                            <input type="text" class="form-control" ng-model="editDeliveryForm.courier" placeholder="e.g. LBC, J&T" />
+                            <select class="form-select" ng-model="editDeliveryForm.courierChoice">
+                                <option value="LBC">LBC</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING' && editDeliveryForm.courierChoice === 'Custom'">
+                            <label class="form-label">Courier Name</label>
+                            <input type="text" class="form-control" ng-model="editDeliveryForm.customCourierName" placeholder="e.g. J&T, Flash Express" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Tracking Number</label>
                             <input type="text" class="form-control" ng-model="editDeliveryForm.trackingNumber" placeholder="Tracking number" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tracking Link (optional)</label>
+                            <input type="text" class="form-control" ng-model="editDeliveryForm.trackingLink" placeholder="Paste tracking URL here" />
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">Dispatch Date</label>

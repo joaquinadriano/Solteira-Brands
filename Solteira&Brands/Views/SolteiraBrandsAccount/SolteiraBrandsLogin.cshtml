@@ -40,6 +40,7 @@
                                maxlength="14" pattern="^[^\s]{1,14}$"
                                ng-class="{'is-invalid': loginErrors.username}"
                                id="username" ng-model="loginData.username"
+                               ng-attr-title="{{loginErrors.username || undefined}}"
                                ng-change="onLoginFieldChange('username')"
                                placeholder="Enter username" required />
                         <small class="error-text" ng-if="loginErrors.username">{{loginErrors.username}}</small>
@@ -54,7 +55,11 @@
                                    id="password" name="Password"
                                    ng-model="loginData.password"
                                    ng-change="onLoginFieldChange('password')"
-                                   placeholder="Enter password" required />
+                                   ng-attr-title="{{loginErrors.password || undefined}}"
+                                   placeholder="Enter password"
+                                   minlength="8"
+                                   maxlength="16"
+                                   required />
                             <button type="button" class="toggle-password" aria-label="Toggle password visibility">
                                 <i class="bi bi-eye-slash"></i>
                             </button>
@@ -78,14 +83,6 @@
                 Don't have an account?
                 <a href="@Url.Action("SolteiraBrandsRegister","SolteiraAndBrands")" class="register-link">Create Now</a>
             </p>
-
-            <a href="@Url.Action("SolteiraBrandsOTP","SolteiraAndBrands")">
-                <p>OTP</p>
-            </a>
-
-            <a href="@Url.Action("SolteiraBrandsNewPassword","SolteiraAndBrands")">
-                <p>New Password</p>
-            </a>
 
         </div>
 

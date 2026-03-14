@@ -45,7 +45,6 @@
                                         <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
                                     </span>
                                 }
-                                <span ng-if="order.orderStatus === 'Paid' || order.orderStatus === 'Layaway Active' || order.orderStatus === 'In Delivery' || order.orderStatus === 'Ready for Meetup' || order.orderStatus === 'Completed'" class="ms-2 text-muted small">(View only)</span>
                                 @if (User.IsInRole("ADMIN"))
                                 {
                                     <span class="ms-2 text-muted small">(Archive only)</span>
@@ -235,9 +234,6 @@
                             <button type="button" class="btn btn-outline-secondary me-2" ng-click="archiveOrderConfirm(selectedOrderDetails); $event.stopPropagation();" data-bs-dismiss="modal">Archive</button>
                         }
                         <span ng-if="selectedOrderDetails.orderStatus === 'Paid' || selectedOrderDetails.orderStatus === 'Layaway Active' || selectedOrderDetails.orderStatus === 'In Delivery' || selectedOrderDetails.orderStatus === 'Ready for Meetup' || selectedOrderDetails.orderStatus === 'Completed'" class="text-muted small me-2">Paid / Delivery / Completed - manage from Payment and Delivery pages.</span>
-                        <button class="orderDetails-button px-4 py-2" data-bs-dismiss="modal">
-                            <span>CLOSE</span>
-                        </button>
                     </div>
                 </div>
             </div>

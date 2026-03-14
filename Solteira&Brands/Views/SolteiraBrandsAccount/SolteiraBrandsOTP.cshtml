@@ -30,7 +30,7 @@
             <form id="otpForm" ng-submit="submitOtp($event)">
                 @Html.AntiForgeryToken()
                 <div class="input-wrapper">
-                    <input type="text" class="custom-input" id="otpInput" ng-model="otpValue" required maxlength="6" placeholder="000000" ng-disabled="otpVerifying">
+                    <input type="text" class="custom-input" id="otpInput" ng-model="otpValue" required maxlength="6" placeholder="000000" ng-disabled="otpVerifying" ng-change="onOtpInputChange()">
                     <span id="timerText" ng-show="timerVisible">{{timeLeft}}s</span>
                 </div>
                 <div class="error-text" ng-show="otpError">{{otpError}}</div>
@@ -50,30 +50,6 @@
             </form>
         </div>
     </div>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var timerSpan = document.getElementById("timerText");
-            var resendLink = document.getElementById("resendLink");
-            if (resendLink) {
-                resendLink.classList.add("disabled-link");
-                resendLink.style.pointerEvents = "none";
-            }
-            var timeLeft = 30;
-            var countdown = setInterval(function () {
-                timeLeft--;
-                if (timerSpan) timerSpan.textContent = timeLeft + "s";
-                if (timeLeft <= 0) {
-                    clearInterval(countdown);
-                    if (timerSpan) timerSpan.style.display = "none";
-                    if (resendLink) {
-                        resendLink.classList.remove("disabled-link");
-                        resendLink.style.pointerEvents = "auto";
-                    }
-                }
-            }, 1000);
-        });
-    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>

@@ -1,0 +1,1168 @@
+Order lifecycle overview
+
+Data model (order/payment/delivery/meetup layers)
+
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SQL\CreateTables_And_Seed.sql
+
+Lines 120-225:
+CREATE TABLE IF NOT EXISTS tbl_orders (
+    id                      INT             NOT NULL AUTO_INCREMENT,
+    user_id                 INT             NOT NULL,
+    order_number            VARCHAR(50)     NOT NULL,
+    customer_name           VARCHAR(150)    NOT NULL,
+    contact_number          VARCHAR(50)     NOT NULL,
+    delivery_address        VARCHAR(500)    NOT NULL,
+    payment_method          VARCHAR(100)    NOT NULL,
+    payment_type            VARCHAR(50)     NULL,
+    total_amount            DECIMAL(12,2)   NOT NULL,
+    remaining_balance       DECIMAL(12,2)   NOT NULL DEFAULT 0,
+    order_status            VARCHAR(50)     NOT NULL DEFAULT 'Pending',
+    delivery_type           VARCHAR(50)     NULL DEFAULT 'COURIER',
+    rejection_reason        VARCHAR(500)    NULL,
+    created_at              DATETIME        NOT NULL,
+    last_status_update_at   DATETIME        NULL,
+    PRIMARY KEY (id),
+    ...
+);
+
+CREATE TABLE IF NOT EXISTS tbl_payments (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    amount              DECIMAL(12,2)   NOT NULL,
+    payment_status      VARCHAR(50)     NOT NULL DEFAULT 'SUBMITTED',
+    rejection_reason    VARCHAR(500)    NULL,
+    proof_image_id      INT             NULL,
+    reference_number    VARCHAR(100)    NULL,
+    meetup_datetime     DATETIME        NULL,
+    verified_by_user_id INT             NULL,
+    created_at          DATETIME        NOT NULL,
+    verified_at         DATETIME        NULL,
+    allow_resubmit      TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1=buyer may resubmit after reject, 0=final reject',
+    PRIMARY KEY (id),
+    ...
+);
+
+CREATE TABLE IF NOT EXISTS tbl_deliveries (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    delivery_type       VARCHAR(50)     NOT NULL,
+    tracking_number     VARCHAR(200)    NULL,
+    meetup_datetime     DATETIME        NULL,
+    delivery_status     VARCHAR(50)     NOT NULL DEFAULT 'PENDING',
+    created_at          DATETIME        NOT NULL,
+    updated_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    ...
+);
+
+CREATE TABLE IF NOT EXISTS tbl_meetup_outcomes (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    status              VARCHAR(50)     NOT NULL,
+    receipt_image_id    INT             NULL,
+    reason              VARCHAR(500)    NULL,
+    rescheduled_at      DATETIME        NULL,
+    created_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    ...
+)
+
+
+Status constants (Order / Payment / Delivery)
+
+Order statuses
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Constants\OrderStatus.cs
+namespace Solteira_Brands.Constants
+{
+    public static class OrderStatus
+    {
+        public const string Pending = "Pending";
+        public const string Approved = "Approved";
+        public const string AwaitingPaymentVerification = "Awaiting Payment Verification";
+        public const string AwaitingMeetup = "Awaiting Meetup";
+        public const string LayawayActive = "Layaway Active";
+        public const string Paid = "Paid";
+        public const string InDelivery = "In Delivery";
+        public const string ReadyForMeetup = "Ready for Meetup";
+        public const string Completed = "Completed";
+        public const string Rejected = "Rejected";
+        public const string Cancelled = "Cancelled";
+    }
+}
+
+Payment statuses
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Constants\PaymentStatus.cs
+namespace Solteira_Brands.Constants
+{
+    public static class PaymentStatus
+    {
+        public const string Pending = "PENDING";
+        public const string AwaitingVerification = "AWAITING_VERIFICATION";
+        public const string Submitted = "SUBMITTED";
+        public const string Verified = "VERIFIED";
+        public const string Rejected = "REJECTED";
+        public const string Expired = "EXPIRED";
+    }
+}
+
+Delivery statuses
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Constants\DeliveryStatus.cs
+namespace Solteira_Brands.Constants
+{
+    public static class DeliveryStatus
+    {
+        public const string Pending = "PENDING";
+        public const string InTransit = "IN_TRANSIT";
+        public const string Delivered = "DELIVERED";
+    }
+}
+
+
+1) Extract the full order lifecycle (buyer → admin → delivery → completion)
+
+A. Buyer creates order (checkout)
+
+What triggers the action
+- Buyer clicks ORDER on Checkout page (Angular placeOrder()).
+
+What backend function runs
+- SolteiraAndBrandsController.CreateOrder()
+
+What database fields change
+- tbl_orders: inserts row with:
+  - payment_method = request.PaymentMethod
+  - payment_type computed (FULL / LAYAWAY / CASH_MEETUP)
+  - delivery_type computed (COURIER / MEETUP)
+  - remaining_balance = total_amount
+  - order_status = Pending
+  - created_at, last_status_update_at = now
+- tbl_order_items: inserts each line item
+- tbl_products.stock_quantity: decremented immediately (reserved on order create)
+
+What order status is set
+- Pending
+
+Backend implementation
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 370-461:
+public JsonResult CreateOrder()
+{
+    CreateOrderRequest request = null;
+    try
+    {
+        using (var reader = new StreamReader(Request.InputStream))
+        {
+            var body = reader.ReadToEnd();
+            if (!string.IsNullOrWhiteSpace(body))
+                request = new JavaScriptSerializer().Deserialize<CreateOrderRequest>(body);
+        }
+    }
+    catch { }
+    if (request == null || request.Items == null || request.Items.Count == 0)
+        return Json(new { success = false, message = "No items in order." });
+    var username = User.Identity.Name;
+    if (string.IsNullOrEmpty(username))
+        return Json(new { success = false, message = "Not authenticated." });
+
+    using (var db = new SolteiraBrandsContext())
+    {
+        var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+        if (user == null) return Json(new { success = false, message = "User not found." });
+
+        if (string.IsNullOrEmpty((request.CustomerName ?? "").Trim()) || string.IsNullOrEmpty((request.ContactNumber ?? "").Trim()) || string.IsNullOrEmpty((request.DeliveryAddress ?? "").Trim()))
+            return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+
+        // Server-side stock validation: ensure every item has sufficient stock before creating order
+        var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
+        var productsByKey = db.tbl_products.Where(p => productIds.Contains(p.Id)).ToDictionary(p => p.Id);
+        foreach (var item in request.Items)
+        {
+            if (item.Quantity <= 0)
+                return Json(new { success = false, message = "Invalid quantity for " + (item.ProductName ?? "item") + "." });
+            if (!productsByKey.TryGetValue(item.ProductId, out var product))
+                return Json(new { success = false, message = "Product not found: " + (item.ProductName ?? item.ProductId.ToString()) + "." });
+            if (product.StockQuantity < item.Quantity)
+                return Json(new { success = false, message = "Insufficient stock for " + (product.Name ?? item.ProductName) + ". Available: " + product.StockQuantity + "." });
+        }
+
+        var now = DateTime.Now;
+        var paymentMethod = (request.PaymentMethod ?? "Full Payment").Trim();
+        var paymentType = paymentMethod.IndexOf("Layaway", StringComparison.OrdinalIgnoreCase) >= 0 ? "LAYAWAY"
+            : paymentMethod.IndexOf("meetup", StringComparison.OrdinalIgnoreCase) >= 0 ? "CASH_MEETUP"
+            : "FULL";
+        var deliveryType = (paymentType == "CASH_MEETUP" || paymentMethod.IndexOf("Meetup", StringComparison.OrdinalIgnoreCase) >= 0) ? "MEETUP" : "COURIER";
+        var order = new tblOrdersModel
+        {
+            UserId = user.Id,
+            OrderNumber = "",
+            CustomerName = (request.CustomerName ?? "").Trim(),
+            ContactNumber = (request.ContactNumber ?? "").Trim(),
+            DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
+            PaymentMethod = paymentMethod,
+            PaymentType = paymentType,
+            TotalAmount = request.TotalAmount,
+            RemainingBalance = request.TotalAmount,
+            OrderStatus = OrderStatus.Pending,
+            DeliveryType = deliveryType,
+            CreatedAt = now,
+            LastStatusUpdateAt = now
+        };
+        db.tbl_orders.Add(order);
+        db.SaveChanges();
+
+        order.OrderNumber = "ORD-" + order.Id;
+        db.SaveChanges();
+
+        foreach (var item in request.Items)
+        {
+            db.tbl_order_items.Add(new tblOrderItemsModel
+            {
+                OrderId = order.Id,
+                ProductId = item.ProductId,
+                ProductName = item.ProductName ?? "",
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                ImageUrl = item.ImageUrl
+            });
+            // Deduct stock immediately after order is confirmed (order and items saved)
+            var prod = productsByKey[item.ProductId];
+            prod.StockQuantity -= item.Quantity;
+            prod.UpdatedAt = now;
+        }
+        db.SaveChanges();
+
+        return Json(new { success = true, orderId = order.Id, orderNumber = order.OrderNumber, message = "Order placed successfully." });
+    }
+}
+
+Frontend trigger and API call
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SBScripts\Controller.js
+Lines 1382-1445:
+$scope.placeOrder = function () {
+    var isBuyer = !!(window.sbIsBuyer);
+    if (!isBuyer) { ... return; }
+
+    var selected = $scope.getSelectedItems();
+    if (!selected || selected.length === 0) { ... return; }
+
+    var name = ($scope.customerName || '').trim();
+    var contact = ($scope.contactNumber || '').trim();
+    var address = ($scope.deliveryAddress || '').trim();
+    var payment = ($scope.paymentMethod || '').trim();
+    if (!name) { ... return; }
+    if (!contact) { ... return; }
+    if (!address) { ... return; }
+    if (!payment) { ... return; }
+
+    var payload = {
+        CustomerName: name,
+        ContactNumber: contact,
+        DeliveryAddress: address,
+        PaymentMethod: payment,
+        TotalAmount: $scope.getCheckoutSubtotal(),
+        Items: selected.map(function (item) {
+            return {
+                ProductId: item.id,
+                ProductName: item.name,
+                Quantity: item.qty,
+                UnitPrice: item.price,
+                ImageUrl: item.img || null
+            };
+        })
+    };
+
+    SolteiraBrandsService.createOrder(payload).then(function (r) {
+        if (r.data && r.data.success) {
+            ...
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+        } else { ... }
+    }, function (err) { ... });
+};
+
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SBScripts\Service.js
+Lines 121-128:
+this.createOrder = function (payload) {
+    return $http({
+        method: "POST",
+        url: "/SolteiraAndBrands/CreateOrder",
+        data: payload,
+        headers: { "Content-Type": "application/json" }
+    });
+};
+
+
+B. Admin approves or rejects order
+
+What triggers the action
+- Admin/Manager/Staff changes status in Orders UI (HolyScripts\Controller.js calls updateOrderStatus).
+
+What backend function runs
+- SolteiraAndBrandsController.UpdateOrderStatus(int id, string status, string rejectionReason)
+
+What database fields change
+- Approve:
+  - tbl_orders.order_status = Approved
+  - tbl_orders.rejection_reason = NULL
+  - tbl_orders.last_status_update_at = NOW
+- Reject:
+  - tbl_orders.order_status = Rejected
+  - tbl_orders.rejection_reason = reason
+  - tbl_orders.last_status_update_at = NOW
+  - restore stock: tbl_products.stock_quantity += qty for each tbl_order_items
+
+What order status is set
+- Approved or Rejected
+
+Backend implementation
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 1824-1876:
+public JsonResult UpdateOrderStatus(int id, string status, string rejectionReason = null)
+{
+    if (string.IsNullOrWhiteSpace(status))
+        return Json(new { success = false, message = "Status is required." });
+    var statusTrim = status.Trim();
+    if (!statusTrim.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !statusTrim.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+        return Json(new { success = false, message = "Only Approve or Reject is allowed." });
+
+    using (var db = new SolteiraBrandsContext())
+    {
+        var order = db.tbl_orders.Include("OrderItems").Include("Payments").FirstOrDefault(o => o.Id == id);
+        if (order == null) return Json(new { success = false, message = "Order not found." });
+        var current = order.OrderStatus ?? "";
+
+        if (string.Equals(statusTrim, "Rejected", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!OrderLifecycleRules.CanTransitionOrder(current, OrderStatus.Rejected))
+                return Json(new { success = false, message = "Invalid order status transition." });
+            if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase) && !current.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Only Pending or Approved orders can be rejected." });
+            if (current.Equals("Approved", StringComparison.OrdinalIgnoreCase) && order.Payments != null && order.Payments.Any())
+                return Json(new { success = false, message = "Cannot reject: order already has payment(s). Reject only when no payment exists." });
+            if (string.IsNullOrWhiteSpace(rejectionReason))
+                return Json(new { success = false, message = "Rejection reason is required when rejecting an order." });
+            order.OrderStatus = OrderStatus.Rejected;
+            order.RejectionReason = rejectionReason.Trim();
+            order.LastStatusUpdateAt = DateTime.Now;
+            foreach (var item in order.OrderItems)
+            {
+                if (!item.ProductId.HasValue) continue;
+                var product = db.tbl_products.Find(item.ProductId.Value);
+                if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+            }
+            LogActivity(db, "Order Rejected", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + "; reason: " + (order.RejectionReason ?? ""));
+        }
+        else
+        {
+            if (!OrderLifecycleRules.CanTransitionOrder(current, OrderStatus.Approved))
+                return Json(new { success = false, message = "Invalid order status transition." });
+            if (!current.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Only Pending orders can be approved." });
+            order.OrderStatus = OrderStatus.Approved;
+            order.RejectionReason = null;
+            order.LastStatusUpdateAt = DateTime.Now;
+            LogActivity(db, "Order Approved", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
+        }
+
+        db.SaveChanges();
+        return Json(new { success = true, message = "Order status updated.", orderStatus = order.OrderStatus });
+    }
+}
+
+
+2) Order status list and transitions (all statuses used)
+
+Order statuses (database values)
+From OrderStatus.cs:
+- Pending
+- Approved
+- Awaiting Payment Verification
+- Awaiting Meetup
+- Layaway Active
+- Paid
+- In Delivery
+- Ready for Meetup
+- Completed
+- Rejected
+- Cancelled
+
+Order status transitions (implemented)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Services\OrderLifecycleRules.cs
+public static bool CanTransitionOrder(string from, string to)
+{
+    var current = NormalizeOrder(from);
+    var target = NormalizeOrder(to);
+    if (current == target)
+        return true;
+
+    switch (current)
+    {
+        case null:
+            return target == OrderStatus.Pending;
+
+        case OrderStatus.Pending:
+            return target == OrderStatus.Approved
+                || target == OrderStatus.Rejected
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.Approved:
+            return target == OrderStatus.AwaitingPaymentVerification
+                || target == OrderStatus.Rejected
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.AwaitingPaymentVerification:
+            return target == OrderStatus.Paid
+                || target == OrderStatus.ReadyForMeetup
+                || target == OrderStatus.LayawayActive
+                || target == OrderStatus.Approved
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.LayawayActive:
+            return target == OrderStatus.Paid
+                || target == OrderStatus.ReadyForMeetup
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.Paid:
+            return target == OrderStatus.InDelivery
+                || target == OrderStatus.ReadyForMeetup
+                || target == OrderStatus.Completed
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.InDelivery:
+            return target == OrderStatus.Completed
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.ReadyForMeetup:
+            return target == OrderStatus.Completed
+                || target == OrderStatus.Cancelled;
+
+        case OrderStatus.Completed:
+        case OrderStatus.Rejected:
+        case OrderStatus.Cancelled:
+            return false;
+
+        default:
+            return false;
+    }
+}
+
+Where each order status is set (trigger → location)
+- Pending: CreateOrder() sets OrderStatus.Pending.
+- Approved: UpdateOrderStatus() sets OrderStatus.Approved; UpdatePaymentStatus() may set order status back to "Approved" if payment rejected and resubmit allowed.
+- Awaiting Payment Verification: SubmitPayment() sets OrderStatus.AwaitingPaymentVerification on payment submission.
+- Layaway Active: UpdatePaymentStatus() sets OrderStatus.LayawayActive when first layaway payment verified.
+- Paid: UpdatePaymentStatus() sets OrderStatus.Paid for non-meetup verified full payment or final layaway payment.
+- Ready for Meetup: UpdatePaymentStatus() sets OrderStatus.ReadyForMeetup when verified and deliveryType is MEETUP or payment has MeetupDatetime; MarkReadyForMeetup() also sets Ready for Meetup for Paid orders.
+- In Delivery: UpdateDeliveryStatus() (or UpdateDelivery) sets In Delivery when delivery becomes IN_TRANSIT.
+- Completed: UpdateDeliveryStatus()/UpdateDelivery sets Completed on DELIVERED; CompleteMeetup() sets Completed; UpdateMeetupOutcome() sets Completed on COMPLETED.
+- Rejected: UpdateOrderStatus() sets OrderStatus.Rejected (order rejection, not payment).
+- Cancelled: UpdatePaymentStatus() sets Cancelled when rejecting payment with allowResubmit=false; AutoCancelLayawayIfMissedPayment() sets Cancelled; CheckAndCancelOverdueOrders() sets Cancelled; UpdateMeetupOutcome() sets Cancelled on CANCELLED.
+
+
+3) Payment logic (Full + Layaway + resubmission/rejection)
+
+A. Buyer “Get order for payment” (includes layaway schedule logic)
+
+Trigger
+- Payment page loads and calls GET /SolteiraAndBrands/GetOrderForPayment?orderId=...
+
+Backend function
+- SolteiraAndBrandsController.GetOrderForPayment(int orderId)
+
+Database fields used/derived in response
+- hasExistingPayment: tbl_payments where payment_status != REJECTED
+- verifiedPaymentsCount: count of VERIFIED payments for the order
+- amountDue: computed (for layaway, uses slot-based carry-over schedule)
+- latestPaymentForProof: latest SUBMITTED/REJECTED payment with proof url + allowResubmit
+- meetupScheduledAtFormatted: from tbl_payments.meetup_datetime
+
+Important behavior
+- Calls AutoCancelLayawayIfMissedPayment(order, db, layawayRow) for layaway, which may set order_status=Cancelled.
+
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Function: GetOrderForPayment(int orderId)
+Location shown in chat via read/grep (see controller around line 860).
+
+
+B. Buyer submits payment (FULL / LAYAWAY / Meetup downpayment schedule)
+
+Trigger
+- Buyer clicks PAY or SCHEDULE & SUBMIT PAYMENT on Payment page (Angular submitPayment()).
+
+Backend function
+- SolteiraAndBrandsController.SubmitPayment(SubmitPaymentRequest request)
+
+Payment status set
+- tbl_payments.payment_status = SUBMITTED
+
+Order status set
+- tbl_orders.order_status = "Awaiting Payment Verification"
+
+Database updates
+- Insert tbl_payments: amount, proof_image_id, reference_number, meetup_datetime (if meetup), created_at
+- Update tbl_orders: order_status, last_status_update_at; delivery_type set to MEETUP if meetup and empty
+
+Backend implementation
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 1157-1269:
+public JsonResult SubmitPayment(SubmitPaymentRequest request)
+{
+    if (request == null)
+        return Json(new { success = false, message = "Invalid request." });
+    var orderId = request.OrderId;
+    var amount = request.Amount;
+    var proofImageId = request.ProofImageId;
+    var referenceNumber = request.ReferenceNumber;
+    var meetupDate = request.MeetupDate;
+    var meetupTime = request.MeetupTime;
+
+    var username = User.Identity.Name;
+    if (string.IsNullOrEmpty(username)) return Json(new { success = false, message = "Not authenticated." });
+    if (orderId <= 0 || amount <= 0)
+        return Json(new { success = false, message = "Invalid order or amount." });
+    bool isMeetup = !string.IsNullOrWhiteSpace(meetupDate) && !string.IsNullOrWhiteSpace(meetupTime);
+    string refTrimmed = (referenceNumber ?? "").Trim();
+    if (refTrimmed.Length > 20)
+        return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+    if (!isMeetup)
+    {
+        if (!proofImageId.HasValue || proofImageId.Value <= 0)
+            return Json(new { success = false, message = "Proof of payment is required. Please upload your payment proof first." });
+        if (string.IsNullOrEmpty(refTrimmed))
+            return Json(new { success = false, message = "Reference number is required." });
+    }
+    else
+    {
+        if (!proofImageId.HasValue || proofImageId.Value <= 0)
+            return Json(new { success = false, message = "Proof of 30% down payment is required. Please upload your payment proof first." });
+        if (string.IsNullOrEmpty(refTrimmed))
+            return Json(new { success = false, message = "Reference number for 30% down payment is required." });
+    }
+    DateTime? meetupDt = null;
+    if (isMeetup)
+    {
+        // Frontend sends date as yyyy-MM-dd from HTML date input; do not accept other formats.
+        if (!DateTime.TryParseExact(meetupDate?.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var meetupDateParsed))
+            return Json(new { success = false, message = "Valid meetup date is required (yyyy-MM-dd)." });
+        if (!DateTime.TryParse(meetupTime, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.None, out var t))
+            return Json(new { success = false, message = "Valid meetup time is required (e.g. 10:00 AM)." });
+        meetupDt = meetupDateParsed.Date.Add(t.TimeOfDay);
+        var today = DateTime.Today;
+        var now = DateTime.Now;
+        if (meetupDt.Value.Date < today)
+            return Json(new { success = false, message = "Meetup date cannot be in the past." });
+        var start = new TimeSpan(10, 0, 0);
+        var end = new TimeSpan(17, 0, 0);
+        if (meetupDt.Value.TimeOfDay < start || meetupDt.Value.TimeOfDay > end)
+            return Json(new { success = false, message = "Meetup must be between 10:00 AM and 5:00 PM." });
+        if (meetupDt.Value.Date == today && meetupDt.Value <= now)
+            return Json(new { success = false, message = "Meetup time cannot be in the past." });
+    }
+    try
+    {
+        using (var db = new SolteiraBrandsContext())
+        {
+            var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+            if (user == null) return Json(new { success = false, message = "User not found." });
+            var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId && o.UserId == user.Id);
+            if (order == null) return Json(new { success = false, message = "Order not found." });
+            // Apply automatic layaway cancellation before accepting any new payment.
+            AutoCancelLayawayIfMissedPayment(order, db);
+            if (string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Cannot submit payment for a cancelled order." });
+            if (!string.Equals(order.OrderStatus, "Approved", StringComparison.OrdinalIgnoreCase) && !string.Equals(order.OrderStatus, "Layaway Active", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Order is not available for payment." });
+            var orderPaymentType = (order.PaymentType ?? "FULL").ToUpperInvariant();
+            if (orderPaymentType == "LAYAWAY" && isMeetup)
+                return Json(new { success = false, message = "Layaway orders cannot use Cash through Meetup. Please use GCash or Bank Transfer." });
+            if (orderPaymentType == "LAYAWAY")
+            {
+                var outstanding = order.RemainingBalance;
+                if (outstanding <= 0)
+                    return Json(new { success = false, message = "This layaway order has no outstanding balance." });
+                if (amount <= 0)
+                    return Json(new { success = false, message = "Payment amount must be greater than zero." });
+                // Amount is not restricted to full outstanding; admin will verify and accept partial or full as appropriate.
+            }
+            var now = DateTime.Now;
+            var payment = new tblPaymentsModel
+            {
+                OrderId = order.Id,
+                Amount = amount,
+                PaymentStatus = PaymentStatus.Submitted,
+                ProofImageId = proofImageId,
+                ReferenceNumber = string.IsNullOrEmpty(refTrimmed) ? null : refTrimmed,
+                MeetupDatetime = meetupDt,
+                CreatedAt = now
+            };
+            db.tbl_payments.Add(payment);
+            // For both FULL and LAYAWAY: set order to Awaiting Payment Verification when payment is submitted
+            if (OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.AwaitingPaymentVerification))
+            {
+                order.OrderStatus = OrderStatus.AwaitingPaymentVerification;
+                order.LastStatusUpdateAt = now;
+            }
+            if (isMeetup && string.IsNullOrEmpty(order.DeliveryType))
+                order.DeliveryType = "MEETUP";
+            db.SaveChanges();
+            var msg = isMeetup ? "Meetup scheduled. We will verify and update your order status." : "Payment submitted. We will verify and update your order status.";
+            return Json(new { success = true, message = msg });
+        }
+    }
+    catch (Exception ex)
+    {
+        var errMsg = ex.Message ?? "Unable to submit payment. Please try again.";
+        return Json(new { success = false, message = errMsg });
+    }
+}
+
+Frontend submission
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SBScripts\Controller.js
+The submitPayment() implementation selects amountToSubmit:
+- Meetup: getMeetupDownpaymentAmount() (30% downpayment)
+- Non-meetup: paymentOrder.amountDue
+Then calls SolteiraBrandsService.submitPayment(...)
+
+
+C. Admin verifies or rejects payment (FULL + Layaway downpayment + layaway installments)
+
+Trigger
+- Admin Payment UI calls POST /SolteiraAndBrands/UpdatePaymentStatus with paymentId + status (VERIFIED/REJECTED) and optional reason + allowResubmit.
+
+Backend function
+- SolteiraAndBrandsController.UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null, bool? allowResubmit = null)
+
+Payment status changes
+- SUBMITTED → VERIFIED or REJECTED
+
+Order status changes
+- FULL + COURIER:
+  - Awaiting Payment Verification → Paid
+  - remaining_balance = 0
+- FULL + MEETUP:
+  - Awaiting Payment Verification → Ready for Meetup
+  - remaining_balance = 0
+  - delivery_type = "MEETUP"
+- LAYAWAY downpayment verified:
+  - → Layaway Active
+  - remaining_balance = total_amount - payment.amount
+- LAYAWAY installment verified:
+  - remaining_balance -= payment.amount
+  - if remaining_balance <= 0:
+    - meetup: → Ready for Meetup
+    - courier: → Paid
+- REJECTED + allowResubmit=false:
+  - order_status → Cancelled
+  - rejection_reason stored
+  - stock restored from order_items
+- REJECTED + allowResubmit=true:
+  - order_status → "Approved" unless order is Layaway Active
+
+Backend implementation
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Function: UpdatePaymentStatus(...)
+Location shown in chat via read/grep (controller around line 1879).
+
+
+4) Cash Through Meetup workflow (end-to-end)
+
+A. How meetup is selected during checkout
+
+Backend inference at order creation
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+From CreateOrder():
+var paymentType = paymentMethod.IndexOf("Layaway", ...) ? "LAYAWAY"
+    : paymentMethod.IndexOf("meetup", ...) ? "CASH_MEETUP"
+    : "FULL";
+var deliveryType = (paymentType == "CASH_MEETUP" || paymentMethod.IndexOf("Meetup", ...) >= 0) ? "MEETUP" : "COURIER";
+
+B. How meetup date/time is stored + field identifying meetup orders
+
+Meetup schedule storage
+- tbl_payments.meetup_datetime
+
+Meetup order identification
+- tbl_orders.delivery_type = "MEETUP"
+
+C. How payment is submitted (meetup)
+
+Frontend
+- Payment page channel "Cash through Meetup" collects:
+  - meetupDate (yyyy-MM-dd)
+  - meetupTime (e.g., 10:00 AM)
+  - proof upload + reference number for 30% downpayment
+- submitPayment() sends:
+  - MeetupDate, MeetupTime
+  - Amount = 30% downpayment
+
+Backend
+- SubmitPayment() parses date/time and sets tbl_payments.meetup_datetime.
+- Sets order_status to Awaiting Payment Verification.
+
+D. How admin verifies meetup payments and order status becomes Ready for Meetup
+
+Backend
+- UpdatePaymentStatus() when verifying:
+  - isMeetupOrder = deliveryType == "MEETUP" || payment.MeetupDatetime.HasValue
+  - sets order_status = Ready for Meetup and delivery_type="MEETUP"
+
+
+Delivery – Cash through Meetup page logic
+
+What query loads meetup orders
+- GET /SolteiraAndBrands/GetOrdersForDeliveryMeetup
+- Backend returns orders where DeliveryType == "MEETUP" OR order has any meetup outcome row.
+- No filtering by order_status in backend.
+
+Backend query
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Function: GetOrdersForDeliveryMeetup()
+Location shown in chat via read (controller around line 2342).
+
+What statuses are included
+- All meetup orders regardless of order_status (because backend does not filter by status).
+
+What actions are available (UI)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Views\SolteiraAndBrands\AdminDeliveryMeetupPage.cshtml
+- If orderStatus === "Ready for Meetup":
+  - Mark Completed (upload receipt)
+  - Mark No Show / Edit No Show
+  - Cancel
+- Else: "No further updates"
+
+Show the code responsible for loading meetup orders
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Controller.js
+$scope.loadDeliveryMeetup = function () {
+    SolteiraAndBrandsService.getOrdersForDeliveryMeetup().then(function (res) {
+        var raw = res.data;
+        var list = (raw && raw.success && raw.data) ? raw.data : [];
+        $scope.meetupOrdersList = list;
+        $timeout(function () { $scope.meetupOrdersList = list; }, 10);
+        ...
+    }, function (err) {
+        ...
+        $scope.meetupOrdersList = [];
+    });
+};
+
+Show the code responsible for updating meetup status + rescheduling
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Controller.js
+$scope.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+    ...
+    if (statusUpper === 'NO_SHOW') {
+        // collects reason then collects reschedule date+time and calls updateMeetupOutcome(orderId, 'NO_SHOW', null, reason, rescheduleDate)
+    }
+    ...
+    SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, receiptImageId).then(...);
+};
+
+Backend: updating meetup outcome
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Function: UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null, string reason = null, string rescheduleDate = null)
+- COMPLETED:
+  - order_status = Completed
+  - inserts tbl_meetup_outcomes status COMPLETED with receipt_image_id
+- NO_SHOW:
+  - inserts/updates tbl_meetup_outcomes status NO_SHOW with reason + rescheduled_at
+  - does NOT change order_status
+- CANCELLED:
+  - order_status = Cancelled
+  - inserts tbl_meetup_outcomes status CANCELLED with reason
+
+
+5) Delivery workflow (Courier + Cash through meetup)
+
+Courier delivery lifecycle (shipment module)
+
+How orders enter delivery module
+- GetOrdersForDeliveryShipments():
+  - order_status == "Paid"
+  - delivery_type != "MEETUP"
+  - no existing delivery record
+
+Create delivery
+- CreateDelivery() inserts tbl_deliveries row with delivery_status = PENDING.
+- order_status remains Paid until delivery becomes IN_TRANSIT.
+
+Delivery status changes
+- UpdateDeliveryStatus(deliveryId, "IN_TRANSIT") sets:
+  - tbl_deliveries.delivery_status = IN_TRANSIT
+  - tbl_orders.order_status = In Delivery
+- UpdateDeliveryStatus(deliveryId, "DELIVERED") sets:
+  - tbl_deliveries.delivery_status = DELIVERED
+  - tbl_orders.order_status = Completed
+
+Cash through meetup delivery lifecycle
+- Meetup list page is driven by GetOrdersForDeliveryMeetup() (delivery_type=MEETUP or has meetup outcomes).
+- Completion is via UpdateMeetupOutcome(COMPLETED) which sets order_status = Completed and stores receipt image.
+
+
+6) Frontend status display logic (buyer side)
+
+Unified buyer status label
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SBScripts\Controller.js
+Function: $scope.getOverallStatus(order)
+Key mappings (exact logic from code):
+- Cancelled -> "Cancelled"
+- Completed -> "Completed"
+- Layaway conditions -> "Layaway Active"
+- "Awaiting Payment Verification" -> "Under Review" (if order.hasSubmittedPayment) else "Awaiting Payment"
+- Paid -> "Paid"
+- Ready for Meetup -> "Ready for Meetup"
+- In Delivery -> "Completed" if deliveryStatus == delivered else "In Delivery"
+- Pending -> "Pending Approval"
+- Approved -> "Awaiting Payment"
+- Rejected -> "Rejected"
+
+Buyer My Orders rendering uses getOverallStatus(order)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Views\SolteiraAndBrands\SolteiraBrandsMyOrders.cshtml
+Shows getOverallStatus in table and modal.
+
+
+7) All functions that modify order.OrderStatus / tbl_orders.order_status
+
+File: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+
+Functions that change order status:
+- CreateOrder(): sets Pending
+- UpdateOrderStatus(): sets Approved or Rejected
+- SubmitPayment(): sets Awaiting Payment Verification
+- UpdatePaymentStatus():
+  - sets Cancelled (reject no resubmit)
+  - sets Approved (reject with resubmit allowed in certain paths)
+  - sets Layaway Active / Paid / Ready for Meetup based on payment type + delivery type
+- RevokeApproval(): sets Pending
+- UpdateDeliveryStatus(): sets In Delivery or Completed based on delivery_status
+- UpdateDelivery(): sets In Delivery or Completed when deliveryStatus changes
+- MarkReadyForMeetup(): sets Ready for Meetup
+- CompleteMeetup(): sets Completed
+- UpdateMeetupOutcome(): sets Completed or Cancelled (based on outcome status)
+- AutoCancelLayawayIfMissedPayment(): sets Cancelled (layaway auto cancel) and restores stock
+- CancelOrdersWithRejectedPaymentNoResubmit(): sets Cancelled (bulk fix)
+- CheckAndCancelOverdueOrders(): sets Cancelled (24h deadline)
+
+
+8) Database fields used for order flow
+
+tbl_orders fields:
+- payment_method
+- payment_type (FULL / LAYAWAY / CASH_MEETUP)
+- delivery_type (COURIER / MEETUP)
+- order_status
+- remaining_balance
+- rejection_reason
+- last_status_update_at
+
+tbl_payments fields:
+- amount
+- payment_status
+- proof_image_id
+- reference_number
+- meetup_datetime
+- rejection_reason
+- allow_resubmit
+- verified_by_user_id
+- verified_at
+
+tbl_deliveries fields:
+- delivery_status
+- courier
+- tracking_number
+- dispatch_date
+- eta
+
+tbl_meetup_outcomes fields:
+- status (COMPLETED / NO_SHOW / CANCELLED)
+- receipt_image_id
+- reason
+- rescheduled_at
+
+
+Key code snippets index (by requirement keywords)
+
+- Checkout / buyer creates order:
+  - SolteiraAndBrandsController.CreateOrder()
+  - SolteiraBrandsController.placeOrder() (Angular)
+
+- SubmitPayment:
+  - SolteiraAndBrandsController.SubmitPayment()
+  - SolteiraBrandsService.submitPayment()
+
+- VerifyPayment / RejectPayment:
+  - SolteiraAndBrandsController.UpdatePaymentStatus()
+  - Admin JS: $scope.verifyPayment / $scope.rejectPayment
+
+- Cash Through Meetup:
+  - SolteiraAndBrandsController.GetOrdersForDeliveryMeetup()
+  - SolteiraAndBrandsController.UpdateMeetupOutcome()
+  - Admin JS: $scope.loadDeliveryMeetup / $scope.confirmMeetupCompleted / $scope.updateMeetupOutcome
+
+- Delivery (courier shipments):
+  - SolteiraAndBrandsController.GetOrdersForDeliveryShipments()
+  - SolteiraAndBrandsController.CreateDelivery()
+  - SolteiraAndBrandsController.UpdateDeliveryStatus()
+
+- Frontend status display:
+  - Buyer JS: $scope.getOverallStatus(order)
+
+
+================================================================================
+APPENDIX: Admin Inventory Page + Archive/Restore (SystemAdmin/Admin logic)
+================================================================================
+
+NOTE: This section was not included earlier in this file. Added per request.
+
+1) Inventory archive data model (soft-delete)
+
+Database field
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\SQL\CreateTables_And_Seed.sql
+tbl_products.is_archived (TINYINT(1), default 0)
+
+Model field
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Models\tblProductsModel.cs
+public bool IsArchived { get; set; }
+
+2) Admin inventory page view (Admin vs Operations layout + archive buttons)
+
+Trigger (page load)
+- User navigates to /SolteiraAndBrands/AdminInventoryPage
+- View: AdminInventoryPage.cshtml renders inventory table; Angular controller initializes by checking if #inventoryTable exists and calls loadInventoryProducts()
+
+View logic (Admin-only archive/restore + show archived toggle)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Views\SolteiraAndBrands\AdminInventoryPage.cshtml
+Lines 1-27 (layout + Show Active/Show Archived buttons):
+@{
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+}
+...
+@if (User.IsInRole("ADMIN"))
+{
+    <div class="btn-group me-2" role="group">
+        <button type="button"
+                class="btn btn-sm btn-outline-success"
+                ng-class="{'active': !showArchivedInventory}"
+                ng-click="showArchivedInventory = false; loadInventoryProducts();">
+            Show Active
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                ng-class="{'active': showArchivedInventory}"
+                ng-click="showArchivedInventory = true; loadInventoryProducts();">
+            Show Archived
+        </button>
+    </div>
+}
+
+Action column (Admin-only archive/restore icon)
+Source: same file
+Lines 219-235:
+@if (User.IsInRole("ADMIN"))
+{
+    <a class="order-action-icon"
+       data-bs-toggle="tooltip"
+       data-bs-placement="bottom"
+       data-bs-title="{{showArchivedInventory ? 'Restore Item' : 'Archive Item'}}"
+       ng-click="inventoryArchiveAlert(item)">
+        <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
+    </a>
+}
+
+3) Inventory list loading (Active vs Archived)
+
+What triggers the action
+- On inventory page load (JS checks for #inventoryTable)
+- When Admin clicks "Show Active" or "Show Archived" (ng-click toggles showArchivedInventory and calls loadInventoryProducts())
+
+Frontend function
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Controller.js
+Function: $scope.loadInventoryProducts
+var showArchivedInventory controls the archived flag sent to the backend.
+
+Snippet (loading list):
+// ----- Inventory: products from tbl_products (shared with buyer storefront) -----
+$scope.inventoryProducts = [];
+$scope.showArchivedInventory = false;
+...
+$scope.loadInventoryProducts = function () {
+    SolteiraAndBrandsService.getInventoryProducts($scope.showArchivedInventory).then(function (res) {
+        var list = [];
+        if (angular.isArray(res.data)) {
+            list = res.data;
+        } else if (res.data && res.data.data) {
+            list = res.data.data;
+        }
+        $scope.inventoryProducts = list || [];
+
+        if (!$scope.showArchivedInventory) {
+            // Compute next display Product ID (P-001 style) based on max existing id among active items
+            var maxId = 0;
+            angular.forEach($scope.inventoryProducts, function (p) {
+                if (p && p.id && p.id > maxId) {
+                    maxId = p.id;
+                }
+            });
+            $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
+        }
+    }, function () {
+        $scope.inventoryProducts = [];
+    });
+};
+
+Backend function (query filtered by archived flag)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 147-197:
+[Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+[HttpGet]
+public JsonResult GetInventoryProducts(bool archived = false)
+{
+    using (var db = new SolteiraBrandsContext())
+    {
+        var list = (from p in db.tbl_products
+                    join img in db.tbl_images on p.ImageId equals img.Id into productImages
+                    from img in productImages.DefaultIfEmpty()
+                    where p.IsArchived == archived
+                    orderby p.CreatedAt descending
+                    select new
+                    {
+                        id = p.Id,
+                        name = p.Name,
+                        category = p.Category,
+                        description = p.Description,
+                        price = p.Price,
+                        material = p.Material,
+                        stones = p.Stones,
+                        weight = p.Weight,
+                        length = p.Length,
+                        stockQuantity = p.StockQuantity,
+                        imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : null,
+                        isBestSeller = p.IsBestSeller,
+                        createdAt = p.CreatedAt,
+                        updatedAt = p.UpdatedAt
+                    }).ToList()
+                    .Select(x => new
+                    {
+                        x.id,
+                        x.name,
+                        x.category,
+                        x.description,
+                        x.price,
+                        x.material,
+                        x.stones,
+                        x.weight,
+                        x.length,
+                        x.stockQuantity,
+                        x.imageUrl,
+                        x.isBestSeller,
+                        createdAtString = x.createdAt.ToString("MM/dd/yy"),
+                        updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MM/dd/yy")
+                    });
+
+        return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+    }
+}
+
+API wrapper (admin service)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Service.js
+this.getInventoryProducts = function (archived) {
+    return $http({
+        method: "GET",
+        url: "/SolteiraAndBrands/GetInventoryProducts",
+        params: { archived: !!archived }
+    });
+};
+
+4) Archive / Restore inventory item (Admin-only; toggles is_archived)
+
+What triggers the action
+- Admin clicks archive icon in Inventory table (ng-click="inventoryArchiveAlert(item)")
+- Behavior depends on current view:
+  - showArchivedInventory == false: action is ARCHIVE
+  - showArchivedInventory == true: action is RESTORE (unarchive)
+
+Frontend function (confirmation + API call)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Controller.js
+Function: $scope.inventoryArchiveAlert
+Key behavior:
+- isArchiving = !showArchivedInventory
+- Calls SolteiraAndBrandsService.toggleProductArchive(item.id)
+- On success: reload list (loadInventoryProducts)
+
+Snippet:
+$scope.inventoryArchiveAlert = function (item) {
+    if (!item || !item.id) return;
+
+    var isArchiving = !$scope.showArchivedInventory;
+    var title = isArchiving ? 'Archive Confirmation' : 'Restore Confirmation';
+    var text = isArchiving ? 'Please confirm you wish to archive this inventory item'
+                           : 'Please confirm you wish to restore this inventory item';
+    var confirmLabel = isArchiving ? 'Archive' : 'Restore';
+    var successTitle = isArchiving ? 'Inventory item archived successfully!'
+                                   : 'Inventory item restored successfully!';
+
+    Swal.fire({ ... }).then((result) => {
+        if (result.isConfirmed) {
+            SolteiraAndBrandsService.toggleProductArchive(item.id).then(function (res) {
+                if (res.data && res.data.success) {
+                    Swal.fire({ title: successTitle, ... });
+                    $scope.loadInventoryProducts();
+                } else { ... }
+            }, function () { ... });
+        }
+    });
+}
+
+Backend function (Admin only)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 285-301:
+[Authorize(Roles = "ADMIN")]
+[HttpPost]
+public JsonResult ToggleProductArchive(int id)
+{
+    using (var db = new SolteiraBrandsContext())
+    {
+        var product = db.tbl_products.FirstOrDefault(p => p.Id == id);
+        if (product == null) return Json(new { success = false, message = "Product not found." });
+
+        product.IsArchived = !product.IsArchived;
+        product.UpdatedAt = DateTime.Now;
+        db.SaveChanges();
+        LogActivity(db, product.IsArchived ? "Archive Product" : "Unarchive Product", "Inventory", product.Id, product.Name);
+
+        return Json(new { success = true, message = "Product archive status updated.", isArchived = product.IsArchived });
+    }
+}
+
+Database fields changed
+- tbl_products.is_archived is toggled (0 <-> 1)
+- tbl_products.updated_at is set to now
+
+API wrapper (admin service)
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Scripts\HolyScripts\Service.js
+this.toggleProductArchive = function (id) {
+    return $http({
+        method: "POST",
+        url: "/SolteiraAndBrands/ToggleProductArchive",
+        data: { id: id }
+    });
+};
+
+5) Storefront impact (buyers do not see archived products)
+
+Backend storefront query excludes archived products:
+Source: c:\Users\warry\source\repos\Solteira-Brands\Solteira&Brands\Controllers\SolteiraAndBrandsController.cs
+Lines 303-332:
+[HttpGet]
+public JsonResult GetStorefrontProducts()
+{
+    using (var db = new SolteiraBrandsContext())
+    {
+        var products = (from p in db.tbl_products
+                        join img in db.tbl_images on p.ImageId equals img.Id into productImages
+                        from img in productImages.DefaultIfEmpty()
+                        where !p.IsArchived
+                        orderby p.Category, p.Name
+                        select new { ... }).ToList();
+
+        return Json(new { success = true, data = products }, JsonRequestBehavior.AllowGet);
+    }
+}
+

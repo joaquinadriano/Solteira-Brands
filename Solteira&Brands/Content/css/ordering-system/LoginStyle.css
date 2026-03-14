@@ -72,6 +72,7 @@ body, html {
 
 .is-invalid {
     border: 2px solid red !important;
+    background-image: none !important;
 }
 
 .helper-text {
@@ -82,7 +83,7 @@ body, html {
 }
 
 .error-text {
-    display: block;
+    display: none !important;
     color: #c00;
     font-size: 0.8125rem;
     margin-top: 4px;

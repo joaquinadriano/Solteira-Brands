@@ -77,9 +77,10 @@ app.service("SolteiraAndBrandsService", function ($http) {
         });
     };
 
-    this.updateOrderStatus = function (orderId, status, rejectionReason) {
+    this.updateOrderStatus = function (orderId, status, rejectionReason, restoreStock) {
         var params = { id: orderId, status: status };
         if (rejectionReason != null && rejectionReason !== '') params.rejectionReason = rejectionReason;
+        if (typeof restoreStock === 'boolean') params.restoreStock = restoreStock;
         return $http({
             method: "POST",
             url: "/SolteiraAndBrands/UpdateOrderStatus",
@@ -164,9 +165,11 @@ app.service("SolteiraAndBrandsService", function ($http) {
             transformRequest: angular.identity
         });
     };
-    this.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+    this.updateMeetupOutcome = function (orderId, status, receiptImageId, cancellationReason, restoreStock) {
         var params = { orderId: orderId, status: status };
         if (receiptImageId) params.receiptImageId = receiptImageId;
+        if (cancellationReason) params.cancellationReason = cancellationReason;
+        if (typeof restoreStock !== "undefined" && restoreStock !== null) params.restoreStock = restoreStock;
         return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateMeetupOutcome", params: params });
     };
 

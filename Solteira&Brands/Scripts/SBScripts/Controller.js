@@ -267,7 +267,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     function validatePassword(p) {
         var msg = 'Minimum 8 characters. Must include uppercase, lowercase, number, and special character.';
         if (!p || p.length < 8) return msg;
-        if (p.length > 64) return msg;
+        if (p.length > 16) return msg;
         if (!/[A-Z]/.test(p)) return msg;
         if (!/[a-z]/.test(p)) return msg;
         if (!/[0-9]/.test(p)) return msg;
@@ -279,26 +279,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var e = $scope.registerData.email;
         var err = validateEmailFormat(e);
         $scope.registerErrors.email = err;
-        if (err) return;
-
-        SolteiraBrandsService.isEmailAvailable(e).then(function (r) {
-            if (r.data && r.data.available === false) {
-                $scope.registerErrors.email = "Email already registered.";
-            }
-        });
+        // Uniqueness is now validated on submit/server response only
     };
 
     $scope.onUsernameBlur = function () {
         var u = $scope.registerData.username;
         var err = validateUsernameFormat(u);
         $scope.registerErrors.username = err;
-        if (err) return;
-
-        SolteiraBrandsService.isUsernameAvailable(u, false).then(function (r) {
-            if (r.data && r.data.available === false) {
-                $scope.registerErrors.username = "Username already taken.";
-            }
-        });
+        // Uniqueness is now validated on submit/server response only
     };
 
     function clearRegisterErrors() {
@@ -315,7 +303,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         // Re-validate match only when there is something typed
         if (v) {
-            $scope.registerErrors.verifyPassword = (p && p === v) ? '' : 'Passwords do not match.';
+            $scope.registerErrors.verifyPassword = (p && v && p === v) ? '' : 'Passwords do not match.';
         }
     };
 
@@ -326,11 +314,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.registerErrors.verifyPassword = '';
             return;
         }
-        $scope.registerErrors.verifyPassword = (p && p === v) ? '' : 'Passwords do not match.';
+        $scope.registerErrors.verifyPassword = (p && v && p === v) ? '' : 'Passwords do not match.';
     };
 
     $scope.register = function (form) {
-        clearRegisterErrors();
         if (!form) return;
 
         var eErr = validateEmailFormat($scope.registerData.email);
@@ -343,7 +330,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.registerErrors.email = eErr;
             $scope.registerErrors.username = uErr;
             if (pErr) $scope.registerErrors.password = pErr;
-            if (p !== v) $scope.registerErrors.verifyPassword = "Passwords do not match.";
+            if (p !== v) $scope.registerErrors.verifyPassword = 'Passwords do not match.';
+            var primaryMsg = eErr || uErr || pErr || (p !== v ? 'Passwords do not match.' : '');
+            if (primaryMsg) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Cannot create account',
+                    text: primaryMsg
+                });
+            }
             return;
         }
 
@@ -366,6 +361,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 });
             } else if (r.data && r.data.errors) {
                 angular.extend($scope.registerErrors, r.data.errors);
+                var serverEmailErr = r.data.errors.email || r.data.errors.Email;
+                var serverUsernameErr = r.data.errors.username || r.data.errors.Username;
+                var serverMsg = serverEmailErr || serverUsernameErr || r.data.message;
+                if (serverMsg) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Cannot create account',
+                        text: serverMsg
+                    });
+                }
             } else {
                 Swal.fire({ icon: 'error', title: 'Registration failed', text: (r.data && r.data.message) || 'Please try again.' });
             }
@@ -450,6 +455,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.startTimer();
 
     $scope.resendOtp = function () {
+        // If currently locked due to too many failures, do not resend.
+        if ($scope.otpLockedUntil && Date.now() < $scope.otpLockedUntil) {
+            var remainingMs = $scope.otpLockedUntil - Date.now();
+            var remainingSec = Math.ceil(remainingMs / 1000);
+            $scope.otpError = 'Too many invalid codes. Please wait ' + remainingSec + 's before requesting a new code.';
+            return;
+        }
+
         Swal.fire({
             toast: true,
             position: 'top-end',
@@ -460,12 +473,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             timerProgressBar: true
         });
 
+        // Reset attempts on resend and restart 30s timer.
+        $scope.otpAttempts = 0;
+        $scope.otpLockedUntil = null;
         $scope.startTimer();
     };
 
     $scope.$on('$destroy', function () {
         if (angular.isDefined(timerInterval)) {
             $interval.cancel(timerInterval);
+        }
+        if (angular.isDefined(otpLockInterval)) {
+            $interval.cancel(otpLockInterval);
         }
     });
 
@@ -478,6 +497,29 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var email = ($scope.userEmail || '').trim();
         if (!email) {
             $scope.forgotPasswordError = 'Email is required.';
+            return;
+        }
+        // If OTP is currently locked (15‑minute cooldown), block new requests for this device.
+        if ($scope.otpLockedUntil && Date.now() < $scope.otpLockedUntil) {
+            var remainingMs = $scope.otpLockedUntil - Date.now();
+            var remainingSec = Math.ceil(remainingMs / 1000);
+            var mins = Math.floor(remainingSec / 60);
+            var secs = remainingSec % 60;
+            var msg = 'You have reached the maximum OTP attempts. Please wait ';
+            if (mins > 0) {
+                msg += mins + ' minute' + (mins > 1 ? 's' : '');
+                if (secs > 0) msg += ' and ';
+            }
+            if (secs > 0) {
+                msg += secs + ' second' + (secs > 1 ? 's' : '');
+            }
+            msg += ' before requesting a new code.';
+
+            Swal.fire({
+                icon: 'error',
+                title: 'OTP temporarily locked',
+                text: msg
+            });
             return;
         }
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -505,10 +547,81 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.otpValue = '';
     $scope.otpVerifying = false;
     $scope.otpError = '';
+    $scope.otpAttempts = 0;
+    $scope.otpLockedUntil = null;
+    $scope.otpLockSecondsLeft = 0;
+    var otpLockInterval;
+
+    // Restore any existing OTP lock from previous visits (persisted for 15 minutes).
+    (function restoreOtpLock() {
+        try {
+            var stored = localStorage.getItem('sb_otp_lock_until');
+            if (stored) {
+                var ts = parseInt(stored, 10);
+                if (!isNaN(ts) && ts > Date.now()) {
+                    $scope.otpLockedUntil = ts;
+                } else {
+                    localStorage.removeItem('sb_otp_lock_until');
+                }
+            }
+        } catch (e) {
+            // ignore storage errors
+        }
+    })();
+
+    function startOtpLock(durationMs) {
+        var until = Date.now() + durationMs;
+        $scope.otpLockedUntil = until;
+        $scope.otpLockSecondsLeft = Math.ceil(durationMs / 1000);
+        $scope.otpError = 'Too many invalid codes. Please wait ' + $scope.otpLockSecondsLeft + 's before trying again.';
+        try {
+            localStorage.setItem('sb_otp_lock_until', String(until));
+        } catch (e) {
+            // ignore storage errors
+        }
+
+        if (angular.isDefined(otpLockInterval)) {
+            $interval.cancel(otpLockInterval);
+        }
+
+        otpLockInterval = $interval(function () {
+            if (!$scope.otpLockedUntil) {
+                $scope.otpLockSecondsLeft = 0;
+                $interval.cancel(otpLockInterval);
+                return;
+            }
+            var remainingMs = $scope.otpLockedUntil - Date.now();
+            if (remainingMs <= 0) {
+                $scope.otpLockedUntil = null;
+                $scope.otpLockSecondsLeft = 0;
+                $scope.otpAttempts = 0;
+                $scope.otpError = '';
+                try {
+                    localStorage.removeItem('sb_otp_lock_until');
+                } catch (e) {
+                    // ignore
+                }
+                $interval.cancel(otpLockInterval);
+            } else {
+                $scope.otpLockSecondsLeft = Math.ceil(remainingMs / 1000);
+                $scope.otpError = 'Too many invalid codes. Please wait ' + $scope.otpLockSecondsLeft + 's before trying again.';
+            }
+        }, 1000);
+    }
 
     $scope.submitOtp = function (ev) {
         if (ev && ev.preventDefault) ev.preventDefault();
         $scope.otpError = '';
+
+        // Lockout check: 5 failed attempts -> 15 min lock with live countdown.
+        if ($scope.otpLockedUntil && Date.now() < $scope.otpLockedUntil) {
+            return;
+        }
+        if ($scope.otpLockedUntil && Date.now() >= $scope.otpLockedUntil) {
+            // Lock expired, reset attempts.
+            $scope.otpLockedUntil = null;
+            $scope.otpAttempts = 0;
+        }
         if ($scope.currentMode === 'forgot') {
             var email = $scope.verificationEmail || '';
             var otp = ($scope.otpValue || '').trim();
@@ -530,11 +643,35 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                         window.location.href = '/SolteiraAndBrands/SolteiraBrandsNewPassword?email=' + encodeURIComponent(r.data.email || email);
                     });
                 } else {
-                    $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+                    $scope.otpAttempts++;
+                    if ($scope.otpAttempts >= 5) {
+                        startOtpLock(15 * 60 * 1000);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Too many attempts',
+                            text: 'You have entered an invalid code 5 times. Please wait 15 minutes before trying again.'
+                        }).then(function () {
+                            window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                        });
+                    } else {
+                        $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+                    }
                 }
             }, function (err) {
                 $scope.otpVerifying = false;
-                $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+                $scope.otpAttempts++;
+                if ($scope.otpAttempts >= 5) {
+                    startOtpLock(15 * 60 * 1000);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Too many attempts',
+                        text: 'You have entered an invalid code 5 times. Please wait 15 minutes before trying again.'
+                    }).then(function () {
+                        window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                    });
+                } else {
+                    $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+                }
             });
             return;
         }
@@ -557,12 +694,41 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                     window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
                 });
             } else {
-                $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+                $scope.otpAttempts++;
+                if ($scope.otpAttempts >= 5) {
+                    startOtpLock(15 * 60 * 1000);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Too many attempts',
+                        text: 'You have entered an invalid code 5 times. Please wait 15 minutes before trying again.'
+                    }).then(function () {
+                        window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                    });
+                } else {
+                    $scope.otpError = (r.data && r.data.message) || 'Invalid or expired code. Please try again.';
+                }
             }
         }, function (err) {
             $scope.otpVerifying = false;
-            $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+            $scope.otpAttempts++;
+            if ($scope.otpAttempts >= 5) {
+                startOtpLock(15 * 60 * 1000);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Too many attempts',
+                    text: 'You have entered an invalid code 5 times. Please wait 15 minutes before trying again.'
+                }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                });
+            } else {
+                $scope.otpError = (err.data && err.data.message) || 'Verification failed. Please try again.';
+            }
         });
+    };
+
+    // Clear OTP error when user starts typing again.
+    $scope.onOtpInputChange = function () {
+        $scope.otpError = '';
     };
 
     $scope.handleOTPSuccess = function () {
@@ -683,6 +849,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 Swal.fire({ icon: 'info', title: 'Maximum reached', text: 'You already have ' + alreadyInCart + ' of ' + product.name + ' in your cart. Available stock: ' + available + '.' });
                 return;
             }
+            // When adding to cart, only the most recently affected item should be selected.
+            // Clear selection on all items first.
+            if ($scope.cart && $scope.cart.length) {
+                $scope.cart.forEach(function (i) { i.selected = false; });
+            }
             var cartItem = {
                 id: product.id,
                 name: product.name,
@@ -696,6 +867,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             };
             if (existingItem) {
                 existingItem.qty += canAdd;
+                existingItem.selected = true;
             } else {
                 $scope.cart.push(cartItem);
             }
@@ -1010,7 +1182,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
     };
 
-    /** Buyer ORDER STATUS: use order.status from DB directly (source of truth). No override from payment. */
+  $scope.goToPaymentFromOrderModal = function (order) {
+      if (!order) return;
+      var orderId = order.orderId || order.id || order.Id;
+      if (orderId) {
+          $scope.goToPayment(orderId);
+      }
+  };
+
+    /** Buyer ORDER STATUS: use order.status from DB directly (source of truth). Rejection flag drives resubmit label. */
     $scope.getOverallStatus = function (order) {
         if (!order) return '-';
         var status = (order.status || order.Status || '').trim();
@@ -1019,10 +1199,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         if (statusLower === 'cancelled') return 'Cancelled';
         if (statusLower === 'completed') return 'Completed';
-        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Completed' : 'In Delivery';
+        if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Delivered' : 'In Delivery';
         if (statusLower === 'rejected') return 'Order Rejected';
         if (statusLower === 'pending approval') return 'Pending Approval';
-        if (statusLower === 'awaiting payment verification') return 'Awaiting Payment Verification';
+        if (statusLower === 'awaiting payment verification') {
+            // If there is a rejection reason but no SUBMITTED payment, resubmission is needed.
+            if (order.latestPaymentRejectionReason && !order.hasSubmittedPayment) return 'Resubmit Payment Required';
+            // Once a new payment has been submitted, show it as awaiting verification again.
+            return 'Awaiting Payment Verification';
+        }
         if (statusLower === 'pending payment') return 'Pending Payment';
         if (statusLower === 'pending downpayment') return 'Pending Downpayment';
         if (statusLower === 'layaway active') return 'Layaway Active';
@@ -1062,7 +1247,12 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (order.isArchived === true || order.IsArchived === true) return 'View Details';
         var displayStatus = $scope.getOverallStatus(order);
         if (displayStatus === 'Order Rejected' || displayStatus === 'Pending Approval') return 'View Details';
-        if (displayStatus === 'Awaiting Payment Verification') return 'View Details';
+        if (displayStatus === 'Awaiting Payment Verification') {
+            // Only allow "Pay Now" when a rejection reason exists AND no new payment is currently submitted.
+            if (order.latestPaymentRejectionReason && !order.hasSubmittedPayment) return 'Pay Now';
+            return 'View Details';
+        }
+        if (displayStatus === 'Resubmit Payment Required') return 'Pay Now';
         if (displayStatus === 'Pending Payment') return 'Pay Now';
         if (displayStatus === 'Pending Downpayment') return 'Pay Downpayment';
         if (displayStatus === 'Paid - Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled') return 'View Details';
@@ -1071,11 +1261,44 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return 'View Details';
     };
 
-    $scope.goToTracking = function (trackingNumber) {
-        if (trackingNumber && (trackingNumber + '').trim()) {
-            window.open('https://www.lbcexpress.com/track/?trackingNo=' + encodeURIComponent((trackingNumber + '').trim()), '_blank');
+    $scope.goToTracking = function (trackingNumberRaw, trackingLinkExplicit) {
+        var raw = (trackingNumberRaw || '').toString().trim();
+        if (!raw) {
+            if (trackingLinkExplicit && /^https?:\/\//i.test(trackingLinkExplicit)) {
+                window.open(trackingLinkExplicit, '_blank');
+                return;
+            } else {
+                window.open('https://www.lbcexpress.com/track/', '_blank');
+                return;
+            }
+        }
+        var parts = raw.split('||');
+        var link = parts.length > 1 ? (parts[1] || '').trim() : '';
+        if (!link && trackingLinkExplicit) {
+            link = trackingLinkExplicit;
+        }
+        if (link && /^https?:\/\//i.test(link)) {
+            window.open(link, '_blank');
         } else {
+            window.open('https://www.lbcexpress.com/track/', '_blank');
+        }
+    };
+
+    $scope.copyTrackingNumber = function (trackingNumber) {
+        var raw = (trackingNumber || '').toString().trim();
+        var value = raw.split('||')[0] || raw;
+        if (!value) {
             Swal.fire({ icon: 'info', title: 'Tracking', text: 'Tracking number is not yet available. It will appear when the order is in transit.' });
+            return;
+        }
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(function () {
+                Swal.fire({ icon: 'success', title: 'Copied', text: 'Tracking number copied to clipboard.' });
+            }).catch(function () {
+                Swal.fire({ icon: 'info', title: 'Tracking', text: 'Unable to copy automatically. You can copy the tracking number manually.' });
+            });
+        } else {
+            Swal.fire({ icon: 'info', title: 'Tracking', text: 'Your browser does not allow automatic copy. You can copy the tracking number manually.' });
         }
     };
 
@@ -1119,10 +1342,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.handleOrderAction = function (order) {
         if (!order) return;
         var label = $scope.getOrderActionLabel(order);
-        if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Pay Downpayment') $scope.goToPayment(order.orderId);
-        else if (label === 'Track Now') $scope.goToTracking(order.trackingNumber);
-        else if (order.hasSubmittedPayment && order.latestPaymentForProof) $scope.openViewPaymentProofModalFromOrders(order);
-        else $scope.openOrderDetailsModal(order);
+        if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Pay Downpayment') {
+            $scope.goToPayment(order.orderId);
+        } else if (label === 'Track Now') {
+            $scope.goToTracking(order.trackingNumber);
+        } else {
+            // Always show the full Order Summary first to avoid confusion.
+            // Payment proof can then be viewed from the Order Summary footer.
+            $scope.openOrderDetailsModal(order);
+        }
     };
 
     $scope.checkOpenOrderDetailsFromQuery = function () {
@@ -1290,6 +1518,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                         $scope.paymentFormData.channel = 'GCash';
                     }
                 }
+                // For resubmit scenario, fix channel to the last rejected payment's channel if available.
+                var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
+                if (latest && (latest.paymentStatus || latest.PaymentStatus) === 'REJECTED' && latest.allowResubmit) {
+                    var ch = latest.paymentChannel || latest.PaymentChannel || '';
+                    if (ch) {
+                        $scope.paymentFormData.channel = ch;
+                    }
+                }
                 $scope.paymentLoadError = null;
                 $scope.minMeetupDate = getMinMeetupDate();
                 updateMeetupTimeOptions();
@@ -1369,7 +1605,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
-    /** Show pay form when order is APPROVED, Layaway Active, or Pending Payment (resubmit after payment rejected). */
+    /** Show pay form when order is APPROVED, Layaway Active, Pending Payment, or when a payment was REJECTED with resubmit allowed. */
     $scope.canShowPayForm = function () {
         if (!$scope.paymentOrder) return false;
         var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
@@ -1381,6 +1617,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (statusU === 'PENDING APPROVAL') return false;
         if (statusU === 'REJECTED') return false;
         if (remaining != null && remaining <= 0) return false;
+        // When last payment was rejected and resubmission is allowed, always show the form,
+        // even if a previous payment existed or the order status is Awaiting Payment Verification.
+        if (paymentRejectedCanResubmit) return true;
         if ($scope.paymentOrder.hasSubmittedPayment) return false;
         if (statusU === 'AWAITING PAYMENT VERIFICATION' || statusU === 'AWAITING MEETUP') return false;
         if (statusU === 'LAYAWAY ACTIVE') return true;

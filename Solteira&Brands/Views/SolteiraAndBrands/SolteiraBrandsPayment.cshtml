@@ -75,66 +75,143 @@
             </div>
         </div>
 
+        @* Notice box consolidating rejection context (top of white container) *@
+        <div class="alert alert-danger mb-3"
+             ng-if="paymentOrder
+                    && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                    && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
+                    && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit">
+            <p class="mb-1 fst-italic">
+                <strong>Rejection reason:</strong>
+                {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}
+            </p>
+            <button type="button"
+                    class="btn btn-sm btn-outline-light"
+                    ng-click="openViewPaymentProofModal()">
+                View Rejected Proof
+            </button>
+        </div>
+
         <div class="payment-methods-box" ng-if="canShowPayForm()">
-            <label class="section-label">Payment Method <span class="text-danger">*</span></label>
-            <div class="form-check mb-1" ng-class="{'payment-method-disabled': paymentOrder.paymentType === 'LAYAWAY'}">
-                <input type="radio" name="paymentMode" id="pmFull" value="Full Payment" ng-model="paymentMode" class="form-check-input" disabled />
-                <label for="pmFull" class="form-check-label">Full Payment</label>
-            </div>
-            <div class="form-check mb-2" ng-class="{'payment-method-disabled': paymentOrder.paymentType === 'FULL'}">
-                <input type="radio" name="paymentMode" id="pmLayaway" value="Layaway" ng-model="paymentMode" class="form-check-input" disabled />
-                <label for="pmLayaway" class="form-check-label">Layaway</label>
+            @* Resubmit path: static channel (no radios), using last rejected payment's channel *@
+            <div ng-if="paymentOrder
+                        && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                        && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
+                        && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit">
+                <div class="mb-2">
+                    <span class="section-label d-block mb-1">Payment Channel</span>
+                    <span class="fw-bold">{{paymentFormData.channel}}</span>
+                </div>
+
+                <div ng-if="paymentFormData.channel === 'GCash' && paymentSettings.gcash" class="mb-3">
+                    <img ng-src="{{paymentSettings.gcash.qrImageUrl}}" alt="GCash QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.gcash.qrImageUrl" />
+                    <p class="mb-0 small mt-1" ng-if="paymentSettings.gcash.accountName"><strong>Account:</strong> {{paymentSettings.gcash.accountName}}</p>
+                    <p class="mb-0 small" ng-if="paymentSettings.gcash.accountNumber"><strong>Number:</strong> {{paymentSettings.gcash.accountNumber}}</p>
+                </div>
+                <div ng-if="paymentFormData.channel === 'Bank Transfer' && paymentSettings.bankTransfer" class="mb-3">
+                    <img ng-src="{{paymentSettings.bankTransfer.qrImageUrl}}" alt="Bank QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.bankTransfer.qrImageUrl" />
+                    <p class="mb-0 small mt-1" ng-if="paymentSettings.bankTransfer.accountName"><strong>Bank / Account:</strong> {{paymentSettings.bankTransfer.accountName}}</p>
+                    <p class="mb-0 small" ng-if="paymentSettings.bankTransfer.accountNumber"><strong>Number:</strong> {{paymentSettings.bankTransfer.accountNumber}}</p>
+                </div>
+                <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                    <p class="small fw-bold text-secondary mb-2">Down payment</p>
+                    <div class="mb-3">
+                        <p class="mb-0"><strong>Total Amount:</strong> &#8369; {{(paymentOrder.totalAmount | number:2)}}</p>
+                        <p class="mb-0"><strong>30% Down Payment Required:</strong> &#8369; {{(getMeetupDownpaymentAmount() | number:2)}}</p>
+                        <p class="mb-0"><strong>Remaining Balance (to be paid at meetup):</strong> &#8369; {{((paymentOrder.totalAmount - getMeetupDownpaymentAmount()) | number:2)}}</p>
+                    </div>
+                    <p class="mb-1" ng-if="meetupSettings.locationName || meetupSettings.address"><strong>Location:</strong> <span class="amount-to-pay">{{meetupSettings.locationName}}</span></p>
+                    <p class="mb-2 small text-muted" ng-if="meetupSettings.address">{{meetupSettings.address}}</p>
+                    <p class="mb-2 small text-muted" ng-if="!meetupSettings.locationName && !meetupSettings.address">Select date and time below.</p>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" ng-model="paymentFormData.meetupDate" min="{{getMinMeetupDate()}}" ng-change="onMeetupDateChange()" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Time <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" ng-model="paymentFormData.meetupTime">
+                            <option value="">-- Select time --</option>
+                            <option ng-repeat="t in meetupTimeOptions" value="{{t}}">{{t}}</option>
+                        </select>
+                        <p class="small text-warning mb-0 mt-1" ng-if="meetupNoSlotsForToday">No available meetup time for today. Please select another date.</p>
+                    </div>
+                </div>
             </div>
 
-            <label class="section-label mt-2">Channel <span class="text-danger">*</span></label>
-            <div class="form-check mb-1">
-                <input type="radio" name="paymentChannel" id="chGcash" value="GCash" ng-model="paymentFormData.channel" class="form-check-input" />
-                <label for="chGcash" class="form-check-label">GCash</label>
-            </div>
-            <div class="form-check mb-1">
-                <input type="radio" name="paymentChannel" id="chBank" value="Bank Transfer" ng-model="paymentFormData.channel" class="form-check-input" />
-                <label for="chBank" class="form-check-label">Bank Transfer</label>
-            </div>
-            <div class="form-check mb-2" ng-if="paymentOrder.paymentType !== 'LAYAWAY'">
-                <input type="radio" name="paymentChannel" id="chMeetup" value="Cash through Meetup" ng-model="paymentFormData.channel" class="form-check-input" />
-                <label for="chMeetup" class="form-check-label">Cash through Meetup</label>
-            </div>
+            @* Initial payment path: full method + channel selection as before *@
+            <div ng-if="!(paymentOrder
+                        && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                        && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
+                        && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit)">
+                <label class="section-label">Payment Method <span class="text-danger">*</span></label>
+                <div class="form-check mb-1" ng-class="{'payment-method-disabled': paymentOrder.paymentType === 'LAYAWAY'}">
+                    <input type="radio" name="paymentMode" id="pmFull" value="Full Payment" ng-model="paymentMode" class="form-check-input" />
+                    <label for="pmFull" class="form-check-label">Full Payment</label>
+                </div>
+                <div class="form-check mb-2" ng-class="{'payment-method-disabled': paymentOrder.paymentType === 'FULL'}">
+                    <input type="radio" name="paymentMode" id="pmLayaway" value="Layaway" ng-model="paymentMode" class="form-check-input" />
+                    <label for="pmLayaway" class="form-check-label">Layaway</label>
+                </div>
 
-            <div ng-if="paymentFormData.channel === 'GCash' && paymentSettings.gcash" class="mb-3">
-                <img ng-src="{{paymentSettings.gcash.qrImageUrl}}" alt="GCash QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.gcash.qrImageUrl" />
-                <p class="mb-0 small mt-1" ng-if="paymentSettings.gcash.accountName"><strong>Account:</strong> {{paymentSettings.gcash.accountName}}</p>
-                <p class="mb-0 small" ng-if="paymentSettings.gcash.accountNumber"><strong>Number:</strong> {{paymentSettings.gcash.accountNumber}}</p>
-            </div>
-            <div ng-if="paymentFormData.channel === 'Bank Transfer' && paymentSettings.bankTransfer" class="mb-3">
-                <img ng-src="{{paymentSettings.bankTransfer.qrImageUrl}}" alt="Bank QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.bankTransfer.qrImageUrl" />
-                <p class="mb-0 small mt-1" ng-if="paymentSettings.bankTransfer.accountName"><strong>Bank / Account:</strong> {{paymentSettings.bankTransfer.accountName}}</p>
-                <p class="mb-0 small" ng-if="paymentSettings.bankTransfer.accountNumber"><strong>Number:</strong> {{paymentSettings.bankTransfer.accountNumber}}</p>
-            </div>
-            <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3 p-3 rounded" style="background:#f8f9fa;">
-                <p class="small fw-bold text-secondary mb-2">Down payment</p>
-                <div class="mb-3">
-                    <p class="mb-0"><strong>Total Amount:</strong> &#8369; {{(paymentOrder.totalAmount | number:2)}}</p>
-                    <p class="mb-0"><strong>30% Down Payment Required:</strong> &#8369; {{(getMeetupDownpaymentAmount() | number:2)}}</p>
-                    <p class="mb-0"><strong>Remaining Balance (to be paid at meetup):</strong> &#8369; {{((paymentOrder.totalAmount - getMeetupDownpaymentAmount()) | number:2)}}</p>
+                <label class="section-label mt-2">Channel <span class="text-danger">*</span></label>
+                <div class="form-check mb-1">
+                    <input type="radio" name="paymentChannel" id="chGcash" value="GCash" ng-model="paymentFormData.channel" class="form-check-input" />
+                    <label for="chGcash" class="form-check-label">GCash</label>
                 </div>
-                <p class="mb-1" ng-if="meetupSettings.locationName || meetupSettings.address"><strong>Location:</strong> <span class="amount-to-pay">{{meetupSettings.locationName}}</span></p>
-                <p class="mb-2 small text-muted" ng-if="meetupSettings.address">{{meetupSettings.address}}</p>
-                <p class="mb-2 small text-muted" ng-if="!meetupSettings.locationName && !meetupSettings.address">Select date and time below.</p>
-                <div class="mb-2">
-                    <label class="form-label small mb-0">Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control form-control-sm" ng-model="paymentFormData.meetupDate" min="{{getMinMeetupDate()}}" ng-change="onMeetupDateChange()" />
+                <div class="form-check mb-1">
+                    <input type="radio" name="paymentChannel" id="chBank" value="Bank Transfer" ng-model="paymentFormData.channel" class="form-check-input" />
+                    <label for="chBank" class="form-check-label">Bank Transfer</label>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label small mb-0">Time <span class="text-danger">*</span></label>
-                    <select class="form-select form-select-sm" ng-model="paymentFormData.meetupTime">
-                        <option value="">-- Select time --</option>
-                        <option ng-repeat="t in meetupTimeOptions" value="{{t}}">{{t}}</option>
-                    </select>
-                    <p class="small text-warning mb-0 mt-1" ng-if="meetupNoSlotsForToday">No available meetup time for today. Please select another date.</p>
+                <div class="form-check mb-2" ng-if="paymentOrder.paymentType !== 'LAYAWAY'">
+                    <input type="radio" name="paymentChannel" id="chMeetup" value="Cash through Meetup" ng-model="paymentFormData.channel" class="form-check-input" />
+                    <label for="chMeetup" class="form-check-label">Cash through Meetup</label>
+                </div>
+
+                <div ng-if="paymentFormData.channel === 'GCash' && paymentSettings.gcash" class="mb-3">
+                    <img ng-src="{{paymentSettings.gcash.qrImageUrl}}" alt="GCash QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.gcash.qrImageUrl" />
+                    <p class="mb-0 small mt-1" ng-if="paymentSettings.gcash.accountName"><strong>Account:</strong> {{paymentSettings.gcash.accountName}}</p>
+                    <p class="mb-0 small" ng-if="paymentSettings.gcash.accountNumber"><strong>Number:</strong> {{paymentSettings.gcash.accountNumber}}</p>
+                </div>
+                <div ng-if="paymentFormData.channel === 'Bank Transfer' && paymentSettings.bankTransfer" class="mb-3">
+                    <img ng-src="{{paymentSettings.bankTransfer.qrImageUrl}}" alt="Bank QR" class="img-fluid rounded" style="max-height:180px;" ng-if="paymentSettings.bankTransfer.qrImageUrl" />
+                    <p class="mb-0 small mt-1" ng-if="paymentSettings.bankTransfer.accountName"><strong>Bank / Account:</strong> {{paymentSettings.bankTransfer.accountName}}</p>
+                    <p class="mb-0 small" ng-if="paymentSettings.bankTransfer.accountNumber"><strong>Number:</strong> {{paymentSettings.bankTransfer.accountNumber}}</p>
+                </div>
+                <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                    <p class="small fw-bold text-secondary mb-2">Down payment</p>
+                    <div class="mb-3">
+                        <p class="mb-0"><strong>Total Amount:</strong> &#8369; {{(paymentOrder.totalAmount | number:2)}}</p>
+                        <p class="mb-0"><strong>30% Down Payment Required:</strong> &#8369; {{(getMeetupDownpaymentAmount() | number:2)}}</p>
+                        <p class="mb-0"><strong>Remaining Balance (to be paid at meetup):</strong> &#8369; {{((paymentOrder.totalAmount - getMeetupDownpaymentAmount()) | number:2)}}</p>
+                    </div>
+                    <p class="mb-1" ng-if="meetupSettings.locationName || meetupSettings.address"><strong>Location:</strong> <span class="amount-to-pay">{{meetupSettings.locationName}}</span></p>
+                    <p class="mb-2 small text-muted" ng-if="meetupSettings.address">{{meetupSettings.address}}</p>
+                    <p class="mb-2 small text-muted" ng-if="!meetupSettings.locationName && !meetupSettings.address">Select date and time below.</p>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" ng-model="paymentFormData.meetupDate" min="{{getMinMeetupDate()}}" ng-change="onMeetupDateChange()" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Time <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" ng-model="paymentFormData.meetupTime">
+                            <option value="">-- Select time --</option>
+                            <option ng-repeat="t in meetupTimeOptions" value="{{t}}">{{t}}</option>
+                        </select>
+                        <p class="small text-warning mb-0 mt-1" ng-if="meetupNoSlotsForToday">No available meetup time for today. Please select another date.</p>
+                    </div>
                 </div>
             </div>
 
             <div ng-if="paymentFormData.channel !== 'Cash through Meetup'">
+                <p class="text-danger fst-italic small mb-2"
+                   ng-if="paymentOrder
+                          && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                          && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
+                          && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit
+                          && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason">
+                    <strong>Rejection reason (please fix before resubmitting):</strong>
+                    {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}
+                </p>
                 <label class="section-label">Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
                 <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
                 <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
@@ -175,11 +252,32 @@
         </div>
 
         <div class="pay-btn-container" ng-if="canShowPayForm()">
-            <button type="button" ng-if="paymentFormData.channel !== 'Cash through Meetup'" class="pay-now-btn" ng-click="submitPayment()" ng-disabled="!isPayButtonEnabled()">
-                <span ng-if="!submitting">PAY</span>
+            <button type="button"
+                    ng-if="paymentFormData.channel !== 'Cash through Meetup'"
+                    class="pay-now-btn w-100"
+                    ng-click="submitPayment()"
+                    ng-disabled="!isPayButtonEnabled()">
+                <span ng-if="!submitting
+                             && paymentOrder
+                             && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                             && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
+                             && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit">
+                    SUBMIT RESUBMISSION
+                </span>
+                <span ng-if="!submitting
+                             && (!paymentOrder
+                                 || !(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
+                                 || (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) !== 'REJECTED')
+                                 || !(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit)">
+                    PAY
+                </span>
                 <span ng-if="submitting">Submitting...</span>
             </button>
-            <button type="button" ng-if="paymentFormData.channel === 'Cash through Meetup'" class="pay-now-btn" ng-click="submitPayment()" ng-disabled="!isScheduleButtonEnabled()">
+            <button type="button"
+                    ng-if="paymentFormData.channel === 'Cash through Meetup'"
+                    class="pay-now-btn w-100"
+                    ng-click="submitPayment()"
+                    ng-disabled="!isScheduleButtonEnabled()">
                 <span ng-if="!submitting">SCHEDULE &amp; SUBMIT PAYMENT</span>
                 <span ng-if="submitting">Submitting...</span>
             </button>
@@ -215,9 +313,7 @@
                     </div>
                     <p class="text-danger mb-0" ng-if="paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' && paymentOrder.latestPaymentForProof.rejectionReason"><strong>Rejection reason:</strong> {{paymentOrder.latestPaymentForProof.rejectionReason}}</p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+                <div class="modal-footer"></div>
             </div>
         </div>
     </div>

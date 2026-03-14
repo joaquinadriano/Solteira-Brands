@@ -25,10 +25,10 @@
                                 <span class="badge bg-warning text-dark small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Awaiting Verification</span>
                                 <i class="bi bi-info-circle small text-muted" ng-if="getOverallStatusTooltip(order)" title="{{getOverallStatusTooltip(order)}}" style="cursor:help;"></i>
                                 <span class="text-muted small">({{order.paymentType === 'LAYAWAY' ? 'Layaway' : 'Full payment'}})</span>
-                                <span class="d-none d-md-inline" ng-if="order.trackingNumber || order.deliveryStatus === 'IN_TRANSIT' || order.deliveryStatus === 'DELIVERED'">
+                                <span class="d-none d-md-inline" ng-if="(order.trackingNumber || order.deliveryStatus === 'IN_TRANSIT' || order.deliveryStatus === 'DELIVERED') && getOverallStatus(order) !== 'Completed' && getOverallStatus(order) !== 'Delivered'">
                                     <span class="text-muted small">Delivery:</span>
                                     <span class="small fw-semibold text-success ms-1">{{(order.deliveryStatus === 'IN_TRANSIT' ? 'In Transit' : (order.deliveryStatus === 'DELIVERED' ? 'Delivered' : 'Pending'))}}</span>
-                                    <a href="#" class="btn btn-link btn-sm text-success p-0 ms-2 text-decoration-none fw-semibold" ng-if="order.trackingNumber" ng-click="goToTracking(order.trackingNumber); $event.preventDefault();">Track Delivery</a>
+                                    <a href="#" class="btn btn-link btn-sm text-success p-0 ms-2 text-decoration-none fw-semibold" ng-if="order.trackingNumber" ng-click="goToTracking(order.trackingNumber, order.trackingLink); $event.preventDefault();">Track Delivery</a>
                                 </span>
                             </div>
                         </div>
@@ -99,8 +99,21 @@
                         <p class="mb-1"><strong>Date</strong> {{selectedOrderForDetails.orderDate | date:'MMM d, y'}}</p>
                         <p class="mb-1"><strong>Payment</strong> {{selectedOrderForDetails.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</p>
                         <p ng-if="selectedOrderForDetails.status === 'Rejected' && selectedOrderForDetails.rejectionReason" class="text-danger mb-0"><strong>Rejection reason:</strong> {{selectedOrderForDetails.rejectionReason}}</p>
-                        <p ng-if="selectedOrderForDetails.status === 'Approved' && selectedOrderForDetails.latestPaymentRejectionReason" class="text-warning mb-0"><strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.</p>
-                        <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">This order was cancelled (e.g. payment not received within the deadline).</p>
+                        <p ng-if="selectedOrderForDetails.latestPaymentRejectionReason
+                                  && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)
+                                  && (getOverallStatus(selectedOrderForDetails) === 'Resubmit Payment Required'
+                                      || getOverallStatus(selectedOrderForDetails) === 'Awaiting Payment Verification')"
+                           class="text-warning mb-0">
+                            <strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.
+                        </p>
+                        <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">
+                            <span ng-if="selectedOrderForDetails.rejectionReason">
+                                <strong>Cancellation reason:</strong> {{selectedOrderForDetails.rejectionReason}}
+                            </span>
+                            <span ng-if="!selectedOrderForDetails.rejectionReason">
+                                This order was cancelled.
+                            </span>
+                        </p>
                     </div>
                     <div class="buyer-order-layaway-info mt-3 p-3 rounded" style="background:#f8f9fa;"
                          ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.installmentSchedule && selectedOrderForDetails.installmentSchedule.length">
@@ -160,22 +173,67 @@
                         </div>
                     </div>
 
-                    <div class="buyer-order-delivery-info mt-3 p-3 rounded" style="background:#f8f9fa;" ng-if="selectedOrderForDetails.courier || selectedOrderForDetails.trackingNumber">
+                    <div class="buyer-order-delivery-info mt-3 p-3 rounded" style="background:#f8f9fa;"
+                         ng-if="(selectedOrderForDetails.courier || selectedOrderForDetails.trackingNumber) && (getOverallStatus(selectedOrderForDetails) === 'In Delivery' || getOverallStatus(selectedOrderForDetails) === 'Completed' || getOverallStatus(selectedOrderForDetails) === 'Delivered')">
                         <h6 class="fw-bold mb-2">Delivery</h6>
                         <p class="mb-1"><strong>Courier:</strong> {{selectedOrderForDetails.courier || '-'}}</p>
-                        <p class="mb-1"><strong>Tracking Number:</strong> {{selectedOrderForDetails.trackingNumber || '-'}}</p>
+                        <p class="mb-1">
+                            <strong>Tracking Number:</strong>
+                            <span>{{selectedOrderForDetails.trackingNumber || '-'}}</span>
+                            <button type="button"
+                                    class="btn btn-link btn-sm p-0 ms-2"
+                                    ng-if="selectedOrderForDetails.trackingNumber"
+                                    ng-click="copyTrackingNumber(selectedOrderForDetails.trackingNumber)">
+                                Copy to Clipboard
+                            </button>
+                        </p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.dispatchDate"><strong>Dispatch Date:</strong> {{selectedOrderForDetails.dispatchDate}}</p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.eta"><strong>ETA:</strong> {{selectedOrderForDetails.eta}}</p>
-                        <p class="mb-1" ng-if="selectedOrderForDetails.trackingNumber"><a ng-href="https://www.lbcexpress.com/track/?trackingNo={{selectedOrderForDetails.trackingNumber}}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">Track shipment (LBC Express)</a></p>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.trackingNumber">
+                            <a href="#"
+                               ng-click="goToTracking(selectedOrderForDetails.trackingNumber, selectedOrderForDetails.trackingLink); $event.preventDefault();"
+                               class="btn btn-sm btn-outline-primary">
+                                Open Courier Tracking
+                            </a>
+                        </p>
+                        <p class="small text-muted mb-0 mt-2" ng-if="!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0">Note: Please copy the tracking number and paste it on the courier website to track your parcel.</p>
                         <p class="small text-muted mb-0 mt-2" ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">Please track your shipment directly via the courier's official website.</p>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-click="closeOrderDetailsModal()">Close</button>
-<button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && (getOverallStatus(selectedOrderForDetails) === 'Approved' || getOverallStatus(selectedOrderForDetails) === 'Pending Payment') && selectedOrderForDetails.paymentType !== 'LAYAWAY' && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">{{ selectedOrderForDetails.latestPaymentRejectionReason ? 'Resubmit' : 'Pay Now' }}</button>
-                    <button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && (getOverallStatus(selectedOrderForDetails) === 'Approved' || getOverallStatus(selectedOrderForDetails) === 'Pending Downpayment') && selectedOrderForDetails.paymentType === 'LAYAWAY' && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Downpayment</button>
-                    <button type="button" class="btn btn-success" ng-if="!selectedOrderForDetails.isArchived && getOverallStatus(selectedOrderForDetails) === 'Layaway Active' && selectedOrderForDetails.remainingBalance > 0 && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)" ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">Pay Installment</button>
-                    <a ng-if="!selectedOrderForDetails.isArchived && getOverallStatus(selectedOrderForDetails) === 'In Delivery' && selectedOrderForDetails.trackingNumber" href="https://www.lbcexpress.com/track/?trackingNo={{selectedOrderForDetails.trackingNumber}}" target="_blank" rel="noopener" class="btn btn-primary">Track shipment</a>
+                <div class="modal-footer border-0 d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            ng-if="selectedOrderForDetails.hasSubmittedPayment && selectedOrderForDetails.latestPaymentForProof"
+                            ng-click="openViewPaymentProofModalFromOrders(selectedOrderForDetails)">
+                        View Payment Proof
+                    </button>
+                    <button type="button" class="btn btn-success"
+                            ng-if="!selectedOrderForDetails.isArchived
+                                   && (getOverallStatus(selectedOrderForDetails) === 'Approved'
+                                       || getOverallStatus(selectedOrderForDetails) === 'Pending Payment'
+                                       || (getOverallStatus(selectedOrderForDetails) === 'Resubmit Payment Required'))
+                                   && selectedOrderForDetails.paymentType !== 'LAYAWAY'
+                                   && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)"
+                            ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">
+                        {{ selectedOrderForDetails.latestPaymentRejectionReason ? 'Resubmit' : 'Pay Now' }}
+                    </button>
+                    <button type="button" class="btn btn-success"
+                            ng-if="!selectedOrderForDetails.isArchived
+                                   && (getOverallStatus(selectedOrderForDetails) === 'Approved'
+                                       || getOverallStatus(selectedOrderForDetails) === 'Pending Downpayment')
+                                   && selectedOrderForDetails.paymentType === 'LAYAWAY'
+                                   && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)"
+                            ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">
+                        Pay Downpayment
+                    </button>
+                    <button type="button" class="btn btn-success"
+                            ng-if="!selectedOrderForDetails.isArchived
+                                   && getOverallStatus(selectedOrderForDetails) === 'Layaway Active'
+                                   && selectedOrderForDetails.remainingBalance > 0
+                                   && (selectedOrderForDetails.hasSubmittedPayment !== true && selectedOrderForDetails.HasSubmittedPayment !== true)"
+                            ng-click="goToPaymentFromOrderModal(selectedOrderForDetails)">
+                        Pay Installment
+                    </button>
                 </div>
             </div>
         </div>
@@ -183,7 +241,7 @@
 
     @* View Payment Proof modal (Under Review) *@
     <div class="modal fade" id="viewPaymentProofModalMyOrders" tabindex="-1" aria-hidden="true" ng-if="selectedOrderForProof && selectedOrderForProof.latestPaymentForProof">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">View Payment Proof</h5>
@@ -199,9 +257,6 @@
                         <img ng-src="{{selectedOrderForProof.latestPaymentForProof.proofImageUrl}}" alt="Proof" class="img-fluid rounded border mt-1" style="max-height: 280px;" />
                     </div>
                     <p class="text-danger mb-0" ng-if="selectedOrderForProof.latestPaymentForProof.paymentStatus === 'REJECTED' && selectedOrderForProof.latestPaymentForProof.rejectionReason"><strong>Rejection reason:</strong> {{selectedOrderForProof.latestPaymentForProof.rejectionReason}}</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" ng-click="closeViewPaymentProofModal()">Close</button>
                 </div>
             </div>
         </div>

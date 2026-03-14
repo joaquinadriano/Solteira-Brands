@@ -342,9 +342,21 @@ namespace Solteira_Brands.Controllers
             using (var db = new SolteiraBrandsContext())
             {
                 var now = DateTime.Now;
+                var nameTrim = (request.Name ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(nameTrim))
+                    return Json(new { success = false, message = "Product name is required." });
+
+                // Enforce unique product name (case-insensitive) among non-archived products.
+                var exists = db.tbl_products.Any(p =>
+                    !p.IsArchived &&
+                    p.Name != null &&
+                    p.Name.Trim().ToLower() == nameTrim.ToLower());
+                if (exists)
+                    return Json(new { success = false, message = "A product with this name already exists. Please use a different name." });
+
                 var product = new tblProductsModel
                 {
-                    Name = (request.Name ?? string.Empty).Trim(),
+                    Name = nameTrim,
                     Category = (request.Category ?? string.Empty).Trim(),
                     Description = (request.Description ?? string.Empty).Trim(),
                     Price = request.Price,
@@ -380,7 +392,20 @@ namespace Solteira_Brands.Controllers
                 var product = db.tbl_products.FirstOrDefault(p => p.Id == request.Id.Value);
                 if (product == null) return Json(new { success = false, message = "Product not found." });
 
-                product.Name = (request.Name ?? string.Empty).Trim();
+                var nameTrim = (request.Name ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(nameTrim))
+                    return Json(new { success = false, message = "Product name is required." });
+
+                // Enforce unique product name (case-insensitive) when editing as well.
+                var exists = db.tbl_products.Any(p =>
+                    p.Id != product.Id &&
+                    !p.IsArchived &&
+                    p.Name != null &&
+                    p.Name.Trim().ToLower() == nameTrim.ToLower());
+                if (exists)
+                    return Json(new { success = false, message = "A product with this name already exists. Please use a different name." });
+
+                product.Name = nameTrim;
                 product.Category = (request.Category ?? string.Empty).Trim();
                 product.Description = (request.Description ?? string.Empty).Trim();
                 product.Price = request.Price;
@@ -614,6 +639,41 @@ namespace Solteira_Brands.Controllers
                     var latestDelivery = o.Deliveries != null && o.Deliveries.Any()
                         ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First()
                         : null;
+                    var trackingRaw = latestDelivery != null ? latestDelivery.TrackingNumber : null;
+                    string trackingNumberOnly = null;
+                    string trackingLink = null;
+                    if (!string.IsNullOrWhiteSpace(trackingRaw))
+                    {
+                        var parts = trackingRaw.Split(new[] { "||" }, StringSplitOptions.None);
+                        trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
+                        trackingLink = parts.Length > 1 ? parts[1] : null;
+                    }
+
+                    // Align admin Orders status with final cancellation logic:
+                    // if the order is effectively cancelled via a final REJECTED payment
+                    // (AllowResubmit = 0 and no newer SUBMITTED payment), show it as Cancelled
+                    // instead of leaving it stuck on "Awaiting Payment Verification".
+                    var status = o.OrderStatus;
+                    var paymentsList = o.Payments ?? new List<tblPaymentsModel>();
+                    if (!string.Equals(status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(status, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var latestRejected = paymentsList
+                            .Where(p => string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
+                            .OrderByDescending(p => p.CreatedAt)
+                            .FirstOrDefault();
+                        if (latestRejected != null && latestRejected.AllowResubmit == 0)
+                        {
+                            var hasNewerSubmitted = paymentsList.Any(p =>
+                                string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase)
+                                && p.CreatedAt > latestRejected.CreatedAt);
+                            if (!hasNewerSubmitted)
+                            {
+                                status = OrderStatus.Cancelled;
+                            }
+                        }
+                    }
+
                     return new
                     {
                         id = o.Id,
@@ -622,12 +682,12 @@ namespace Solteira_Brands.Controllers
                         itemCount = o.OrderItems != null ? o.OrderItems.Count : 0,
                         deliveryAddress = o.DeliveryAddress,
                         totalAmount = o.TotalAmount,
-                        orderStatus = o.OrderStatus,
+                        orderStatus = status,
                         paymentType = o.PaymentType ?? "FULL",
                         customerName = o.CustomerName,
                         contactNumber = o.ContactNumber,
                         paymentMethod = o.PaymentMethod,
-                        hasPayments = o.Payments != null && o.Payments.Any(),
+                        hasPayments = paymentsList.Any(),
                         deliveryId = latestDelivery != null ? (int?)latestDelivery.Id : null,
                         deliveryStatus = latestDelivery != null ? latestDelivery.DeliveryStatus : null,
                         deliveryTrackingNumber = latestDelivery != null ? latestDelivery.TrackingNumber : null
@@ -665,6 +725,16 @@ namespace Solteira_Brands.Controllers
                     imageUrl = i.ImageUrl
                 }).ToList();
 
+                var trackingRaw = latestDelivery != null ? latestDelivery.TrackingNumber : null;
+                string trackingNumberOnly = null;
+                string trackingLink = null;
+                if (!string.IsNullOrWhiteSpace(trackingRaw))
+                {
+                    var parts = trackingRaw.Split(new[] { "||" }, StringSplitOptions.None);
+                    trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
+                    trackingLink = parts.Length > 1 ? parts[1] : null;
+                }
+
                 var payments = (order.Payments ?? new List<tblPaymentsModel>()).OrderByDescending(p => p.CreatedAt).Select(p => new
                 {
                     id = p.Id,
@@ -697,7 +767,8 @@ namespace Solteira_Brands.Controllers
                         payments = payments,
                         hasPayments = hasPayments,
                         deliveryId = latestDelivery != null ? (int?)latestDelivery.Id : null,
-                        deliveryTrackingNumber = latestDelivery != null ? latestDelivery.TrackingNumber : null,
+                        deliveryTrackingNumber = trackingNumberOnly,
+                        deliveryTrackingLink = trackingLink,
                         deliveryStatus = latestDelivery != null ? latestDelivery.DeliveryStatus : null,
                         deliveryType = order.DeliveryType,
                         meetupScheduledAtFormatted = meetupScheduledAt.HasValue ? meetupScheduledAt.Value.ToString("MMM dd, yyyy hh:mm tt") : (string)null
@@ -753,6 +824,23 @@ namespace Solteira_Brands.Controllers
                         .OrderByDescending(p => p.CreatedAt)
                         .FirstOrDefault();
                     var latestPaymentRejectionReason = latestRejectedPayment?.RejectionReason;
+                    // Once an order is fully cancelled, treat it as terminal on the buyer side:
+                    // do not surface any "resubmit" messaging based on an old rejection reason.
+                    var isFinalCancelled =
+                        string.Equals(o.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                        // Safety net: if the latest rejected payment is marked as final (allow_resubmit = 0)
+                        // and there is no newer SUBMITTED payment, also treat the order as effectively cancelled
+                        // for buyer UI purposes, even if the order_status string was not updated correctly.
+                        || (latestRejectedPayment != null
+                            && latestRejectedPayment.AllowResubmit == 0
+                            && !paymentsList.Any(p =>
+                                string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase)
+                                && p.CreatedAt > latestRejectedPayment.CreatedAt));
+                    if (isFinalCancelled)
+                    {
+                        o.OrderStatus = OrderStatus.Cancelled;
+                        latestPaymentRejectionReason = null;
+                    }
                     var verifiedCount = paymentsList.Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase));
                     var totalPaidVerified = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).Sum(p => p.Amount);
                     var remainingBalanceRecalc = o.TotalAmount - totalPaidVerified;
@@ -879,6 +967,21 @@ namespace Solteira_Brands.Controllers
                             allowResubmit = latestSubOrRej.AllowResubmit != 0
                         };
                     }
+
+                    // Extract tracking number and link (if any) from latest delivery for this order.
+                    var latestDeliveryForOrder = o.Deliveries != null && o.Deliveries.Any()
+                        ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First()
+                        : null;
+                    string trackingNumberOnly = null;
+                    string trackingLink = null;
+                    if (latestDeliveryForOrder != null && !string.IsNullOrWhiteSpace(latestDeliveryForOrder.TrackingNumber))
+                    {
+                        var tnRaw = latestDeliveryForOrder.TrackingNumber;
+                        var tnParts = tnRaw.Split(new[] { "||" }, StringSplitOptions.None);
+                        trackingNumberOnly = tnParts.Length > 0 ? tnParts[0] : null;
+                        trackingLink = tnParts.Length > 1 ? tnParts[1] : null;
+                    }
+
                     return new
                     {
                         orderId = o.Id,
@@ -899,9 +1002,8 @@ namespace Solteira_Brands.Controllers
                         deliveryStatus = o.Deliveries != null && o.Deliveries.Any()
                             ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().DeliveryStatus
                             : "PENDING",
-                        trackingNumber = o.Deliveries != null && o.Deliveries.Any()
-                            ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().TrackingNumber
-                            : null,
+                        trackingNumber = trackingNumberOnly,
+                        trackingLink = trackingLink,
                         courier = o.Deliveries != null && o.Deliveries.Any()
                             ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().Courier
                             : null,
@@ -1299,6 +1401,7 @@ namespace Solteira_Brands.Controllers
                     referenceNumber = p.ReferenceNumber,
                     proofImageUrl = p.ProofImage != null ? (p.ProofImage.ImagePath + p.ProofImage.ImageFileName) : null,
                     rejectionReason = p.RejectionReason,
+                    allowResubmit = p.AllowResubmit != 0,
                     createdAt = p.CreatedAt
                 }).ToList();
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
@@ -1823,13 +1926,15 @@ namespace Solteira_Brands.Controllers
         /// <summary>Order status only via allowed transitions: Pending→Approved/Rejected; Approved→Rejected.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult UpdateOrderStatus(int id, string status, string rejectionReason = null)
+        public JsonResult UpdateOrderStatus(int id, string status, string rejectionReason = null, bool? restoreStock = null)
         {
             if (string.IsNullOrWhiteSpace(status))
                 return Json(new { success = false, message = "Status is required." });
             var statusTrim = status.Trim();
-            if (!statusTrim.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !statusTrim.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Only Approve or Reject is allowed." });
+            if (!statusTrim.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+                && !statusTrim.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+                && !statusTrim.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+                return Json(new { success = false, message = "Only Approve, Reject, or Cancel is allowed." });
 
             using (var db = new SolteiraBrandsContext())
             {
@@ -1852,13 +1957,38 @@ namespace Solteira_Brands.Controllers
                     order.OrderStatus = OrderStatus.Rejected;
                     order.RejectionReason = rejectionReason.Trim();
                     order.LastStatusUpdateAt = DateTime.Now;
-                    foreach (var item in order.OrderItems)
+
+                    var shouldRestoreStock = !restoreStock.HasValue || restoreStock.Value;
+                    if (shouldRestoreStock)
                     {
-                        if (!item.ProductId.HasValue) continue;
-                        var product = db.tbl_products.Find(item.ProductId.Value);
-                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                        foreach (var item in order.OrderItems)
+                        {
+                            if (!item.ProductId.HasValue) continue;
+                            var product = db.tbl_products.Find(item.ProductId.Value);
+                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                        }
                     }
                     LogActivity(db, "Order Rejected", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + "; reason: " + (order.RejectionReason ?? ""));
+                }
+                else if (string.Equals(statusTrim, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!OrderLifecycleRules.CanTransitionOrder(current, OrderStatus.Cancelled))
+                        return Json(new { success = false, message = "Invalid order status transition." });
+                    order.OrderStatus = OrderStatus.Cancelled;
+                    order.RejectionReason = string.IsNullOrWhiteSpace(rejectionReason) ? order.RejectionReason : rejectionReason.Trim();
+                    order.LastStatusUpdateAt = DateTime.Now;
+
+                    var shouldRestoreStockOnCancel = !restoreStock.HasValue || restoreStock.Value;
+                    if (shouldRestoreStockOnCancel)
+                    {
+                        foreach (var item in order.OrderItems)
+                        {
+                            if (!item.ProductId.HasValue) continue;
+                            var product = db.tbl_products.Find(item.ProductId.Value);
+                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                        }
+                    }
+                    LogActivity(db, "Order Cancelled (manual)", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + (order.RejectionReason != null ? "; reason: " + order.RejectionReason : ""));
                 }
                 else
                 {
@@ -1875,6 +2005,7 @@ namespace Solteira_Brands.Controllers
                 db.SaveChanges();
 
                 // Notify buyer by email when order is approved (next step: pay).
+                // Run email sending in background so it does not block the HTTP response.
                 if (string.Equals(order.OrderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase))
                 {
                     var buyerEmail = order.User?.Email;
@@ -1883,7 +2014,11 @@ namespace Solteira_Brands.Controllers
                         var orderNum = order.OrderNumber ?? id.ToString();
                         var subject = "Your order has been approved – next step: payment";
                         var body = "Hello,\r\n\r\nYour order #" + orderNum + " has been approved. Please proceed to payment at your earliest convenience.\r\n\r\nThank you.";
-                        EmailHelper.SendEmail(buyerEmail.Trim(), subject, body);
+                        System.Threading.Tasks.Task.Run(() =>
+                        {
+                            try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body); }
+                            catch { /* swallow email errors; log inside EmailHelper if needed */ }
+                        });
                     }
                 }
 
@@ -1926,19 +2061,13 @@ namespace Solteira_Brands.Controllers
                         payment.AllowResubmit = allowResubmit.Value ? 1 : 0;
                     else
                         payment.AllowResubmit = 1;
-                    var orderPaymentType = (payment.Order.PaymentType ?? "FULL").ToUpperInvariant();
-                    // Do NOT change remaining balance or progress. Only set order status so buyer can resubmit.
-                    if (string.Equals(payment.Order.OrderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (orderPaymentType == "LAYAWAY")
-                        {
-                            var verifiedCount = (payment.Order.Payments ?? new List<tblPaymentsModel>()).Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase));
-                            payment.Order.OrderStatus = verifiedCount > 0 ? OrderStatus.LayawayActive : OrderStatus.PendingDownpayment;
-                        }
-                        else
-                            payment.Order.OrderStatus = OrderStatus.PendingPayment;
-                    }
+
+                    // Keep order status as Awaiting Payment Verification during resubmission cycle.
+                    // Do NOT mutate order.OrderStatus here so that the buyer UI can rely on
+                    // the existing Awaiting Payment Verification value + rejection_reason
+                    // to drive the "Resubmit Payment" instructions and Pay Now button.
                     payment.Order.LastStatusUpdateAt = now;
+
                     LogActivity(db, "Payment Rejected", "Payments", payment.Id, "Order #" + (payment.Order.OrderNumber ?? payment.OrderId.ToString()) + "; reason: " + (payment.RejectionReason ?? ""));
                     db.SaveChanges();
                     return Json(new { success = true, message = "Payment rejected.", orderStatus = payment.Order.OrderStatus });
@@ -1958,20 +2087,36 @@ namespace Solteira_Brands.Controllers
 
                         var order = db.tbl_orders.Find(orderId);
                         if (order == null) { trans.Rollback(); return Json(new { success = false, message = "Order not found." }); }
-                        order.RemainingBalance = remainingBalance;
-                        order.LastStatusUpdateAt = now;
 
-                        // One simple rule: fully paid → Ready for Meetup (if MEETUP) or Paid; else → Layaway Active. No separate FULL vs LAYAWAY computation.
-                        var deliveryType = (order.DeliveryType ?? "COURIER").Trim().ToUpperInvariant();
-                        var isMeetup = string.Equals(deliveryType, "MEETUP", StringComparison.OrdinalIgnoreCase);
+                        // For Cash through Meetup / meetup orders, treat verification as a single-payment scenario:
+                        // mark the order Ready for Meetup and zero out remaining balance, regardless of partial amount,
+                        // and ensure these orders never enter layaway-style flows.
+                        var deliveryTypeRaw = (order.DeliveryType ?? string.Empty).Trim();
+                        var paymentTypeRaw = (order.PaymentType ?? string.Empty).Trim().ToUpperInvariant();
+                        var isMeetupOrder = deliveryTypeRaw.Equals("MEETUP", StringComparison.OrdinalIgnoreCase)
+                                            || paymentTypeRaw == "CASH_MEETUP"
+                                            || verifiedPayments.Any(p => p.MeetupDatetime.HasValue);
 
-                        if (remainingBalance <= 0)
+                        if (isMeetupOrder)
                         {
-                            order.OrderStatus = isMeetup ? OrderStatus.ReadyForMeetup : OrderStatus.Paid;
+                            order.RemainingBalance = 0;
+                            order.OrderStatus = OrderStatus.ReadyForMeetup;
+                            order.LastStatusUpdateAt = now;
                         }
                         else
                         {
-                            order.OrderStatus = OrderStatus.LayawayActive;
+                            order.RemainingBalance = remainingBalance;
+                            order.LastStatusUpdateAt = now;
+
+                            // Non-meetup: fully paid → Paid; else → Layaway Active.
+                            if (remainingBalance <= 0)
+                            {
+                                order.OrderStatus = OrderStatus.Paid;
+                            }
+                            else
+                            {
+                                order.OrderStatus = OrderStatus.LayawayActive;
+                            }
                         }
 
                         LogActivity(db, "Order status after verification", "Orders", order.Id, "Order status after verification: " + (order.OrderStatus ?? ""));
@@ -1985,7 +2130,11 @@ namespace Solteira_Brands.Controllers
                             var orderNum = payment.Order.OrderNumber ?? payment.OrderId.ToString();
                             var subject = "Thank you – your order is complete";
                             var body = "Hello,\r\n\r\nThank you for your order. Payment for order #" + orderNum + " has been verified. We appreciate your business.\r\n\r\nBest regards.";
-                            EmailHelper.SendEmail(buyerEmail.Trim(), subject, body);
+                            System.Threading.Tasks.Task.Run(() =>
+                            {
+                                try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body); }
+                                catch { /* swallow email errors; log inside EmailHelper if needed */ }
+                            });
                         }
 
                         return Json(new { success = true, message = "Payment verified.", orderStatus = order.OrderStatus });
@@ -2331,14 +2480,28 @@ namespace Solteira_Brands.Controllers
         {
             using (var db = new SolteiraBrandsContext())
             {
+                var allowedStatuses = new[]
+                {
+                    OrderStatus.ReadyForMeetup,
+                    OrderStatus.MeetupRescheduled,
+                    OrderStatus.NoShow,
+                    OrderStatus.Completed,
+                    OrderStatus.Cancelled
+                };
+
                 var orders = db.tbl_orders
                     .Include("Payments")
-                    .Where(o => !o.IsArchived && (o.OrderStatus == OrderStatus.ReadyForMeetup || o.OrderStatus == OrderStatus.MeetupRescheduled || o.OrderStatus == OrderStatus.NoShow))
+                    .Where(o =>
+                        !o.IsArchived
+                        && allowedStatuses.Contains(o.OrderStatus)
+                        && (o.DeliveryType == "MEETUP"
+                            || db.tbl_meetup_outcomes.Any(m => m.OrderId == o.Id)))
                     .OrderByDescending(o => o.CreatedAt)
                     .ToList()
                     .Select(o =>
                     {
-                        var scheduledAt = o.MeetupDatetime ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
+                        var scheduledAt = o.MeetupDatetime
+                            ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
                         return new
                         {
                             id = o.Id,
@@ -2354,11 +2517,12 @@ namespace Solteira_Brands.Controllers
                         };
                     })
                     .ToList();
+
                 return Json(new { success = true, data = orders }, JsonRequestBehavior.AllowGet);
             }
         }
 
-        /// <summary>GET: Admin — meetup order detail for View modal. Order summary, customer, meetup schedule (location), scheduled date/time. Allowed statuses: Ready for Meetup, Meetup Rescheduled, No Show.</summary>
+        /// <summary>GET: Admin — meetup order detail for View modal. Order summary, customer, meetup schedule (location), scheduled date/time. Allowed statuses: Ready for Meetup, Meetup Rescheduled, No Show, Completed, Cancelled.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
         public JsonResult GetMeetupOrderDetail(int orderId)
@@ -2370,7 +2534,7 @@ namespace Solteira_Brands.Controllers
                     .Include("User")
                     .Include("Payments")
                     .FirstOrDefault(o => o.Id == orderId);
-                var allowedStatuses = new[] { OrderStatus.ReadyForMeetup, OrderStatus.MeetupRescheduled, OrderStatus.NoShow };
+                var allowedStatuses = new[] { OrderStatus.ReadyForMeetup, OrderStatus.MeetupRescheduled, OrderStatus.NoShow, OrderStatus.Completed, OrderStatus.Cancelled };
                 if (order == null || !allowedStatuses.Any(s => string.Equals(order.OrderStatus, s, StringComparison.OrdinalIgnoreCase)))
                     return Json(new { success = false }, JsonRequestBehavior.AllowGet);
                 var meetupRow = db.tbl_meetup_settings.OrderByDescending(x => x.Id).FirstOrDefault();
@@ -2434,7 +2598,7 @@ namespace Solteira_Brands.Controllers
         /// <summary>POST: Update meetup outcome. Allowed when order is Ready for Meetup or Meetup Rescheduled. COMPLETED requires receiptImageId; NO_SHOW sets order to No Show (enables Reschedule); CANCELLED sets order Cancelled.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null)
+        public JsonResult UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null, string cancellationReason = null, bool? restoreStock = null)
         {
             var statusTrim = (status ?? "").Trim().ToUpperInvariant();
             if (statusTrim != "COMPLETED" && statusTrim != "NO_SHOW" && statusTrim != "CANCELLED")
@@ -2443,11 +2607,11 @@ namespace Solteira_Brands.Controllers
                 return Json(new { success = false, message = "Receipt upload is required for Completed." });
             using (var db = new SolteiraBrandsContext())
             {
-                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
+                var order = db.tbl_orders.Include("OrderItems").FirstOrDefault(o => o.Id == orderId);
                 if (order == null) return Json(new { success = false, message = "Order not found." });
-                var allowedFrom = new[] { OrderStatus.ReadyForMeetup, OrderStatus.MeetupRescheduled };
+                var allowedFrom = new[] { OrderStatus.ReadyForMeetup, OrderStatus.MeetupRescheduled, OrderStatus.NoShow };
                 if (!allowedFrom.Any(s => string.Equals(order.OrderStatus, s, StringComparison.OrdinalIgnoreCase)))
-                    return Json(new { success = false, message = "Only Ready for Meetup or Meetup Rescheduled orders can be updated." });
+                    return Json(new { success = false, message = "Only Ready for Meetup, Meetup Rescheduled, or No Show orders can be updated." });
                 var now = DateTime.Now;
                 if (statusTrim == "COMPLETED")
                 {
@@ -2472,9 +2636,41 @@ namespace Solteira_Brands.Controllers
                     if (!OrderLifecycleRules.CanTransitionOrder(order.OrderStatus, OrderStatus.Cancelled))
                         return Json(new { success = false, message = "Cannot cancel from current status." });
                     order.OrderStatus = OrderStatus.Cancelled;
+                    order.RejectionReason = string.IsNullOrWhiteSpace(cancellationReason)
+                        ? order.RejectionReason
+                        : cancellationReason.Trim();
                     order.LastStatusUpdateAt = now;
-                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel { OrderId = orderId, Status = "CANCELLED", CreatedAt = now });
-                    LogActivity(db, "Meetup Cancelled", "MeetupOutcomes", orderId, "Order #" + (order.OrderNumber ?? orderId.ToString()));
+
+                    // Optional stock restoration on cancel, same semantics as manual order cancel:
+                    // default is to restore stock unless explicitly disabled.
+                    var shouldRestoreStockOnCancel = !restoreStock.HasValue || restoreStock.Value;
+                    if (shouldRestoreStockOnCancel && order.OrderItems != null)
+                    {
+                        foreach (var item in order.OrderItems)
+                        {
+                            if (!item.ProductId.HasValue) continue;
+                            var product = db.tbl_products.Find(item.ProductId.Value);
+                            if (product != null)
+                            {
+                                product.StockQuantity += item.Quantity;
+                                product.UpdatedAt = now;
+                            }
+                        }
+                    }
+
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                    {
+                        OrderId = orderId,
+                        Status = "CANCELLED",
+                        CreatedAt = now
+                    });
+                    LogActivity(
+                        db,
+                        "Meetup Cancelled",
+                        "MeetupOutcomes",
+                        orderId,
+                        "Order #" + (order.OrderNumber ?? orderId.ToString())
+                        + (order.RejectionReason != null ? "; reason: " + order.RejectionReason : ""));
                 }
                 db.SaveChanges();
                 return Json(new { success = true, message = "Meetup outcome updated.", orderStatus = order.OrderStatus });
