@@ -447,7 +447,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
                     eta: ov.etaIso || '',
-                    deliveryStatus: ov.deliveryStatus || 'PENDING'
+                    deliveryStatus: ov.deliveryStatus || 'IN_TRANSIT'
                 };
                 var el = document.getElementById('deliveryEditModal');
                 if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
@@ -1383,6 +1383,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             });
             return;
         }
+        var priceNum = parseFloat($scope.newProduct.price);
+        if (isNaN(priceNum) || priceNum < 0) {
+            Swal.fire({ title: 'Invalid price', text: 'Selling price cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        var stockNum = parseInt($scope.newProduct.stockQuantity, 10);
+        if (isNaN(stockNum) || stockNum < 0) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
         if (!$scope.newProduct.stones || !$scope.newProduct.material || !$scope.newProduct.weight || !$scope.newProduct.length) {
             Swal.fire({
                 title: 'Missing required fields',
@@ -2168,16 +2178,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.customReportStart = '';
     $scope.customReportEnd = '';
     $scope.reportCategory = 'All Categories';
+    $scope.reportFiltersApplied = false;
+
+    $scope.onReportsPageInit = function () {
+        $scope.reportFiltersApplied = false;
+        $scope.loadSalesReport();
+    };
 
     $scope.loadSalesReport = function () {
         var range = $scope.reportRange || 'all';
-        var startDate = range === 'custom' ? $scope.customReportStart : null;
-        var endDate = range === 'custom' ? $scope.customReportEnd : null;
+        var startDate = range === 'custom' ? ($scope.customReportStart || '') : null;
+        var endDate = range === 'custom' ? ($scope.customReportEnd || '') : null;
         var cat = $scope.reportCategory || 'All Categories';
-        SolteiraAndBrandsService.getSalesReport(range, startDate, endDate, cat === 'All Categories' ? null : cat).then(function (res) {
+        if (range === 'custom' && (!startDate || !endDate)) {
+            $scope.salesReportRows = [];
+            $scope.salesReportGrandTotal = 0;
+            return;
+        }
+        SolteiraAndBrandsService.getSalesReport(range, startDate || null, endDate || null, cat === 'All Categories' ? null : cat).then(function (res) {
             if (res.data && res.data.success) {
                 var raw = res.data.rows || [];
-                // Normalize keys so view works with either camelCase or PascalCase from API
                 $scope.salesReportRows = raw.map(function (r) {
                     return {
                         date: r.date != null ? r.date : (r.Date != null ? r.Date : ''),
@@ -2190,11 +2210,31 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     };
                 });
                 $scope.salesReportGrandTotal = res.data.grandTotal != null ? res.data.grandTotal : 0;
+                $scope.reportFiltersApplied = true;
             }
         }, function () {
             $scope.salesReportRows = [];
             $scope.salesReportGrandTotal = 0;
         });
+    };
+
+    $scope.applyReportFilters = function () {
+        if ($scope.reportRange === 'custom') {
+            if (!$scope.customReportStart || !$scope.customReportEnd) {
+                Swal.fire({ icon: 'warning', title: 'Select dates', text: 'Please choose both start and end date for custom range.' });
+                return;
+            }
+            if ($scope.customReportStart > $scope.customReportEnd) {
+                Swal.fire({ icon: 'warning', title: 'Invalid range', text: 'Start date must be before or equal to end date.' });
+                return;
+            }
+        }
+        $scope.loadSalesReport();
+    };
+
+    $scope.canExportSalesReport = function () {
+        if ($scope.reportRange !== 'custom') return true;
+        return !!($scope.customReportStart && $scope.customReportEnd && $scope.reportFiltersApplied);
     };
 
     $scope.onReportRangeChange = function () {
@@ -2204,8 +2244,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             lastMonth.setDate(lastMonth.getDate() - 30);
             $scope.customReportEnd = today.toISOString().slice(0, 10);
             $scope.customReportStart = lastMonth.toISOString().slice(0, 10);
-            $scope.loadSalesReport();
+            $scope.reportFiltersApplied = false;
         } else {
+            $scope.reportFiltersApplied = false;
             $scope.loadSalesReport();
         }
     };
@@ -2234,6 +2275,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     }
 
     $scope.exportSalesReportPdf = function () {
+        if (!$scope.canExportSalesReport()) {
+            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            return;
+        }
         if (typeof pdfMake === 'undefined') {
             alert('PDF library not loaded.');
             return;
@@ -2269,9 +2314,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
         var docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 90, 40, 60], // Increased top margin to comfortably fit the header
+            pageMargins: [40, 90, 40, 60],
 
-            // --- CUSTOM CORPORATE HEADER ---
+            // CUSTOM CORPORATE HEADER 
             header: function (currentPage, pageCount, pageSize) {
                 return {
                     margin: [40, 25, 40, 0],
@@ -2279,10 +2324,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         {
                             columns: [
                                 {
-                                    text: 'S&B',
-                                    color: '#2D5A27',
-                                    fontSize: 22,
-                                    bold: true,
+                                    image: 'companyLogo',
                                     width: 60
                                 },
                                 {
@@ -2312,7 +2354,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 };
             },
 
-            // --- CUSTOM CORPORATE FOOTER ---
+            // CUSTOM CORPORATE FOOTER 
             footer: function (currentPage, pageCount) {
                 return {
                     margin: [40, 10, 40, 0],
@@ -2330,7 +2372,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             },
 
             content: [
-                // --- REPORT METADATA BOX ---
+                // REPORT METADATA BOX 
                 {
                     columns: [
                         {
@@ -2354,32 +2396,30 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     margin: [0, 0, 0, 20]
                 },
 
-                // --- MAIN DATA TABLE ---
+                // MAIN DATA TABLE 
                 {
                     style: 'salesTable',
                     table: {
                         headerRows: 1,
-                        // Make sure your widths match your tableBody column count!
                         widths: [55, 65, '*', 52, 28, 65, 65],
                         body: tableBody
                     },
                     layout: {
-                        // Custom table styling for a cleaner look
                         hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 0.5; },
-                        vLineWidth: function (i, node) { return 0; }, // Removes vertical lines
+                        vLineWidth: function (i, node) { return 0; },
                         hLineColor: function (i, node) { return '#E0E0E0'; },
                         fillColor: function (rowIndex, node, columnIndex) {
-                            return (rowIndex === 0) ? '#F5F5DC' : null; // Beige header row
+                            return (rowIndex === 0) ? '#F5F5DC' : null;
                         },
                         paddingTop: function (i) { return 6; },
                         paddingBottom: function (i) { return 6; }
                     }
                 },
 
-                // --- GRAND TOTAL BLOCK ---
+                // GRAND TOTAL BLOCK 
                 {
                     columns: [
-                        { width: '*', text: '' }, // Pushes the total box to the right
+                        { width: '*', text: '' },
                         {
                             width: 250,
                             table: {
@@ -2392,14 +2432,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                                 ]
                             },
                             layout: 'noBorders',
-                            fillColor: '#2D5A27', // Signature Green Background
-                            margin: [0, 15, 0, 0] // Spacing from the table
+                            fillColor: '#2D5A27',
+                            margin: [0, 15, 0, 0]
                         }
                     ]
                 }
             ],
 
-            // --- TYPOGRAPHY & DESIGN SYSTEM ---
+            // TYPOGRAPHY & DESIGN SYSTEM 
             styles: {
                 companyNameMain: {
                     fontSize: 16,
@@ -2451,6 +2491,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     alignment: 'right',
                     margin: [0, 8, 10, 8]
                 }
+            },
+            images: {
+                companyLogo: window.location.origin + '/Content/img/solteira-logo.png'
             }
         };
 
@@ -2468,6 +2511,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     }
 
     $scope.exportSalesReportCsv = function () {
+        if (!$scope.canExportSalesReport()) {
+            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            return;
+        }
         var rows = $scope.salesReportRows || [];
         var grandTotal = $scope.salesReportGrandTotal != null ? $scope.salesReportGrandTotal : 0;
         var header = ['Date', 'Order ID', 'Item Name', 'Category', 'Qty', 'Unit Price', 'Total'];

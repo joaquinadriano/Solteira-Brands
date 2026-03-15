@@ -2,7 +2,7 @@
     Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 
-<div class="main-content" ng-init="loadSalesReport()">
+<div class="main-content" ng-init="onReportsPageInit()">
     <div class="container-fluid orders-container px-1">
 
         <div class="row px-4 pb-3 mb-0 align-items-center border-bottom">
@@ -11,10 +11,10 @@
                 <p class="text-muted mb-0">View and export detailed item sales.</p>
             </div>
             <div class="col-auto d-flex gap-2">
-                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()">
+                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as PDF'}}">
                     <i class="bi bi-file-earmark-pdf-fill me-2"></i>Export as PDF
                 </button>
-                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()">
+                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as CSV'}}">
                     <i class="bi bi-filetype-csv me-2"></i>Export as CSV
                 </button>
             </div>
@@ -35,9 +35,10 @@
                             </select>
                         </div>
                         <div ng-if="reportRange === 'custom'" class="col-md-4 d-flex align-items-end gap-2 flex-wrap">
-                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportStart" ng-change="loadSalesReport()" />
+                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportStart" />
                             <span class="text-muted align-self-center">to</span>
-                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportEnd" ng-change="loadSalesReport()" />
+                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportEnd" />
+                            <button type="button" class="btn btn-primary btn-sm" ng-click="applyReportFilters()">Apply</button>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Category</label>

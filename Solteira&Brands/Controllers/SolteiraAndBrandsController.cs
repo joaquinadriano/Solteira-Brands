@@ -2212,7 +2212,7 @@ namespace Solteira_Brands.Controllers
                     TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim(),
                     DispatchDate = dispatchDt,
                     Eta = etaDt,
-                    DeliveryStatus = DeliveryStatus.Pending,
+                    DeliveryStatus = DeliveryStatus.InTransit,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
