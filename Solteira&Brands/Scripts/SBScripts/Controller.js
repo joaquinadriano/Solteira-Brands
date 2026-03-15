@@ -495,8 +495,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (ev && ev.preventDefault) ev.preventDefault();
         $scope.forgotPasswordError = '';
         var email = ($scope.userEmail || '').trim();
-        if (!email) {
-            $scope.forgotPasswordError = 'Email is required.';
+        var emailErr = validateEmailFormat(email);
+        if (emailErr) {
+            $scope.forgotPasswordError = emailErr;
             return;
         }
         // If OTP is currently locked (15‑minute cooldown), block new requests for this device.
@@ -741,10 +742,33 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.resetPasswordSubmitting = false;
     $scope.resetPasswordError = '';
+    $scope.resetPasswordErrors = { password: '', verifyPassword: '' };
+
+    $scope.onResetPasswordInput = function () {
+        var p = ($scope.registerData && $scope.registerData.password) || '';
+        var v = ($scope.registerData && $scope.registerData.verifyPassword) || '';
+        var pErr = validatePassword(p);
+        $scope.resetPasswordErrors.password = pErr;
+        if (v) {
+            $scope.resetPasswordErrors.verifyPassword = (p && v && p === v) ? '' : 'Passwords do not match.';
+        }
+    };
+
+    $scope.onResetVerifyPasswordInput = function () {
+        var p = ($scope.registerData && $scope.registerData.password) || '';
+        var v = ($scope.registerData && $scope.registerData.verifyPassword) || '';
+        if (!v) {
+            $scope.resetPasswordErrors.verifyPassword = '';
+            return;
+        }
+        $scope.resetPasswordErrors.verifyPassword = (p && v && p === v) ? '' : 'Passwords do not match.';
+    };
 
     $scope.submitResetPassword = function (ev) {
         if (ev && ev.preventDefault) ev.preventDefault();
         $scope.resetPasswordError = '';
+        $scope.resetPasswordErrors.password = '';
+        $scope.resetPasswordErrors.verifyPassword = '';
         var email = $scope.verificationEmail || '';
         var p = ($scope.registerData && $scope.registerData.password) || '';
         var v = ($scope.registerData && $scope.registerData.verifyPassword) || '';
@@ -752,12 +776,13 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.resetPasswordError = 'Session missing. Please start again from Forgot Password.';
             return;
         }
-        if (!p || p.length < 8) {
-            $scope.resetPasswordError = 'Password must be at least 8 characters with upper, lower, number, and special character.';
+        var pErr = validatePassword(p);
+        if (pErr) {
+            $scope.resetPasswordErrors.password = pErr;
             return;
         }
         if (p !== v) {
-            $scope.resetPasswordError = 'Passwords do not match.';
+            $scope.resetPasswordErrors.verifyPassword = 'Passwords do not match.';
             return;
         }
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -766,7 +791,13 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         SolteiraBrandsService.resetPassword(email, p, v, token).then(function (r) {
             $scope.resetPasswordSubmitting = false;
             if (r.data && r.data.success) {
-                Swal.fire({ icon: 'success', title: 'Password updated', text: r.data.message || 'You can now sign in.' }).then(function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Your password has been updated successfully. You can now sign in.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#28a745'
+                }).then(function () {
                     window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
                 });
             } else {
@@ -1568,8 +1599,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         $scope.paymentForm.proofImageId = null;
         var fn = (file.name || '').toLowerCase();
         if (fn.indexOf('.jpg') === -1 && fn.indexOf('.jpeg') === -1 && fn.indexOf('.png') === -1) {
-            $scope.paymentValidation.file = 'Only JPG or PNG allowed. PDF is not accepted.';
-            Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Only JPG or PNG allowed. PDF is not accepted.' });
+            $scope.paymentValidation.file = 'Must submit JPG or PNG only. Maximum size 5MB.';
+            Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Must submit JPG or PNG only. Maximum size 5MB.' });
             $scope.proofFileName = '';
             return;
         }

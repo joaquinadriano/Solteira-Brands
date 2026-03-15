@@ -648,14 +648,14 @@ namespace Solteira_Brands.Controllers
                 return Json(new { success = false, field = "", message = "All fields are required." });
             }
 
-            if (newPassword != verifyPassword)
+            if ((newPassword ?? "").Trim() != (verifyPassword ?? "").Trim())
             {
                 return Json(new { success = false, field = "verifyPassword", message = "New password and confirmation do not match." });
             }
 
-            if (string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+            if (string.Equals((currentPassword ?? "").Trim(), (newPassword ?? "").Trim(), StringComparison.Ordinal))
             {
-                return Json(new { success = false, field = "newPassword", message = "New password must be different from current password." });
+                return Json(new { success = false, field = "newPassword", message = "New password must be different from your current password. Please enter a different new password." });
             }
 
             if (!PasswordValidation.IsValid(newPassword, out string passwordError))
@@ -685,6 +685,12 @@ namespace Solteira_Brands.Controllers
                 if (!PasswordHasher.Verify(currentPassword, user.PasswordHash, user.PasswordSalt))
                 {
                     return Json(new { success = false, field = "currentPassword", message = "Current password is incorrect." });
+                }
+
+                // Reject if new password is the same as current (verify new against existing hash)
+                if (PasswordHasher.Verify(newPassword, user.PasswordHash, user.PasswordSalt))
+                {
+                    return Json(new { success = false, field = "newPassword", message = "New password must be different from your current password. Please enter a different new password." });
                 }
 
                 var (hash, salt) = PasswordHasher.HashPassword(newPassword);

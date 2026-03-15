@@ -7,12 +7,9 @@
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0 mb-0">Payment</p>
             </div>
-            <div class="col-auto d-flex gap-2">
+            <div class="col-auto">
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentSettingsModal" ng-click="openPaymentSettingsModal()">
                     <i class="bi bi-gear me-1"></i>Manage Payment Settings
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="loadPayments()" title="Refresh list">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                 </button>
             </div>
         </div>
@@ -295,26 +292,28 @@
                     </div>
                 </div>
 
-                <div class="modal-footer border-0 p-4 flex-wrap">
-                    <span class="order-status-display me-2">Payment status: <strong>{{getPaymentStatusDisplayText(paymentDetail.paymentOverview.paymentStatus, paymentDetail.paymentOverview)}}</strong></span>
-                    <span ng-if="selectedPayment && selectedPayment.paymentStatus === 'SUBMITTED'" class="me-2 d-flex flex-wrap align-items-start gap-2">
-                        <div class="d-flex flex-column gap-1">
-                            <button type="button" class="btn btn-success" ng-click="confirmVerifyPaymentFromModal()">Approve payment</button>
-                            <span class="small text-muted">Resubmit option does not apply when approving.</span>
-                        </div>
-                        <div class="border-start ps-3" style="border-color: #dee2e6 !important;">
-                            <p class="small fw-bold mb-1 text-secondary">When rejecting:</p>
-                            <div class="mb-2">
-                                <label class="form-label small mb-0">Rejection reason (required)</label>
-                                <textarea class="form-control form-control-sm" ng-model="paymentModalForm.rejectionReason" placeholder="Enter reason..." rows="2" style="max-width: 300px;"></textarea>
+                <div class="modal-footer border-0 p-4">
+                    <div class="payment-detail-card w-100">
+                        <div ng-if="selectedPayment && selectedPayment.paymentStatus === 'SUBMITTED'" class="payment-modal-two-col">
+                            <div class="payment-col payment-col-approval">
+                                <div class="payment-approval-inner">
+                                    <button type="button" class="btn btn-success btn-payment-approve" ng-click="confirmVerifyPaymentFromModal()">Approve payment</button>
+                                </div>
                             </div>
-                            <div class="form-check mb-2">
-                                <input type="checkbox" class="form-check-input" id="allowResubmitCheckbox" ng-model="paymentModalForm.allowResubmit" />
-                                <label class="form-check-label small" for="allowResubmitCheckbox">Allow buyer to resubmit payment</label>
+                            <div class="payment-col-divider" aria-hidden="true"></div>
+                            <div class="payment-col payment-col-rejection">
+                                <label class="form-label payment-reject-label">Rejection reason (required)</label>
+                                <textarea class="form-control payment-reject-textarea" ng-model="paymentModalForm.rejectionReason" placeholder="Provide feedback for the buyer..." rows="4"></textarea>
+                                <div class="payment-reject-actions">
+                                    <div class="form-check mb-0">
+                                        <input type="checkbox" class="form-check-input" id="allowResubmitCheckbox" ng-model="paymentModalForm.allowResubmit" />
+                                        <label class="form-check-label small" for="allowResubmitCheckbox">Allow buyer to resubmit payment</label>
+                                    </div>
+                                    <button type="button" class="btn btn-danger btn-payment-reject" ng-click="rejectPaymentFromModal()" ng-disabled="!(paymentModalForm.rejectionReason && paymentModalForm.rejectionReason.trim().length >= 5)">Reject</button>
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-danger" ng-click="rejectPaymentFromModal()">Reject</button>
                         </div>
-                    </span>
+                    </div>
                 </div>
             </div>
         </div>

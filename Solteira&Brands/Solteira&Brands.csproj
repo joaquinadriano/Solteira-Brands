@@ -1131,7 +1131,6 @@
     <Content Include="Views\SolteiraAndBrands\AdminDashboardPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminInventoryPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminOrdersPage.cshtml" />
-    <Content Include="Views\SolteiraAndBrands\AdminPasswordChangePage1.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminDeliveryShipmentsPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminOrderDetailsPage.cshtml" />
     <Content Include="Views\SolteiraAndBrands\AdminPaymentPage.cshtml" />

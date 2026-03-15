@@ -219,13 +219,13 @@
                 <label class="section-label">Proof of Payment <span class="text-danger">*</span></label>
                 <div class="form-group">
                     <div class="upload-wrapper">
-                        <label for="proofUpload" class="custom-upload-btn" ng-click="triggerProofUpload(); $event.preventDefault();">
+                        <label for="proofUpload" class="custom-upload-btn" ng-class="{'custom-upload-btn-invalid': paymentValidation.file}" ng-click="triggerProofUpload(); $event.preventDefault();">
                             <i class="bi bi-upload"></i>
                             <span>Upload</span>
                         </label>
                         <small class="file-name-display">{{proofFileName || 'No file chosen'}}</small>
                     </div>
-                    <small class="text-muted photo-limit">JPG or PNG only. Maximum size: 5MB. PDF is not accepted.</small>
+                    <small class="text-muted photo-limit">JPG or PNG only. Maximum size: 5MB.</small>
                     <p class="text-danger small mt-1 mb-0" ng-if="paymentValidation.proof">{{paymentValidation.proof}}</p>
                     <p class="text-danger small mt-1 mb-0" ng-if="paymentValidation.file">{{paymentValidation.file}}</p>
                 </div>
@@ -237,7 +237,7 @@
                 <label class="section-label">Proof of 30% Down Payment <span class="text-danger">*</span></label>
                 <div class="form-group">
                     <div class="upload-wrapper">
-                        <label for="proofUpload" class="custom-upload-btn" ng-click="triggerProofUpload(); $event.preventDefault();">
+                        <label for="proofUpload" class="custom-upload-btn" ng-class="{'custom-upload-btn-invalid': paymentValidation.file}" ng-click="triggerProofUpload(); $event.preventDefault();">
                             <i class="bi bi-upload"></i>
                             <span>Upload</span>
                         </label>

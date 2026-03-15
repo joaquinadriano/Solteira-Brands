@@ -1,4 +1,4 @@
-﻿html, body {
+html, body {
     overflow-x: hidden;
 }
 
@@ -33,6 +33,121 @@ color: #87AE73;*/
 #paymentTable.dataTable #payment-orderID {
     text-decoration: underline;
     cursor: pointer;
+}
+
+/* Payment detail modal footer: 50/50 grid, approval vs rejection */
+.payment-detail-card {
+    padding: 0;
+    background: #fff;
+    border: 1px solid #e2e6ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    font-family: 'Inter', 'Roboto', -apple-system, sans-serif;
+}
+
+.payment-modal-two-col {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.payment-col {
+    flex: 1;
+    min-width: 0;
+    padding: 20px;
+}
+
+.payment-col-approval {
+    background: #f9fff9;
+}
+
+.payment-col-rejection {
+    background: #fff9f9;
+    border-left: 1px solid #eee;
+}
+
+.payment-col-divider {
+    display: none;
+}
+
+.payment-approval-inner {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 140px;
+    flex-wrap: wrap;
+}
+
+.payment-col-approval .btn-payment-approve {
+    min-height: 42px;
+    border-radius: 8px;
+    font-weight: 600;
+    padding-left: 20px;
+    padding-right: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.payment-col-approval .btn-payment-approve:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.35);
+}
+
+.payment-helper-text {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    font-style: italic;
+    margin: 0;
+}
+
+.payment-reject-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.payment-reject-textarea {
+    resize: none;
+    height: 4.5em;
+    max-width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.875rem;
+    font-family: inherit;
+}
+
+.payment-reject-textarea::placeholder {
+    color: #9ca3af;
+}
+
+.payment-reject-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.payment-col-rejection .btn-payment-reject {
+    min-height: 42px;
+    border-radius: 8px;
+    font-weight: 600;
+    padding-left: 20px;
+    padding-right: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.payment-col-rejection .btn-payment-reject:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+}
+
+.payment-col-rejection .btn-payment-reject:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 

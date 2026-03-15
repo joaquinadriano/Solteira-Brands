@@ -127,6 +127,17 @@ html, body {
     }
 }
 
+/* Product Description column in inventory datatable: Stones, Material, weight, length */
+.product-description-cell {
+    text-align: left;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: normal;
+}
+.product-description-cell .d-block {
+    display: block;
+}
+
 /* Featured column: checkbox for selection (checked = show in homepage carousel) */
 .featured-checkbox {
     cursor: pointer;

@@ -135,6 +135,11 @@ body {
     width: 100%;
 }
 
+.custom-upload-btn-invalid {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
 .file-name-display {
     color: #888;
 }

@@ -110,7 +110,11 @@ namespace Solteira_Brands.Controllers
 
         // ----- Orders + Archive: single page for ADMIN, MANAGER, STAFF (Show Active / Show Archived) -----
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrdersArchivePage() { return View(); }
+        public ActionResult AdminOrdersArchivePage()
+        {
+            ViewBag.Title = "Orders";
+            return View();
+        }
         [Authorize(Roles = "ADMIN")]
         [HttpGet]
         public JsonResult GetArchiveOrders()
@@ -189,8 +193,6 @@ namespace Solteira_Brands.Controllers
         public ActionResult AdminLoginPage() { return RedirectToAction("SolteiraBrandsLogin"); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminPasswordChangePage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminPasswordChangePage1() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminDashboardPage() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]

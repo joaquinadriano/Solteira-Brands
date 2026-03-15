@@ -127,8 +127,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.ordersList && $scope.ordersList.length > 0) {
-                    // Sort by Order Date column (index 1) so newest orders appear first.
-                    window.initializeStandardTable('#adminOrdersTable', 1);
+                    // Sort by Order ID column (index 0) descending so most recent (highest ID) appears first.
+                    window.initializeStandardTable('#adminOrdersTable', 0);
                 }
             }, 150);
         }, function () {
@@ -198,11 +198,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     $scope.refreshSelectedOrderDetails();
                 }
                 if (newStatus === 'Approved') {
-                    Swal.fire({ title: 'Order approved', text: 'Order has been approved. Buyer can now submit payment.', icon: 'success', confirmButtonColor: '#28a745' });
+                    Swal.fire({ title: 'Order approved', text: 'Order has been approved. Buyer can now submit payment.', icon: 'success', confirmButtonColor: '#28a745' }).then(function () {
+                        window.location.reload();
+                    });
                 } else if (newStatus === 'Rejected') {
-                    Swal.fire({ title: 'Order rejected', text: 'Order has been rejected. Rejection reason was saved.', icon: 'success', confirmButtonColor: '#dc3545' });
+                    Swal.fire({ title: 'Order rejected', text: 'Order has been rejected. Rejection reason was saved.', icon: 'success', confirmButtonColor: '#dc3545' }).then(function () {
+                        window.location.reload();
+                    });
                 } else {
-                    Swal.fire({ title: 'Order status updated', icon: 'success', confirmButtonText: 'OK' });
+                    Swal.fire({ title: 'Order status updated', icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                        window.location.reload();
+                    });
                 }
             } else {
                 Swal.fire({ icon: 'error', title: 'Update failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -286,9 +292,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (!result.isConfirmed) return;
             SolteiraAndBrandsService.revokeApproval(orderId).then(function (res) {
                 if (res.data && res.data.success) {
+                    var updatedStatus = (res.data.orderStatus || 'Pending Approval');
+                    if ($scope.ordersList && $scope.ordersList.length) {
+                        for (var i = 0; i < $scope.ordersList.length; i++) {
+                            var o = $scope.ordersList[i];
+                            if (o && (o.id === orderId || o.Id === orderId)) {
+                                o.orderStatus = updatedStatus;
+                                o.status = updatedStatus;
+                                break;
+                            }
+                        }
+                    }
+                    if ($scope.selectedOrderDetails && $scope.selectedOrderDetails.id === orderId) {
+                        $scope.selectedOrderDetails.orderStatus = updatedStatus;
+                        $scope.selectedOrderDetails.status = updatedStatus;
+                    }
                     $scope.loadOrders();
                     $scope.refreshSelectedOrderDetails();
-                    Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' });
+                    Swal.fire({ title: 'Approval revoked', icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                        window.location.reload();
+                    });
                 } else {
                     Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Cannot revoke (e.g. payment already submitted).' });
                 }
@@ -917,6 +940,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if ($scope.paymentRefreshInterval) { $interval.cancel($scope.paymentRefreshInterval); $scope.paymentRefreshInterval = null; }
     });
     $scope.paymentModalForm = { rejectionReason: '', allowResubmit: true };
+    $scope.paymentSuccessSwalPending = false;
     $scope.openPaymentProofModal = function (payment) {
         if (!payment || !payment.paymentId) return;
         $scope.paymentDetail = null;
@@ -929,6 +953,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.selectedPayment = res.data.selectedPayment;
                 var el = document.getElementById('paymentDetailModal');
                 if (el && window.bootstrap) {
+                    if (!el._paymentModalReloadAttached) {
+                        el._paymentModalReloadAttached = true;
+                        el.addEventListener('hidden.bs.modal', function () {
+                            $scope.$evalAsync(function () {
+                                if (!$scope.paymentSuccessSwalPending) {
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    }
                     var m = new bootstrap.Modal(el);
                     m.show();
                 }
@@ -978,7 +1012,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.getDisplayOrderStatus = function (orderStatus) {
         if (!orderStatus) return '-';
         var s = (orderStatus + '').trim();
-        if (s === 'Rejected') return 'Order Rejected';
+        if (s === 'Rejected') return 'Payment Rejected';
+        if (s === 'Cancelled') return 'Order Cancelled';
         if (s === 'Paid') return 'Paid - Waiting for Shipment';
         if (s === 'Awaiting Payment Verification') return 'Awaiting Payment Verification';
         if (s === 'Pending Approval') return 'Pending Approval';
@@ -1002,12 +1037,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 }
                 $scope.loadPayments();
+                $scope.paymentSuccessSwalPending = true;
                 $scope.closePaymentProofModal();
                 if ($scope.loadOrders) $scope.loadOrders();
                 if ($scope.loadDeliveryMeetup) $scope.loadDeliveryMeetup();
                 var orderStatus = (res.data && res.data.orderStatus) ? res.data.orderStatus : '';
                 var msg = orderStatus === 'Ready for Meetup' ? 'Payment verified. Order is now Ready for Meetup — check Delivery - Cash through Meetup.' : 'Payment verified';
-                Swal.fire({ title: 'Payment verified', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                Swal.fire({ title: 'Payment verified', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                    $scope.paymentSuccessSwalPending = false;
+                    window.location.reload();
+                });
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
             }
@@ -1035,6 +1074,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ icon: 'warning', title: 'Rejection reason required', text: 'Please enter a reason for rejecting this payment.' });
             return;
         }
+        if (reason.length < 5) {
+            Swal.fire({ icon: 'warning', title: 'Reason too short', text: 'Please enter at least 5 characters for the rejection reason.' });
+            return;
+        }
         var allowResubmit = !!($scope.paymentModalForm && $scope.paymentModalForm.allowResubmit);
         var paymentId = $scope.selectedPayment.paymentId;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason, allowResubmit).then(function (res) {
@@ -1053,6 +1096,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 }
                 $scope.loadPayments();
+                $scope.paymentSuccessSwalPending = true;
                 $scope.closePaymentProofModal();
                 var msg = allowResubmit ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
 
@@ -1070,18 +1114,27 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         if (choice.isConfirmed) {
                             // Yes → cancel and restore stock.
                             $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, true);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                                $scope.paymentSuccessSwalPending = false;
+                                window.location.reload();
+                            });
                         } else if (choice.dismiss === 'cancel') {
                             // "No, keep stock as is" → cancel order but do not touch stock.
                             $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, false);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                                $scope.paymentSuccessSwalPending = false;
+                                window.location.reload();
+                            });
                         } else {
                             // X / backdrop / Esc → abort without cancelling the order.
                             return;
                         }
                     });
                 } else {
-                    Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' });
+                    Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
+                        $scope.paymentSuccessSwalPending = false;
+                        window.location.reload();
+                    });
                 }
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -1267,10 +1320,32 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
+    $scope.inventoryFileValidationMessage = '';
+    $scope.inventoryEditFileValidationMessage = '';
+
     $scope.onInventoryFileSelected = function (files) {
+        $scope.inventoryFileValidationMessage = '';
         if (files && files.length > 0) {
+            var file = files[0];
+            var fn = (file.name || '').toLowerCase();
+            if (fn.indexOf('.jpg') === -1 && fn.indexOf('.jpeg') === -1 && fn.indexOf('.png') === -1) {
+                $scope.$applyAsync(function () {
+                    $scope.inventoryPhotoFile = null;
+                    $scope.inventoryFileValidationMessage = 'Must submit JPG or PNG only. Maximum size 5MB.';
+                });
+                Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Must submit JPG or PNG only. Maximum size 5MB.' });
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                $scope.$applyAsync(function () {
+                    $scope.inventoryPhotoFile = null;
+                    $scope.inventoryFileValidationMessage = 'Must submit JPG or PNG only. Maximum size 5MB.';
+                });
+                Swal.fire({ icon: 'warning', title: 'File too large', text: 'File must be under 5MB.' });
+                return;
+            }
             $scope.$applyAsync(function () {
-                $scope.inventoryPhotoFile = files[0];
+                $scope.inventoryPhotoFile = file;
             });
         } else {
             $scope.$applyAsync(function () {
@@ -1280,9 +1355,28 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.onInventoryEditFileSelected = function (files) {
+        $scope.inventoryEditFileValidationMessage = '';
         if (files && files.length > 0) {
+            var file = files[0];
+            var fn = (file.name || '').toLowerCase();
+            if (fn.indexOf('.jpg') === -1 && fn.indexOf('.jpeg') === -1 && fn.indexOf('.png') === -1) {
+                $scope.$applyAsync(function () {
+                    $scope.inventoryEditPhotoFile = null;
+                    $scope.inventoryEditFileValidationMessage = 'Must submit JPG or PNG only. Maximum size 5MB.';
+                });
+                Swal.fire({ icon: 'warning', title: 'Invalid file', text: 'Must submit JPG or PNG only. Maximum size 5MB.' });
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                $scope.$applyAsync(function () {
+                    $scope.inventoryEditPhotoFile = null;
+                    $scope.inventoryEditFileValidationMessage = 'Must submit JPG or PNG only. Maximum size 5MB.';
+                });
+                Swal.fire({ icon: 'warning', title: 'File too large', text: 'File must be under 5MB.' });
+                return;
+            }
             $scope.$applyAsync(function () {
-                $scope.inventoryEditPhotoFile = files[0];
+                $scope.inventoryEditPhotoFile = file;
             });
         } else {
             $scope.$applyAsync(function () {
@@ -1292,10 +1386,29 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.createInventoryProduct = function () {
+        $scope.inventoryFileValidationMessage = '';
         if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || !$scope.newProduct.stockQuantity) {
             Swal.fire({
                 title: 'Missing required fields',
-                text: 'Please fill in Product Name, Category, Selling Price, and Stock Left.',
+                text: 'Please fill in necessary fields *',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        if (!$scope.newProduct.stones || !$scope.newProduct.material || !$scope.newProduct.weight || !$scope.newProduct.length) {
+            Swal.fire({
+                title: 'Missing required fields',
+                text: 'Please fill in necessary fields *',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        if (!$scope.inventoryPhotoFile) {
+            Swal.fire({
+                title: 'Photo required',
+                text: 'Please upload a product photo (PNG or JPG, less than 5MB).',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
@@ -1323,6 +1436,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     $('#inventoryAddItemModal').modal('hide');
                     $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
                     $scope.inventoryPhotoFile = null;
+                    $scope.inventoryFileValidationMessage = '';
                     Swal.fire({
                         title: 'Inventory item added!',
                         text: 'Refresh the page to see it in the list.',
@@ -1358,17 +1472,19 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 if (res.data && res.data.success && res.data.imageID) {
                     doCreate(res.data.imageID);
                 } else {
+                    $scope.inventoryFileValidationMessage = (res.data && res.data.message) ? res.data.message : 'Must be PNG/JPG, less than 5MB.';
                     Swal.fire({
                         title: 'Image upload failed',
-                        text: (res.data && res.data.message) || 'Only JPG/JPEG up to 5MB are allowed.',
+                        text: 'Must be PNG/JPG, less than 5MB.',
                         icon: 'error',
                         confirmButtonText: 'OK'
                     });
                 }
             }, function () {
+                $scope.inventoryFileValidationMessage = 'Must be PNG/JPG, less than 5MB.';
                 Swal.fire({
                     title: 'Image upload failed',
-                    text: 'Please try again. Ensure the file is a JPG/JPEG under 5MB.',
+                    text: 'Must be PNG/JPG, less than 5MB.',
                     icon: 'error',
                     confirmButtonText: 'OK'
                 });
@@ -1424,10 +1540,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.updateInventoryProduct = function () {
         if (!$scope.editProduct || !$scope.editProduct.id) return;
+        $scope.inventoryEditFileValidationMessage = '';
         if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || !$scope.editProduct.stockQuantity) {
             Swal.fire({
                 title: 'Missing required fields',
-                text: 'Please fill in Product Name, Category, Selling Price, and Stock Left.',
+                text: 'Please fill in necessary fields *',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        if (!$scope.editProduct.stones || !$scope.editProduct.material || !$scope.editProduct.weight || !$scope.editProduct.length) {
+            Swal.fire({
+                title: 'Missing required fields',
+                text: 'Please fill in necessary fields *',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
@@ -1494,17 +1620,19 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 if (res.data && res.data.success && res.data.imageID) {
                     doUpdate(res.data.imageID);
                 } else {
+                    $scope.inventoryEditFileValidationMessage = (res.data && res.data.message) ? res.data.message : 'Must be PNG/JPG, less than 5MB.';
                     Swal.fire({
                         title: 'Image upload failed',
-                        text: (res.data && res.data.message) || 'Only JPG/JPEG up to 5MB are allowed.',
+                        text: 'Must be PNG/JPG, less than 5MB.',
                         icon: 'error',
                         confirmButtonText: 'OK'
                     });
                 }
             }, function () {
+                $scope.inventoryEditFileValidationMessage = 'Must be PNG/JPG, less than 5MB.';
                 Swal.fire({
                     title: 'Image upload failed',
-                    text: 'Please try again. Ensure the file is a JPG/JPEG under 5MB.',
+                    text: 'Must be PNG/JPG, less than 5MB.',
                     icon: 'error',
                     confirmButtonText: 'OK'
                 });

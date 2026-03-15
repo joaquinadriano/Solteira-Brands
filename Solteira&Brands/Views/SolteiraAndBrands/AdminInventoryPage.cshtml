@@ -98,7 +98,7 @@
 
                                     <div class="row mb-3 align-items-center">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Stones:</label>
+                                            <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" class="form-control delivery-input-field" placeholder="e.g., 5 Total Carat Diamond" ng-model="newProduct.stones">
@@ -107,7 +107,7 @@
 
                                     <div class="row mb-3 align-items-center">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Material:</label>
+                                            <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" class="form-control delivery-input-field" placeholder="e.g., 18K White Gold" ng-model="newProduct.material">
@@ -116,7 +116,7 @@
 
                                     <div class="row mb-3 align-items-center">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Weight:</label>
+                                            <label class="delivery-label">Weight: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" class="form-control delivery-input-field" placeholder="e.g., 9.6 grams" ng-model="newProduct.weight">
@@ -125,7 +125,7 @@
 
                                     <div class="row mb-3 align-items-center">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Length:</label>
+                                            <label class="delivery-label">Length: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" class="form-control delivery-input-field" placeholder="e.g., 18cm" ng-model="newProduct.length">
@@ -146,11 +146,13 @@
 
                                     <div class="row mb-4 align-items-center">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Photo:</label>
+                                            <label class="delivery-label">Photo: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="file" class="form-control delivery-input-field"
+                                            <input type="file" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryFileValidationMessage}"
                                                    onchange="angular.element(this).scope().onInventoryFileSelected(this.files)" />
+                                            <small class="text-muted">PNG or JPG, less than 5MB.</small>
+                                            <p class="text-danger small mt-1 mb-0" ng-if="inventoryFileValidationMessage">{{inventoryFileValidationMessage}}</p>
                                         </div>
                                     </div>
 
@@ -177,6 +179,7 @@
                             <th>Product ID</th>
                             <th>Category</th>
                             <th>Product Name</th>
+                            <th>Product Description</th>
                             <th>Selling Price</th>
                             <th>Stock Left</th>
                             <th>Sold</th>
@@ -194,6 +197,11 @@
                             <td>{{item.id}}</td>
                             <td>{{item.category}}</td>
                             <td>{{item.name}}</td>
+                            <td class="product-description-cell">
+                                <span class="d-block">{{item.stones || '—'}}</span>
+                                <span class="d-block">{{item.material || '—'}}</span>
+                                <span class="d-block">{{item.weight || '—'}}, {{item.length || '—'}}</span>
+                            </td>
                             <td>&#8369; {{item.price | number:2}}</td>
                             <td>{{item.stockQuantity}}</td>
                             <td>{{item.sold != null ? item.sold : 0}}</td>
@@ -262,6 +270,17 @@
                                 <p class="product-view-detail-row"><strong>Date Added:</strong> {{viewPhotoItem.createdAtString}}</p>
                                 <p class="product-view-detail-row"><strong>Date Updated:</strong> {{viewPhotoItem.updatedAtString}}</p>
                                 <p class="product-view-detail-row"><strong>Featured Status:</strong> <span class="badge badge-featured" ng-if="viewPhotoItem.isFeatured">Featured</span><span class="badge badge-not-featured" ng-if="!viewPhotoItem.isFeatured">Not Featured</span></p>
+                                <div class="product-description-table mt-3">
+                                    <p class="product-view-detail-row fw-bold mb-2">Product Description</p>
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr><td class="text-muted pe-2">Stones</td><td>{{viewPhotoItem.stones || '—'}}</td></tr>
+                                            <tr><td class="text-muted pe-2">Material</td><td>{{viewPhotoItem.material || '—'}}</td></tr>
+                                            <tr><td class="text-muted pe-2">Weight</td><td>{{viewPhotoItem.weight || '—'}}</td></tr>
+                                            <tr><td class="text-muted pe-2">Length</td><td>{{viewPhotoItem.length || '—'}}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -626,7 +645,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Product Name:</label>
+                                    <label class="delivery-label">Product Name: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.name">
@@ -635,7 +654,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Category:</label>
+                                    <label class="delivery-label">Category: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <select class="form-select delivery-input-field"
@@ -647,7 +666,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Selling Price:</label>
+                                    <label class="delivery-label">Selling Price: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="number" step="0.01" class="form-control delivery-input-field" ng-model="editProduct.price">
@@ -656,7 +675,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Stock Left:</label>
+                                    <label class="delivery-label">Stock Left: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="number" class="form-control delivery-input-field" ng-model="editProduct.stockQuantity">
@@ -665,7 +684,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Stones:</label>
+                                    <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.stones">
@@ -674,7 +693,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Material:</label>
+                                    <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.material">
@@ -683,7 +702,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Weight:</label>
+                                    <label class="delivery-label">Weight: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.weight">
@@ -692,7 +711,7 @@
 
                             <div class="row mb-3 align-items-center">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Length:</label>
+                                    <label class="delivery-label">Length: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" ng-model="editProduct.length">
@@ -716,8 +735,10 @@
                                     <label class="delivery-label">Photo:</label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="file" class="form-control delivery-input-field"
+                                    <input type="file" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryEditFileValidationMessage}"
                                            onchange="angular.element(this).scope().onInventoryEditFileSelected(this.files)" />
+                                    <small class="text-muted">PNG or JPG, less than 5MB. Leave empty to keep current.</small>
+                                    <p class="text-danger small mt-1 mb-0" ng-if="inventoryEditFileValidationMessage">{{inventoryEditFileValidationMessage}}</p>
                                 </div>
                             </div>
 
