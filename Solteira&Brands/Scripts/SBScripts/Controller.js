@@ -462,21 +462,35 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.otpError = 'Too many invalid codes. Please wait ' + remainingSec + 's before requesting a new code.';
             return;
         }
-
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'New OTP sent to email!',
-            showConfirmButton: false,
-            timer: 2500,
-            timerProgressBar: true
+        var email = ($scope.verificationEmail || '').trim();
+        if (!email) {
+            $scope.otpError = 'Session missing. Please request a new code from the registration or Forgot Password page.';
+            return;
+        }
+        var mode = $scope.currentMode || '';
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+        $scope.otpError = '';
+        SolteiraBrandsService.resendOtp(email, mode, token).then(function (r) {
+            if (r.data && r.data.success) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'New OTP sent to email!',
+                    showConfirmButton: false,
+                    timer: 2500,
+                    timerProgressBar: true
+                });
+                $scope.otpAttempts = 0;
+                $scope.otpLockedUntil = null;
+                $scope.startTimer();
+            } else {
+                $scope.otpError = (r.data && r.data.message) || 'Could not send a new code. Please try again.';
+            }
+        }, function (err) {
+            $scope.otpError = (err.data && err.data.message) || 'Could not send a new code. Please try again.';
         });
-
-        // Reset attempts on resend and restart 30s timer.
-        $scope.otpAttempts = 0;
-        $scope.otpLockedUntil = null;
-        $scope.startTimer();
     };
 
     $scope.$on('$destroy', function () {

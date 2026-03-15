@@ -1260,6 +1260,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
+    $scope.inventorySearchText = '';
     $scope.productCategories = ["Bracelet", "Ring", "Earring", "Necklace"];
     $scope.newProduct = {
         name: "",
@@ -1280,41 +1281,27 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.nextProductDisplayId = 'P-001';
 
     $scope.loadInventoryProducts = function () {
-        SolteiraAndBrandsService.getInventoryProducts($scope.showArchivedInventory).then(function (res) {
+        var showArchived = $scope.showArchivedInventory;
+        $scope.inventorySearchText = '';
+        SolteiraAndBrandsService.getInventoryProducts(showArchived).then(function (res) {
             var list = [];
-            if (angular.isArray(res.data)) {
-                list = res.data;
-            } else if (res.data && res.data.data) {
-                list = res.data.data;
+            var d = res.data;
+            if (angular.isArray(d)) {
+                list = d;
+            } else if (d && d.data && angular.isArray(d.data)) {
+                list = d.data;
             }
+            list = list || [];
 
-            $timeout(function () {
-                try {
-                    if (window.jQuery && window.jQuery.fn.DataTable && window.jQuery.fn.DataTable.isDataTable && $('#inventoryTable').length && window.jQuery.fn.DataTable.isDataTable('#inventoryTable')) {
-                        $('#inventoryTable').DataTable().destroy();
-                    }
-                } catch (e) { }
+            $scope.inventoryProducts = list;
 
-                $scope.inventoryProducts = list || [];
-
-                if (!$scope.showArchivedInventory) {
-                    var maxId = 0;
-                    angular.forEach($scope.inventoryProducts, function (p) {
-                        if (p && p.id && p.id > maxId) maxId = p.id;
-                    });
-                    $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
-                }
-
-                $timeout(function () {
-                    if (typeof window.initializeStandardTable !== 'function') return;
-                    if (!$scope.inventoryProducts || $scope.inventoryProducts.length === 0) return;
-                    try {
-                        if ($('#inventoryTable').length && (!window.jQuery.fn.DataTable.isDataTable || !window.jQuery.fn.DataTable.isDataTable('#inventoryTable'))) {
-                            window.initializeStandardTable('#inventoryTable', 1);
-                        }
-                    } catch (e2) { }
-                }, 200);
-            }, 0);
+            if (!showArchived) {
+                var maxId = 0;
+                angular.forEach($scope.inventoryProducts, function (p) {
+                    if (p && p.id && p.id > maxId) maxId = p.id;
+                });
+                $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
+            }
         }, function () {
             $scope.inventoryProducts = [];
         });
@@ -1901,7 +1888,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                                 confirmButton: 'status-button'
                             }
                         });
-                        $scope.loadInventoryProducts();
+                        // Run reload in Angular digest so the list updates in the view
+                        $timeout(function () { $scope.loadInventoryProducts(); }, 0);
                     } else {
                         Swal.fire({
                             title: 'Unable to update item.',
@@ -2102,16 +2090,24 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.logsFilterAction = '';
     $scope.logsFilterDateFrom = '';
     $scope.logsFilterDateTo = '';
-    $scope.logsSearch = '';
+
+    function toDateOnlyString(val) {
+        if (!val) return '';
+        if (typeof val === 'string') return val.substring(0, 10);
+        if (val instanceof Date && !isNaN(val.getTime())) {
+            var y = val.getFullYear(), m = val.getMonth() + 1, d = val.getDate();
+            return y + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+        }
+        return '';
+    }
 
     $scope.getFilteredActivityLogs = function () {
         var list = $scope.activityLogsList || [];
         var user = ($scope.logsFilterUser || '').toLowerCase().trim();
         var role = ($scope.logsFilterRole || '').trim();
         var action = ($scope.logsFilterAction || '').toLowerCase().trim();
-        var dateFrom = ($scope.logsFilterDateFrom || '').trim();
-        var dateTo = ($scope.logsFilterDateTo || '').trim();
-        var search = ($scope.logsSearch || '').toLowerCase().trim();
+        var dateFrom = toDateOnlyString($scope.logsFilterDateFrom);
+        var dateTo = toDateOnlyString($scope.logsFilterDateTo);
 
         return list.filter(function (log) {
             if (user && (log.username || '').toLowerCase().indexOf(user) === -1) return false;
@@ -2121,10 +2117,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var logDate = (log.createdAtString || '').substring(0, 10);
                 if (dateFrom && logDate < dateFrom) return false;
                 if (dateTo && logDate > dateTo) return false;
-            }
-            if (search) {
-                var combined = [(log.username || ''), (log.roleName || ''), (log.action || ''), (log.module || ''), (log.details || ''), (log.createdAtString || '')].join(' ').toLowerCase();
-                if (combined.indexOf(search) === -1) return false;
             }
             return true;
         });

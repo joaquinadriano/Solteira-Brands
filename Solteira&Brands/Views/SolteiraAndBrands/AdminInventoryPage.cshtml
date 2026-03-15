@@ -169,9 +169,12 @@
             </div>
         </div>
 
-        @* Inventory table *@
+        @* Inventory table (Angular-only; no DataTables to avoid list disappearing on archive/toggle) *@
         <div class="row px-4 pt-1">
             <div class="col">
+                <div class="d-flex justify-content-end mb-2" ng-if="inventoryProducts.length > 0">
+                    <input type="text" class="form-control form-control-sm" style="max-width: 220px;" placeholder="Search by name, category, ID..." ng-model="inventorySearchText" />
+                </div>
                 <table class="table table-striped table-responsive text-center inventory-datatable" id="inventoryTable">
                     <thead>
                         <tr>
@@ -190,7 +193,7 @@
                     </thead>
 
                     <tbody class="table-group-divider">
-<tr class="text-start" ng-repeat="item in inventoryProducts">
+                        <tr class="text-start" ng-repeat="item in inventoryProducts | filter:inventorySearchText">
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" ng-click="openViewPhotoModal(item)">View</button>
                             </td>
@@ -226,6 +229,12 @@
                                     }
                                 </div>
                             </td>
+                        </tr>
+                        <tr ng-if="inventoryProducts.length === 0">
+                            <td colspan="11" class="text-muted py-4 text-center">No {{ showArchivedInventory ? 'archived' : 'active' }} inventory items.</td>
+                        </tr>
+                        <tr ng-if="inventoryProducts.length > 0 && (inventoryProducts | filter:inventorySearchText).length === 0">
+                            <td colspan="11" class="text-muted py-4 text-center">No matches for your search.</td>
                         </tr>
                     </tbody>
                 </table>

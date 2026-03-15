@@ -127,6 +127,19 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    this.resendOtp = function (email, mode, requestVerificationToken) {
+        var params = new URLSearchParams();
+        params.append("email", email || "");
+        params.append("mode", mode || "");
+        params.append("__RequestVerificationToken", requestVerificationToken || "");
+        return $http({
+            method: "POST",
+            url: "/Account/ResendOtp",
+            data: params.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
     this.validatePasswordResetOtp = function (email, otp, requestVerificationToken) {
         var params = new URLSearchParams();
         params.append("email", email || "");

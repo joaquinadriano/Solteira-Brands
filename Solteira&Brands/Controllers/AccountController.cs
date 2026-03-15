@@ -111,6 +111,24 @@ namespace Solteira_Brands.Controllers
 
                 IssueAuthCookie(user);
 
+                // Activity log: trail when inventory user (admin/manager/staff) logs in
+                if (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
+                {
+                    var log = new tblActivityLogModel
+                    {
+                        UserId = user.Id,
+                        Username = user.Username ?? loginUsername,
+                        RoleName = roleName,
+                        Action = "Login",
+                        Module = "Auth",
+                        EntityId = null,
+                        Details = "User logged in",
+                        CreatedAt = DateTime.Now
+                    };
+                    db.tbl_activity_logs.Add(log);
+                    db.SaveChanges();
+                }
+
                 var redirectUrl = (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
                     ? Url.Action("AdminDashboardPage", "SolteiraAndBrands")
                     : Url.Action("SolteiraBrandsHome", "SolteiraAndBrands");
@@ -347,7 +365,7 @@ namespace Solteira_Brands.Controllers
                 db.SaveChanges();
 
                 var (otpPlain, otpHash) = GenerateOtp();
-                var expiresAt = DateTime.UtcNow.AddMinutes(15);
+                var expiresAt = DateTime.UtcNow.AddSeconds(30);
                 var token = new tblVerificationTokenModel
                 {
                     UserId = user.Id,
@@ -363,7 +381,7 @@ namespace Solteira_Brands.Controllers
                 emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Verify your Solteira & Brands account",
-                    "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 15 minutes. If you did not create an account, please ignore this email.");
+                    "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not create an account, please ignore this email.");
             }
 
             return Json(new
@@ -439,7 +457,7 @@ namespace Solteira_Brands.Controllers
 
                 var (otpPlain, otpHash) = GenerateOtp();
                 var nowUtc = DateTime.UtcNow;
-                var expiresAt = nowUtc.AddMinutes(15);
+                var expiresAt = nowUtc.AddSeconds(30);
                 var token = new tblVerificationTokenModel
                 {
                     UserId = user.Id,
@@ -455,11 +473,66 @@ namespace Solteira_Brands.Controllers
                 var emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Reset your Solteira & Brands password",
-                    "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 15 minutes. If you did not request a password reset, please ignore this email.");
+                    "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not request a password reset, please ignore this email.");
                 if (!emailSent)
                     return Json(new { success = false, message = "We could not send the email. Please try again later." });
             }
             return Json(new { success = true, message = "Check your email for the verification code.", email = emailTrim });
+        }
+
+        /// <summary>
+        /// POST: Resend OTP. Accepts email and mode ("forgot" = password reset, otherwise email verification). Generates new OTP with 30-second expiry and sends email.
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public ActionResult ResendOtp(string email, string mode)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(new { success = false, message = "Email is required." });
+            var emailTrim = email.Trim();
+            var isForgot = string.Equals(mode ?? "", "forgot", StringComparison.OrdinalIgnoreCase);
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && (isForgot ? u.IsActive : true));
+                if (user == null)
+                    return Json(new { success = false, message = isForgot ? "No account found with that email address." : "Account not found." });
+
+                var (otpPlain, otpHash) = GenerateOtp();
+                var nowUtc = DateTime.UtcNow;
+                var expiresAt = nowUtc.AddSeconds(30);
+                var tokenType = isForgot ? TokenTypePasswordReset : TokenTypeEmailVerification;
+                var token = new tblVerificationTokenModel
+                {
+                    UserId = user.Id,
+                    TokenValue = otpHash,
+                    TokenType = tokenType,
+                    ExpiresAt = expiresAt,
+                    IsUsed = false,
+                    CreatedAt = nowUtc
+                };
+                db.tbl_verification_tokens.Add(token);
+                db.SaveChanges();
+
+                bool emailSent;
+                if (isForgot)
+                {
+                    emailSent = EmailHelper.SendEmail(
+                        user.Email,
+                        "Reset your Solteira & Brands password",
+                        "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not request a password reset, please ignore this email.");
+                }
+                else
+                {
+                    emailSent = EmailHelper.SendEmail(
+                        user.Email,
+                        "Verify your Solteira & Brands account",
+                        "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not create an account, please ignore this email.");
+                }
+                if (!emailSent)
+                    return Json(new { success = false, message = "We could not send the email. Please try again later." });
+            }
+            return Json(new { success = true, message = "A new code has been sent to your email. It expires in 30 seconds.", email = emailTrim });
         }
 
         /// <summary>
