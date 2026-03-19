@@ -531,6 +531,23 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             } else {
                 courier = $scope.editDeliveryForm.courierChoice || 'LBC';
             }
+
+            if (!rawNumberEdit) {
+                Swal.fire({ icon: 'warning', title: 'Tracking number required', text: 'Please enter a tracking number.' });
+                return;
+            }
+            if (!$scope.editDeliveryForm.dispatchDate) {
+                Swal.fire({ icon: 'warning', title: 'Dispatch date required', text: 'Please select a dispatch date.' });
+                return;
+            }
+            if (!$scope.editDeliveryForm.eta) {
+                Swal.fire({ icon: 'warning', title: 'ETA required', text: 'Please select an ETA.' });
+                return;
+            }
+            if ($scope.editDeliveryForm.dispatchDate && $scope.editDeliveryForm.eta && $scope.editDeliveryForm.eta < $scope.editDeliveryForm.dispatchDate) {
+                Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
+                return;
+            }
         }
         if (rawLinkEdit) {
             trackingNumber = rawNumberEdit ? (rawNumberEdit + '||' + rawLinkEdit) : ('||' + rawLinkEdit);
@@ -610,31 +627,106 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         return parts[0] || parts[1] || '-';
     };
     function toYyyyMmDd(val) {
-        if (!val) return null;
-        if (val instanceof Date) return val.toISOString().split('T')[0];
+        if (!val && val !== 0) return null;
+        if (val instanceof Date) {
+            var d = val;
+            var yyyy = d.getFullYear();
+            var mm = d.getMonth() + 1;
+            var dd = d.getDate();
+            var mmStr = mm < 10 ? '0' + mm : '' + mm;
+            var ddStr = dd < 10 ? '0' + dd : '' + dd;
+            return yyyy + '-' + mmStr + '-' + ddStr;
+        }
         var s = (typeof val === 'string') ? val.trim() : String(val).trim();
         return s || null;
     }
+    /** Read yyyy-MM-dd from native date input (reliable when ng-model does not sync in modals). */
+    function readDateInputYyyyMmDd(elementId) {
+        try {
+            var el = document.getElementById(elementId);
+            if (el && el.value && /^\d{4}-\d{2}-\d{2}$/.test(el.value.trim())) {
+                return el.value.trim();
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+    // Reset custom-only fields when switching back to LBC in the Add Shipment modal.
+    $scope.$watch('courierChoiceForNew', function (newVal) {
+        if (!newVal || newVal === 'LBC') {
+            $scope.customCourierNameForNew = '';
+            $scope.trackingLinkForNew = '';
+        }
+    });
+
     $scope.createDeliveryFromShipmentsPage = function () {
         var orderId = $scope.selectedOrderForDelivery ? ($scope.selectedOrderForDelivery.id || $scope.selectedOrderForDelivery.orderId) : null;
-        if (!orderId) { Swal.fire({ icon: 'warning', title: 'Select an order', text: 'Choose a Paid order from the list.' }); return; }
+        if (!orderId) {
+            Swal.fire({ icon: 'warning', title: 'Select an order', text: 'Choose a Paid order from the list.' });
+            return;
+        }
+
         var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
-        var rawNumber = ($scope.trackingNumberForNew || '').trim();
+        var courierChoice = $scope.courierChoiceForNew || 'LBC';
+
+        // Read tracking number directly from the dedicated input (most reliable).
+        var rawNumber = '';
+        try {
+            var tnInput = document.getElementById('trackingNumberForNewInput');
+            if (tnInput && tnInput.value) {
+                rawNumber = tnInput.value.trim();
+                $scope.trackingNumberForNew = rawNumber;
+            } else if ($scope.trackingNumberForNew) {
+                rawNumber = String($scope.trackingNumberForNew).trim();
+            }
+        } catch (e) {
+            rawNumber = ($scope.trackingNumberForNew || '').trim();
+        }
+
         var rawLink = ($scope.trackingLinkForNew || '').trim();
+        // Tracking link is only applicable for Custom courier.
+        if (courierChoice !== 'Custom') {
+            rawLink = '';
+            $scope.trackingLinkForNew = '';
+        }
+
+        if (!rawNumber) {
+            Swal.fire({ icon: 'warning', title: 'Tracking number required', text: 'Please enter a tracking number.' });
+            return;
+        }
+
+        // Date inputs: read DOM first (Angular date + modal often leaves scope empty).
+        var dispatchDate = readDateInputYyyyMmDd('dispatchDateForNewInput') || toYyyyMmDd($scope.dispatchDateForNew);
+        var eta = readDateInputYyyyMmDd('etaForNewInput') || toYyyyMmDd($scope.etaForNew);
+        if (dispatchDate) { $scope.dispatchDateForNew = dispatchDate; }
+        if (eta) { $scope.etaForNew = eta; }
+
+        if (!dispatchDate) {
+            Swal.fire({ icon: 'warning', title: 'Dispatch date required', text: 'Please select a dispatch date.' });
+            return;
+        }
+        if (!eta) {
+            Swal.fire({ icon: 'warning', title: 'ETA required', text: 'Please select an ETA.' });
+            return;
+        }
+        if (dispatchDate && eta && eta < dispatchDate) {
+            Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
+            return;
+        }
+
         var trackingNumber = null;
         if (rawLink) {
             trackingNumber = rawNumber ? (rawNumber + '||' + rawLink) : ('||' + rawLink);
         } else {
             trackingNumber = rawNumber || null;
         }
+
         var customName = ($scope.customCourierNameForNew || '').trim();
-        if ($scope.courierChoiceForNew === 'Custom' && !customName) {
+        if (courierChoice === 'Custom' && !customName) {
             Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
             return;
         }
-        var courier = ($scope.courierChoiceForNew === 'Custom') ? ('Custom - ' + customName) : ($scope.courierChoiceForNew || 'LBC');
-        var dispatchDate = toYyyyMmDd($scope.dispatchDateForNew);
-        var eta = toYyyyMmDd($scope.etaForNew);
+
+        var courier = (courierChoice === 'Custom') ? ('Custom - ' + customName) : courierChoice || 'LBC';
         SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber, courier, dispatchDate, eta).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryShipments();
@@ -1355,8 +1447,30 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 });
                 $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
             }
+
+            // Initialize DataTables for inventory table (same pattern as AdminOrdersArchivePage)
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                        $('#inventoryTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.inventoryProducts && $scope.inventoryProducts.length > 0) {
+                    // Sort by Product ID column (index 1) descending by default.
+                    window.initializeStandardTable('#inventoryTable', 1);
+                }
+            }, 150);
         }, function () {
             $scope.inventoryProducts = [];
+            // Ensure any existing DataTable instance is cleaned up when list becomes empty.
+            $timeout(function () {
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                        $('#inventoryTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+            }, 0);
         });
     };
 

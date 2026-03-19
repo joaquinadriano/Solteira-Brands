@@ -83,7 +83,6 @@ body, html {
 }
 
 .error-text {
-    display: none !important;
     color: #c00;
     font-size: 0.8125rem;
     margin-top: 4px;

@@ -38,40 +38,53 @@
                                 <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
                                     <div class="col-sm-5"><label class="delivery-label">Courier <span class="delivery-required">*</span></label></div>
                                     <div class="col-sm-7">
-                                        <select class="form-select delivery-input-field" ng-model="courierChoiceForNew" ng-init="courierChoiceForNew='LBC'">
+                                        <select id="courierChoiceForNewSelect"
+                                                class="form-select delivery-input-field"
+                                                ng-model="courierChoiceForNew"
+                                                ng-init="courierChoiceForNew = courierChoiceForNew || 'LBC'">
                                             <option value="LBC">LBC</option>
                                             <option value="Custom">Custom</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div class="row mb-3 align-items-center" ng-if="courierChoiceForNew === 'Custom'">
-                                    <div class="col-sm-5"><label class="delivery-label">Enter Courier Name <span class="delivery-required">*</span></label></div>
+                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery && courierChoiceForNew === 'Custom'">
+                                    <div class="col-sm-5"><label class="delivery-label">Enter Courier Name <span class="delivery-required" ng-show="courierChoiceForNew === 'Custom'">*</span></label></div>
                                     <div class="col-sm-7">
                                         <input type="text" class="form-control delivery-input-field" ng-model="customCourierNameForNew" placeholder="e.g. J&T, Flash Express" />
                                     </div>
                                 </div>
-                                <div class="row mb-3 align-items-center">
+                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery && courierChoiceForNew === 'Custom'">
+                                    <div class="col-sm-5"><label class="delivery-label">Tracking link (optional, for Custom)</label></div>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control delivery-input-field" ng-model="trackingLinkForNew" placeholder="Paste tracking URL here (custom courier site)" />
+                                    </div>
+                                </div>
+                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
                                     <div class="col-sm-5"><label class="delivery-label">Tracking number <span class="delivery-required">*</span></label></div>
                                     <div class="col-sm-7">
-                                        <input type="text" class="form-control delivery-input-field" ng-model="trackingNumberForNew" placeholder="e.g. 1234567890" />
+                                        <input id="trackingNumberForNewInput"
+                                               type="text"
+                                               class="form-control delivery-input-field"
+                                               ng-model="trackingNumberForNew"
+                                               placeholder="e.g. 1234567890" />
                                     </div>
                                 </div>
-                                <div class="row mb-3 align-items-center" ng-if="courierChoiceForNew === 'Custom'">
-                                    <div class="col-sm-5"><label class="delivery-label">Tracking link (optional)</label></div>
-                                    <div class="col-sm-7">
-                                        <input type="text" class="form-control delivery-input-field" ng-model="trackingLinkForNew" placeholder="Paste tracking URL here" />
-                                    </div>
-                                </div>
-                                <div class="row mb-3 align-items-center">
+                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
                                     <div class="col-sm-5"><label class="delivery-label">Dispatch date <span class="delivery-required">*</span></label></div>
                                     <div class="col-sm-7">
-                                        <input type="date" class="form-control delivery-input-field" ng-model="dispatchDateForNew" />
+                                        <input id="dispatchDateForNewInput"
+                                               type="date"
+                                               class="form-control delivery-input-field"
+                                               ng-model="dispatchDateForNew" />
                                     </div>
                                 </div>
-                                <div class="row mb-5 align-items-center">
+                                <div class="row mb-5 align-items-center" ng-if="selectedOrderForDelivery">
                                     <div class="col-sm-5"><label class="delivery-label">ETA <span class="delivery-required">*</span></label></div>
                                     <div class="col-sm-7">
-                                        <input type="date" class="form-control delivery-input-field" ng-model="etaForNew" />
+                                        <input id="etaForNewInput"
+                                               type="date"
+                                               class="form-control delivery-input-field"
+                                               ng-model="etaForNew" />
                                     </div>
                                 </div>
                                 <div class="text-center">
@@ -278,7 +291,7 @@
                             <label class="form-label">Tracking Number</label>
                             <input type="text" class="form-control" ng-model="editDeliveryForm.trackingNumber" placeholder="Tracking number" />
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" ng-if="editDeliveryForm.courierChoice === 'Custom'">
                             <label class="form-label">Tracking Link (optional)</label>
                             <input type="text" class="form-control" ng-model="editDeliveryForm.trackingLink" placeholder="Paste tracking URL here" />
                         </div>

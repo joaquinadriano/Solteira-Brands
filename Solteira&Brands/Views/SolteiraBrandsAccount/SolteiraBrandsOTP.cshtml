@@ -44,11 +44,12 @@
                         Resend OTP
                     </a>
                 </div>
-                <button type="submit" class="submit-btn" id="submitBtn" ng-disabled="otpVerifying">
-                    <span id="btnSpinner" class="spinner-border spinner-border-sm" ng-class="{'d-none': !otpVerifying}"></span>
-                    <span id="btnText" ng-show="!otpVerifying">SUBMIT</span>
-                    <span ng-show="otpVerifying">VERIFYING...</span>
-                </button>
+                <div class="text-center mt-3">
+                    <button type="submit" class="submit-btn" id="submitBtn" ng-disabled="otpVerifying">
+                        <span ng-show="!otpVerifying">SUBMIT</span>
+                        <span ng-show="otpVerifying">VERIFYING...</span>
+                    </button>
+                </div>
             </form>
         </div>
     </div>

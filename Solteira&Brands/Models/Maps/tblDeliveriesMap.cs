@@ -16,6 +16,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.DispatchDate).HasColumnName("dispatch_date").IsOptional();
             Property(x => x.Eta).HasColumnName("eta").IsOptional();
             Property(x => x.TrackingNumber).HasColumnName("tracking_number").HasMaxLength(200);
+            Property(x => x.TrackingLink).HasColumnName("tracking_link").HasMaxLength(500).IsOptional();
             Property(x => x.MeetupDatetime).HasColumnName("meetup_datetime");
             Property(x => x.DeliveryStatus).HasColumnName("delivery_status").HasMaxLength(50).IsRequired();
             Property(x => x.CreatedAt).HasColumnName("created_at");
