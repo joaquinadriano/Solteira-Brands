@@ -823,41 +823,35 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
-    // Only BUYERs should have a persisted cart. Anonymous or non-buyer roles see an empty cart.
-    // Keep a single array reference so ng-repeat and bindings stay in sync.
+    // ----- CART: server-side per account (BUYER only) -----
     var isBuyer = !!(window.sbIsBuyer);
     $scope.cart = [];
-    try {
-        if (isBuyer) {
-            var raw = localStorage.getItem('sb_cart');
-            if (raw) {
-                var parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    for (var i = 0; i < parsed.length; i++) $scope.cart.push(parsed[i]);
-                }
-            }
-        }
-    } catch (e) {
-        $scope.cart = [];
+
+    function getSelectedCartSessionKey() {
+        var username = (window.sbUsername || '').toString().trim();
+        return username ? 'sb_selected_cart_items_' + username : 'sb_selected_cart_items';
     }
 
-    // Re-load cart from localStorage (e.g. on Cart page) so list and badge always show current data.
-    $scope.refreshCartFromStorage = function () {
-        if (!isBuyer) return;
+    function readSelectedIdsFromSession() {
         try {
-            var raw = localStorage.getItem('sb_cart');
-            var next = [];
-            if (raw) {
-                var parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    for (var j = 0; j < parsed.length; j++) next.push(parsed[j]);
-                }
-            }
-            $scope.cart.length = 0;
-            for (var k = 0; k < next.length; k++) $scope.cart.push(next[k]);
-            syncCartCountToLayout();
-        } catch (err) { }
-    };
+            var raw = sessionStorage.getItem(getSelectedCartSessionKey());
+            if (!raw) return [];
+            var parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.map(function (x) { return parseInt(x, 10); }).filter(function (x) { return !isNaN(x); });
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function applySelectedIdsToCart(selectedIds) {
+        selectedIds = selectedIds || [];
+        var set = {};
+        for (var i = 0; i < selectedIds.length; i++) set[selectedIds[i]] = true;
+        for (var j = 0; j < ($scope.cart || []).length; j++) {
+            $scope.cart[j].selected = !!set[$scope.cart[j].id];
+        }
+    }
 
     $scope.getCartCount = function () {
         if (!$scope.cart || !$scope.cart.length) return 0;
@@ -870,157 +864,141 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
     }
 
+    // applySessionSelection: when on checkout page, restore checkbox selection across page navigation.
+    $scope.refreshCartFromServer = function (applySessionSelection) {
+        if (!isBuyer) {
+            $scope.cart = [];
+            syncCartCountToLayout();
+            return Promise.resolve();
+        }
+
+        // preserve current checkbox selection when staying on cart page
+        var preservedSelectedIds = [];
+        if (!applySessionSelection && $scope.cart && $scope.cart.length) {
+            preservedSelectedIds = $scope.cart.filter(function (i) { return i.selected; }).map(function (i) { return i.id; });
+        }
+
+        return SolteiraBrandsService.getMyCart().then(function (r) {
+            var items = (r && r.data && r.data.success && Array.isArray(r.data.items)) ? r.data.items : [];
+            $scope.cart = (items || []).map(function (item) {
+                return {
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    img: item.img,
+                    stones: item.stones,
+                    material: item.material,
+                    weight: item.weight,
+                    length: item.length,
+                    qty: item.qty,
+                    maxStock: item.maxStock,
+                    selected: false
+                };
+            });
+
+            var selectedIds = applySessionSelection ? readSelectedIdsFromSession() : preservedSelectedIds;
+            applySelectedIdsToCart(selectedIds);
+            syncCartCountToLayout();
+        }, function () {
+            $scope.cart = [];
+            syncCartCountToLayout();
+        });
+    };
+
+    // Auto-load cart on checkout page so order summary renders immediately.
+    (function autoLoadCartForCheckoutPage() {
+        try {
+            var isCheckout = !!document.querySelector('.checkout-main-container');
+            if (isBuyer && isCheckout) $scope.refreshCartFromServer(true);
+        } catch (e) { }
+    })();
+
     $scope.addToCart = function (product, quantity) {
         if (!isBuyer) {
             window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
             return;
         }
         var requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
-        SolteiraBrandsService.getProductStock(product.id).then(function (r) {
-            if (!r.data || !r.data.success) {
-                Swal.fire({ icon: 'error', title: 'Error', text: (r.data && r.data.message) || 'Could not verify stock.' });
-                return;
-            }
-            var available = parseInt(r.data.stockQuantity, 10) || 0;
-            if (available < 1) {
-                Swal.fire({ icon: 'warning', title: 'Out of stock', text: product.name + ' is currently sold out.' });
-                if ($scope.selectedProduct && $scope.selectedProduct.id === product.id) $scope.selectedProduct.stockQuantity = 0;
-                return;
-            }
-            var existingItem = $scope.cart.find(function (i) { return i.id === product.id; });
-            var alreadyInCart = existingItem ? (existingItem.qty || 0) : 0;
-            var canAdd = Math.min(requestedQty, available - alreadyInCart);
-            if (canAdd < 1) {
-                Swal.fire({ icon: 'info', title: 'Maximum reached', text: 'You already have ' + alreadyInCart + ' of ' + product.name + ' in your cart. Available stock: ' + available + '.' });
-                return;
-            }
-            // When adding to cart, only the most recently affected item should be selected.
-            // Clear selection on all items first.
-            if ($scope.cart && $scope.cart.length) {
-                $scope.cart.forEach(function (i) { i.selected = false; });
-            }
-            var cartItem = {
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                img: product.img,
-                stones: product.stones,
-                material: product.material,
-                weight: product.weight,
-                qty: canAdd,
-                selected: true
-            };
-            if (existingItem) {
-                existingItem.qty += canAdd;
-                existingItem.selected = true;
+        SolteiraBrandsService.addToCart(product.id, requestedQty).then(function (r) {
+            if (r && r.data && r.data.success) {
+                var added = r.data.addedQuantity || 0;
+                var msg = product.name + ' is now in your bag.';
+                if (added < requestedQty) msg = 'Added ' + added + ' (max available). ' + product.name + ' is in your bag.';
+                Swal.fire({ icon: 'success', title: 'Added to Cart', text: msg, timer: 1500, showConfirmButton: false });
+
+                $scope.refreshCartFromServer(false).then(function () {
+                    if (!$scope.cart) return;
+                    $scope.cart.forEach(function (i) { i.selected = false; });
+                    var updated = $scope.cart.find(function (i) { return i.id === product.id; });
+                    if (updated) updated.selected = true;
+                });
             } else {
-                $scope.cart.push(cartItem);
+                Swal.fire({ icon: 'error', title: 'Error', text: (r && r.data && r.data.message) ? r.data.message : 'Could not add to cart.' });
             }
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
-            var msg = product.name + ' is now in your bag.';
-            if (canAdd < requestedQty) msg = 'Added ' + canAdd + ' (max available: ' + available + '). ' + product.name + ' is in your bag.';
-            Swal.fire({ icon: 'success', title: 'Added to Cart', text: msg, timer: 1500, showConfirmButton: false });
         }, function () {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not verify stock. Please try again.' });
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not add to cart. Please try again.' });
         });
     };
 
     $scope.removeFromCart = function (index) {
-        $scope.cart.splice(index, 1);
-        localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-        syncCartCountToLayout();
+        if (!$scope.cart || index < 0 || index >= $scope.cart.length) return;
+        var item = $scope.cart[index];
+        if (!item) return;
+        SolteiraBrandsService.removeCartItem(item.id).then(function () {
+            $scope.refreshCartFromServer(false);
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not remove item.' });
+        });
     };
 
     $scope.removeFromCartByItem = function (item) {
-        var idx = $scope.cart.findIndex(function (i) { return i.id === item.id; });
-        if (idx !== -1) {
-            $scope.cart.splice(idx, 1);
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
-        }
+        if (!item || !item.id) return;
+        SolteiraBrandsService.removeCartItem(item.id).then(function () {
+            $scope.refreshCartFromServer(false);
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not remove item.' });
+        });
     };
 
     $scope.updateCartQty = function (item, delta) {
+        if (!item || !item.id) return;
         var current = parseInt(item.qty, 10) || 0;
-        if (current + delta < 1) {
+        var desired = current + delta;
+        if (desired < 1) {
             $scope.removeFromCartByItem(item);
             return;
         }
-        if (delta > 0) {
-            SolteiraBrandsService.getProductStock(item.id).then(function (r) {
-                if (!r.data || !r.data.success) return;
-                var maxStock = parseInt(r.data.stockQuantity, 10) || 0;
-                item.maxStock = maxStock;
-                var newQty = Math.min(current + delta, maxStock);
-                if (newQty < 1) $scope.removeFromCartByItem(item);
-                else item.qty = newQty;
-                localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-                syncCartCountToLayout();
+
+        SolteiraBrandsService.setCartItemQuantity(item.id, desired).then(function (r) {
+            // server caps/removes according to stock
+            $scope.refreshCartFromServer(false).then(function () {
+                if (r && r.data && r.data.removed) {
+                    Swal.fire({ icon: 'info', title: 'Item removed', text: item.name + ' is no longer available and was removed from your cart.' });
+                }
             });
-        } else {
-            item.qty = current + delta;
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
-        }
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update quantity.' });
+        });
     };
 
     $scope.onCartItemQtyChange = function (item) {
+        if (!item || !item.id) return;
         var val = parseInt(item.qty, 10);
-        if (isNaN(val) || val < 1) {
-            item.qty = 1;
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
-            return;
-        }
-        SolteiraBrandsService.getProductStock(item.id).then(function (r) {
-            if (!r.data || !r.data.success) return;
-            var maxStock = parseInt(r.data.stockQuantity, 10) || 0;
-            item.maxStock = maxStock;
-            if (maxStock < 1) {
-                $scope.removeFromCartByItem(item);
-                Swal.fire({ icon: 'info', title: 'Item removed', text: item.name + ' is no longer available and was removed from your cart.' });
-            } else if (val > maxStock) {
-                item.qty = maxStock;
-                Swal.fire({ icon: 'info', title: 'Quantity adjusted', text: item.name + ': max available is ' + maxStock + '. Quantity updated.' });
-            }
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
+        if (isNaN(val) || val < 1) val = 1;
+        item.qty = val;
+        SolteiraBrandsService.setCartItemQuantity(item.id, val).then(function (r) {
+            $scope.refreshCartFromServer(false).then(function () {
+                if (r && r.data && r.data.removed) {
+                    Swal.fire({ icon: 'info', title: 'Item removed', text: item.name + ' is no longer available and was removed from your cart.' });
+                }
+            });
+        }, function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Could not update quantity.' });
         });
     };
 
-    $scope.validateCartAgainstStock = function () {
-        if (!$scope.cart || !$scope.cart.length) return;
-        var ids = $scope.cart.map(function (i) { return i.id; });
-        if (!ids.length) return;
-        SolteiraBrandsService.getProductStocks(ids).then(function (r) {
-            if (!r.data || !r.data.success) return;
-            var stocks = r.data.stocks;
-            if (!stocks || !Array.isArray(stocks)) return;
-            var byId = {};
-            stocks.forEach(function (s) { byId[s.productId] = parseInt(s.stockQuantity, 10) || 0; });
-            var messages = [];
-            for (var i = $scope.cart.length - 1; i >= 0; i--) {
-                var item = $scope.cart[i];
-                var stock = byId[item.id] !== undefined ? byId[item.id] : -1;
-                item.maxStock = stock >= 0 ? stock : (item.maxStock || 999);
-                if (stock === 0) {
-                    $scope.cart.splice(i, 1);
-                    messages.push(item.name + ' is no longer available and was removed.');
-                } else if (stock > 0 && (item.qty || 0) > stock) {
-                    item.qty = stock;
-                    messages.push(item.name + ': quantity adjusted to ' + stock + ' (max available).');
-                }
-            }
-            localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-            syncCartCountToLayout();
-            if (messages.length > 0) {
-                Swal.fire({ icon: 'info', title: 'Cart updated', text: messages.join(' ') });
-            }
-        }, function () {
-            // API error (e.g. after DB reset): keep cart as-is so user still sees items
-        });
-    };
+    // no-op now: server-side GetMyCart caps quantities to stock.
+    $scope.validateCartAgainstStock = function () { };
 
     $scope.decrementOrRemoveFromCart = function (item, index) {
         if ((item.qty || 0) <= 1) {
@@ -1155,15 +1133,6 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         angular.forEach($scope.cart, function (item) {
             item.selected = $scope.selectAll;
         });
-        if (isBuyer) {
-            try { localStorage.setItem('sb_cart', JSON.stringify($scope.cart)); } catch (e) { }
-        }
-    };
-
-    // Persist selection changes so Checkout page receives correct selected items.
-    $scope.onCartSelectionChanged = function () {
-        if (!isBuyer) return;
-        try { localStorage.setItem('sb_cart', JSON.stringify($scope.cart)); } catch (e) { }
     };
     // Keep selectAll checkbox in sync when user ticks/unticks individual items
     $scope.$watch('cart', function () {
@@ -1180,6 +1149,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             return;
         }
         if (!url) url = '/SolteiraAndBrands/SolteiraBrandsCheckout';
+        // Persist only the selected product IDs so checkout can restore the correct checkboxes.
+        try {
+            var selectedIds = $scope.getSelectedItems().map(function (i) { return i.id; });
+            sessionStorage.setItem(getSelectedCartSessionKey(), JSON.stringify(selectedIds));
+        } catch (e) { }
         window.location.href = url;
     };
 
@@ -1876,15 +1850,23 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         SolteiraBrandsService.createOrder(payload).then(function (r) {
             if (r.data && r.data.success) {
-                $scope.cart = $scope.cart.filter(function (item) { return !item.selected; });
-                localStorage.setItem('sb_cart', JSON.stringify($scope.cart));
-                Swal.fire({
-                    title: 'Order Placed!',
-                    text: 'Order ' + (r.data.orderNumber || '') + ' has been submitted. You will receive confirmation via email.',
-                    icon: 'success',
-                    confirmButtonText: 'OK'
-                }).then(function () {
-                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+                // Remove ordered items from the server-side cart.
+                var productIdsToRemove = selected.map(function (i) { return i.id; });
+                try { sessionStorage.removeItem(getSelectedCartSessionKey()); } catch (e) { }
+
+                Promise.all(productIdsToRemove.map(function (pid) {
+                    return SolteiraBrandsService.removeCartItem(pid).catch(function () { });
+                })).then(function () {
+                    $scope.refreshCartFromServer(false).then(function () {
+                        Swal.fire({
+                            title: 'Order Placed!',
+                            text: 'Order ' + (r.data.orderNumber || '') + ' has been submitted. You will receive confirmation via email.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        }).then(function () {
+                            window.location.href = '/SolteiraAndBrands/SolteiraBrandsMyOrders';
+                        });
+                    });
                 });
             } else {
                 Swal.fire({ icon: 'error', title: 'Order failed', text: (r.data && r.data.message) || 'Please try again.' });

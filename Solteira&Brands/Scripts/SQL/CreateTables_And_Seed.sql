@@ -106,6 +106,50 @@ CREATE TABLE IF NOT EXISTS tbl_products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- CART (per account; items follow the buyer)
+-- ----------------------------------------------------------------------------
+-- 1. tbl_carts: one active cart per user
+-- 2. tbl_cart_items: line items per product in the active cart
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_carts (
+    id            INT             NOT NULL AUTO_INCREMENT,
+    user_id       INT             NOT NULL,
+    is_active     TINYINT(1)     NOT NULL DEFAULT 1,
+    created_at    DATETIME        NOT NULL,
+    updated_at    DATETIME        NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_carts_user_id (user_id),
+    CONSTRAINT fk_tbl_carts_user
+        FOREIGN KEY (user_id)
+        REFERENCES tbl_users (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tbl_cart_items (
+    id           INT             NOT NULL AUTO_INCREMENT,
+    cart_id      INT             NOT NULL,
+    product_id   INT             NOT NULL,
+    quantity     INT             NOT NULL DEFAULT 1,
+    created_at   DATETIME        NOT NULL,
+    updated_at   DATETIME        NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tbl_cart_items_cart_product (cart_id, product_id),
+    INDEX idx_tbl_cart_items_cart_id (cart_id),
+    INDEX idx_tbl_cart_items_product_id (product_id),
+    CONSTRAINT fk_tbl_cart_items_cart
+        FOREIGN KEY (cart_id)
+        REFERENCES tbl_carts (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_cart_items_product
+        FOREIGN KEY (product_id)
+        REFERENCES tbl_products (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- ORDER LIFECYCLE — Three status layers (order status is NEVER manually set)
 -- ----------------------------------------------------------------------------
 -- 1. tbl_orders.order_status: Pending | Approved | Rejected | Awaiting Payment Verification |

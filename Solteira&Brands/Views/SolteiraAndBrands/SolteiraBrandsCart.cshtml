@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <div class="cart-page-wrapper" ng-init="refreshCartFromStorage(); validateCartAgainstStock()">
+    <div class="cart-page-wrapper" ng-init="refreshCartFromServer(false)">
 
         <hr class="hr-line" ng-show="cart && cart.length > 0" />
 
@@ -31,7 +31,7 @@
 
                 <div class="item-selection">
                     <label class="custom-checkbox">
-                        <input type="checkbox" ng-model="item.selected" ng-change="onCartSelectionChanged()" />
+                        <input type="checkbox" ng-model="item.selected" />
                         <span class="checkmark"></span>
                     </label>
                 </div>
