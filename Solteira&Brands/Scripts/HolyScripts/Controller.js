@@ -82,6 +82,59 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     //----------Navigation end----------
 
+    // ----- Users (Admin): registered users list -----
+    $scope.usersList = [];
+    $scope.selectedUserForView = null;
+
+    $scope.openViewUserModal = function (user) {
+        if (!user) return;
+        $scope.selectedUserForView = user;
+        $timeout(function () {
+            var el = document.getElementById('viewUserModal');
+            if (el && window.bootstrap && window.bootstrap.Modal) {
+                var modal = window.bootstrap.Modal.getOrCreateInstance(el);
+                modal.show();
+            }
+        }, 0);
+    };
+
+    $scope.closeViewUserModal = function () {
+        var el = document.getElementById('viewUserModal');
+        if (el && window.bootstrap && window.bootstrap.Modal) {
+            var modal = window.bootstrap.Modal.getInstance(el) || window.bootstrap.Modal.getOrCreateInstance(el);
+            if (modal) modal.hide();
+        }
+        $scope.selectedUserForView = null;
+    };
+
+    $scope.loadUsersForAdmin = function () {
+        SolteiraAndBrandsService.getUsersForAdmin().then(function (res) {
+            var d = res.data;
+            var raw = [];
+            if (d && angular.isArray(d.data)) raw = d.data;
+            else if (d && angular.isArray(d.Data)) raw = d.Data;
+            else if (angular.isArray(d)) raw = d;
+            // Normalize to camelCase so the view can use u.id, u.username, etc. Skip null items.
+            $scope.usersList = (raw || []).filter(function (u) { return u != null; }).map(function (u) {
+                return {
+                    id: u.id != null ? u.id : u.Id,
+                    username: (u.username != null ? u.username : u.Username) || '',
+                    email: (u.email != null ? u.email : u.Email) || '',
+                    roleName: (u.roleName != null ? u.roleName : u.RoleName) || 'UNKNOWN',
+                    isActive: u.isActive != null ? u.isActive : u.IsActive,
+                    isVerified: u.isVerified != null ? u.isVerified : u.IsVerified,
+                    joinedAtString: (u.joinedAtString != null ? u.joinedAtString : u.JoinedAtString) || '-'
+                };
+            });
+        }, function (err) {
+            $scope.usersList = [];
+            var ed = err && err.data;
+            if (ed && (angular.isArray(ed.data) || angular.isArray(ed.Data))) {
+                $scope.usersList = ed.data || ed.Data || [];
+            }
+        });
+    };
+
 
     //---------Sweet Alert Dialogue Box--------
 

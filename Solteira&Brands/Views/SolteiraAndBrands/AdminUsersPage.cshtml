@@ -2,7 +2,7 @@
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
 }
 
-<div class="main-content">
+<div class="main-content" ng-init="loadUsersForAdmin()">
     <div class="container-fluid orders-container px-1">
 
         <div class="row px-4 pb-0 mb-0 align-items-center">
@@ -28,69 +28,44 @@
                             </tr>
                         </thead>
                         <tbody class="table-group-divider">
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">Admin Test</td>
-                                <td class="text-muted">admin@test.local</td>
-                                <td><span class="badge bg-danger">ADMIN</span></td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td class="text-muted">Yes</td>
-                                <td class="text-muted">Feb 16, 2026</td>
+                            <tr ng-repeat="u in usersList track by u.id">
+                                <td class="text-start ps-3 fw-bold text-secondary">{{u.username}}</td>
+                                <td class="text-muted">{{u.email}}</td>
+                                <td>
+                                    <span class="badge"
+                                          ng-class="{
+                                            'bg-danger': u.roleName === 'ADMIN',
+                                            'bg-warning text-dark': u.roleName === 'MANAGER',
+                                            'bg-info text-dark': u.roleName === 'STAFF',
+                                            'bg-secondary': u.roleName === 'BUYER' || (!u.roleName || u.roleName === 'UNKNOWN')
+                                          }">
+                                        {{u.roleName}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge" ng-class="u.isActive ? 'bg-success' : 'bg-danger'">
+                                        {{u.isActive ? 'Active' : 'Inactive'}}
+                                    </span>
+                                </td>
+                                <td class="text-muted">{{u.isVerified ? 'Yes' : 'No'}}</td>
+                                <td class="text-muted">{{u.joinedAtString || '-'}}</td>
                                 <td>
                                     <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
-                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
+                                        <a class="order-action-icon" href="javascript:void(0)" ng-click="openViewUserModal(u)">
                                             <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
                                         </a>
                                     </div>
                                 </td>
                             </tr>
 
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">Manager User</td>
-                                <td class="text-muted">manager@test.local</td>
-                                <td><span class="badge bg-warning text-dark">MANAGER</span></td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td class="text-muted">Yes</td>
-                                <td class="text-muted">Feb 16, 2026</td>
-                                <td>
-                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
-                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
-                                            <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">Staff User</td>
-                                <td class="text-muted">staff@test.local</td>
-                                <td><span class="badge bg-info text-dark">STAFF</span></td>
-                                <td><span class="badge bg-danger">Inactive</span></td>
-                                <td class="text-muted">No</td>
-                                <td class="text-muted">Feb 15, 2026</td>
-                                <td>
-                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
-                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
-                                            <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="text-start ps-3 fw-bold text-secondary">Buyer User</td>
-                                <td class="text-muted">buyer@test.local</td>
-                                <td><span class="badge bg-secondary">BUYER</span></td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td class="text-muted">Yes</td>
-                                <td class="text-muted">Feb 14, 2026</td>
-                                <td>
-                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View user details">
-                                        <a class="order-action-icon" href="#" data-bs-toggle="modal" data-bs-target="#viewUserModal">
-                                            <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
-                                        </a>
-                                    </div>
-                                </td>
+                            <tr ng-if="usersList.length === 0">
+                                <td class="text-muted py-4 text-center" colspan="1">No registered users found.</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
                             </tr>
 
                         </tbody>
@@ -101,13 +76,48 @@
 
         <div class="modal fade" id="viewUserModal" tabindex="-1" aria-labelledby="viewUserModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header border-0">
+                <div class="modal-content" ng-if="selectedUserForView">
+                    <div class="modal-header border-0 pb-0">
                         <h5 class="modal-title fw-bold" id="viewUserModalLabel">User Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" aria-label="Close" ng-click="closeViewUserModal()"></button>
                     </div>
-                    <div class="modal-body">
-                        <p class="text-muted small mb-0">View details will be implemented here.</p>
+                    <div class="modal-body pt-0">
+                        <div class="row g-3">
+                            <div class="col-5 text-muted small">User ID</div>
+                            <div class="col-7 fw-medium">{{selectedUserForView.id}}</div>
+
+                            <div class="col-5 text-muted small">Username</div>
+                            <div class="col-7 fw-medium">{{selectedUserForView.username}}</div>
+
+                            <div class="col-5 text-muted small">Email</div>
+                            <div class="col-7">{{selectedUserForView.email}}</div>
+
+                            <div class="col-5 text-muted small">Role</div>
+                            <div class="col-7">
+                                <span class="badge"
+                                      ng-class="{
+                                        'bg-danger': selectedUserForView.roleName === 'ADMIN',
+                                        'bg-warning text-dark': selectedUserForView.roleName === 'MANAGER',
+                                        'bg-info text-dark': selectedUserForView.roleName === 'STAFF',
+                                        'bg-secondary': selectedUserForView.roleName === 'BUYER' || (!selectedUserForView.roleName || selectedUserForView.roleName === 'UNKNOWN')
+                                      }">
+                                    {{selectedUserForView.roleName}}
+                                </span>
+                            </div>
+
+                            <div class="col-5 text-muted small">Account Status</div>
+                            <div class="col-7">
+                                <span class="badge" ng-class="selectedUserForView.isActive ? 'bg-success' : 'bg-danger'">
+                                    {{selectedUserForView.isActive ? 'Active' : 'Inactive'}}
+                                </span>
+                            </div>
+
+                            <div class="col-5 text-muted small">Email Verified</div>
+                            <div class="col-7">{{selectedUserForView.isVerified ? 'Yes' : 'No'}}</div>
+
+                            <div class="col-5 text-muted small">Joined Date</div>
+                            <div class="col-7">{{selectedUserForView.joinedAtString || '-'}}</div>
+                        </div>
                     </div>
                 </div>
             </div>

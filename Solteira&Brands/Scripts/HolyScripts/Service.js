@@ -212,6 +212,11 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetActivityLogs" });
     };
 
+    // ----- Users (Admin): registered users list -----
+    this.getUsersForAdmin = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetUsersForAdmin" });
+    };
+
     this.getPaymentSettingsForAdmin = function () {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetPaymentSettingsForAdmin" });
     };
