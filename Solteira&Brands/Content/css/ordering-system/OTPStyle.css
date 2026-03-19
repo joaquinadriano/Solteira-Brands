@@ -103,16 +103,21 @@ body {
     }
 
 .submit-btn {
-    font-family: "Kaisei Tokumin", serif;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
+    font-family: "Kaisei Tokumin";
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    padding: 0.5rem 1.5rem;
+    min-width: 7rem;
+    width: auto;
+    text-align: center;
     background-color: #87AE73;
     border: none;
-    color: white;
-    padding: 0.6vw;
-    cursor: pointer;
-    gap: 1vw;
-    transition: background-color 0.3s ease;
+    color: #FFFBE8;
+    transition: 0.2s ease;
+    border-radius: 4px;
 }
 
     .submit-btn:hover {

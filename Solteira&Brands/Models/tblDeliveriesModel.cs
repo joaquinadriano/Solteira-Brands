@@ -14,6 +14,7 @@ namespace Solteira_Brands.Models
         public DateTime? DispatchDate { get; set; }
         public DateTime? Eta { get; set; }
         public string TrackingNumber { get; set; }
+        public string TrackingLink { get; set; }
         public DateTime? MeetupDatetime { get; set; }
         public string DeliveryStatus { get; set; }
         public DateTime CreatedAt { get; set; }

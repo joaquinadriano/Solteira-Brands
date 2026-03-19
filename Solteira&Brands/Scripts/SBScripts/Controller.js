@@ -167,11 +167,30 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.jewelriesSearch = '';
     $scope.jewelriesSort = '';
     $scope.jewelriesCategory = '';
+
+    // Jewelries filters: make options mutually exclusive.
+    // When a sort is chosen (A–Z, Z–A, Price L–H, Price H–L), clear any category filter.
     $scope.setJewelriesSort = function (sort) {
-        $scope.jewelriesSort = ($scope.jewelriesSort === sort) ? '' : sort;
+        if ($scope.jewelriesSort === sort) {
+            // Clicking the same sort again clears it.
+            $scope.jewelriesSort = '';
+        } else {
+            $scope.jewelriesSort = sort;
+            // Ensure only one type of filter is active at a time.
+            $scope.jewelriesCategory = '';
+        }
     };
+
+    // When a category is chosen (Bracelet, Earring, Necklace, Ring), clear any sort filter.
     $scope.setJewelriesCategory = function (cat) {
-        $scope.jewelriesCategory = ($scope.jewelriesCategory === cat) ? '' : cat;
+        if ($scope.jewelriesCategory === cat) {
+            // Clicking the same category again clears it.
+            $scope.jewelriesCategory = '';
+        } else {
+            $scope.jewelriesCategory = cat;
+            // Ensure only one type of filter is active at a time.
+            $scope.jewelriesSort = '';
+        }
     };
     $scope.getFilteredJewelries = function () {
         var list = $scope.jewelries || [];
@@ -275,18 +294,33 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return '';
     }
 
+    $scope.onEmailInput = function () {
+        var e = $scope.registerData.email;
+        $scope.registerErrors.email = validateEmailFormat(e);
+    };
+
     $scope.onEmailBlur = function () {
         var e = $scope.registerData.email;
         var err = validateEmailFormat(e);
         $scope.registerErrors.email = err;
-        // Uniqueness is now validated on submit/server response only
+    };
+
+    $scope.onUsernameInput = function () {
+        var u = $scope.registerData.username;
+        $scope.registerErrors.username = validateUsernameFormat(u);
     };
 
     $scope.onUsernameBlur = function () {
         var u = $scope.registerData.username;
         var err = validateUsernameFormat(u);
         $scope.registerErrors.username = err;
-        // Uniqueness is now validated on submit/server response only
+        if (err) return;
+        // Check database for uniqueness when format is valid
+        SolteiraBrandsService.isUsernameAvailable(u, false).then(function (r) {
+            if (r.data && r.data.available === false) {
+                $scope.registerErrors.username = "Username already taken.";
+            }
+        });
     };
 
     function clearRegisterErrors() {
@@ -553,6 +587,12 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.forgotPasswordSubmitting = false;
             $scope.forgotPasswordError = (err.data && err.data.message) || 'Request failed. Please try again.';
         });
+    };
+
+    $scope.onForgotEmailInput = function () {
+        var email = ($scope.userEmail || '').trim();
+        var emailErr = validateEmailFormat(email);
+        $scope.forgotPasswordError = emailErr;
     };
 
     $scope.sendOTP = function () {
@@ -1227,6 +1267,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         if (statusLower === 'cancelled') return 'Cancelled';
         if (statusLower === 'completed') return 'Completed';
+        // If delivery is already in transit or delivered, surface that on the buyer side
+        // even if the underlying order_status has not yet been updated from "Paid".
+        if (deliveryStatus === 'in_transit') return 'In Delivery';
+        if (deliveryStatus === 'delivered') return 'Delivered';
         if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Delivered' : 'In Delivery';
         if (statusLower === 'rejected') return 'Order Rejected';
         if (statusLower === 'pending approval') return 'Pending Approval';
@@ -1296,6 +1340,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 window.open(trackingLinkExplicit, '_blank');
                 return;
             } else {
+                // No tracking number or explicit link: open LBC default page as a fallback.
                 window.open('https://www.lbcexpress.com/track/', '_blank');
                 return;
             }
@@ -1308,6 +1353,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (link && /^https?:\/\//i.test(link)) {
             window.open(link, '_blank');
         } else {
+            // When there is no valid URL stored, fall back to LBC tracking page.
             window.open('https://www.lbcexpress.com/track/', '_blank');
         }
     };

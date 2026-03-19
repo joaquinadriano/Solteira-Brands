@@ -579,6 +579,29 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add tracking_link to tbl_deliveries (optional; used mainly for Custom courier).
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_deliveries' AND COLUMN_NAME = 'tracking_link');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_deliveries ADD COLUMN tracking_link VARCHAR(500) NULL AFTER tracking_number;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- One-time data cleanup: if tracking_number stored as "number||link", split into number + tracking_link.
+UPDATE tbl_deliveries
+SET
+    tracking_link = CASE
+        WHEN tracking_number LIKE '%||%' THEN SUBSTRING_INDEX(tracking_number, '||', -1)
+        ELSE tracking_link
+    END,
+    tracking_number = CASE
+        WHEN tracking_number LIKE '%||%' THEN SUBSTRING_INDEX(tracking_number, '||', 1)
+        ELSE tracking_number
+    END
+WHERE tracking_number LIKE '%||%';
+
 -- ----------------------------------------------------------------------------
 -- 7. Seed roles
 -- ----------------------------------------------------------------------------

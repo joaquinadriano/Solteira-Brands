@@ -59,7 +59,7 @@
                             <td>{{order.deliveryAddress}}</td>
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
-                            <td class="text-center">
+                            <td class="text-start">
                                 <span class="order-status-display">{{getDisplayOrderStatus(order.orderStatus)}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled'" title="{{order.orderStatus === 'Rejected' ? 'Order was rejected by admin.' : 'Order permanently closed.'}}" style="cursor:help;"></i>
                                 @if (!User.IsInRole("ADMIN"))
                                 {

@@ -911,14 +911,19 @@ namespace Solteira_Brands.Controllers
                     var latestDelivery = o.Deliveries != null && o.Deliveries.Any()
                         ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First()
                         : null;
-                    var trackingRaw = latestDelivery != null ? latestDelivery.TrackingNumber : null;
                     string trackingNumberOnly = null;
                     string trackingLink = null;
-                    if (!string.IsNullOrWhiteSpace(trackingRaw))
+                    if (latestDelivery != null)
                     {
-                        var parts = trackingRaw.Split(new[] { "||" }, StringSplitOptions.None);
-                        trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
-                        trackingLink = parts.Length > 1 ? parts[1] : null;
+                        // Prefer new split columns, but fallback to legacy "num||link" format in TrackingNumber.
+                        trackingNumberOnly = latestDelivery.TrackingNumber;
+                        trackingLink = latestDelivery.TrackingLink;
+                        if (string.IsNullOrWhiteSpace(trackingLink) && !string.IsNullOrWhiteSpace(latestDelivery.TrackingNumber) && latestDelivery.TrackingNumber.Contains("||"))
+                        {
+                            var parts = latestDelivery.TrackingNumber.Split(new[] { "||" }, StringSplitOptions.None);
+                            trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
+                            trackingLink = parts.Length > 1 ? parts[1] : null;
+                        }
                     }
 
                     // Align admin Orders status with final cancellation logic:
@@ -997,14 +1002,18 @@ namespace Solteira_Brands.Controllers
                     imageUrl = i.ImageUrl
                 }).ToList();
 
-                var trackingRaw = latestDelivery != null ? latestDelivery.TrackingNumber : null;
                 string trackingNumberOnly = null;
                 string trackingLink = null;
-                if (!string.IsNullOrWhiteSpace(trackingRaw))
+                if (latestDelivery != null)
                 {
-                    var parts = trackingRaw.Split(new[] { "||" }, StringSplitOptions.None);
-                    trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
-                    trackingLink = parts.Length > 1 ? parts[1] : null;
+                    trackingNumberOnly = latestDelivery.TrackingNumber;
+                    trackingLink = latestDelivery.TrackingLink;
+                    if (string.IsNullOrWhiteSpace(trackingLink) && !string.IsNullOrWhiteSpace(latestDelivery.TrackingNumber) && latestDelivery.TrackingNumber.Contains("||"))
+                    {
+                        var parts = latestDelivery.TrackingNumber.Split(new[] { "||" }, StringSplitOptions.None);
+                        trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
+                        trackingLink = parts.Length > 1 ? parts[1] : null;
+                    }
                 }
 
                 var payments = (order.Payments ?? new List<tblPaymentsModel>()).OrderByDescending(p => p.CreatedAt).Select(p => new
@@ -1076,11 +1085,11 @@ namespace Solteira_Brands.Controllers
                 var gracePeriodDays = (layawayRow != null && layawayRow.GracePeriodDays.HasValue) ? layawayRow.GracePeriodDays.Value : 0;
 
                 var orderIds = orders.Select(o => o.Id).ToList();
-                var latestMeetupByOrder = db.tbl_meetup_outcomes
-                    .Include("ReceiptImage")
-                    .Where(m => orderIds.Contains(m.OrderId))
-                    .GroupBy(m => m.OrderId)
-                    .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First());
+                    var latestMeetupByOrder = db.tbl_meetup_outcomes
+                        .Include("ReceiptImage")
+                        .Where(m => orderIds.Contains(m.OrderId))
+                        .GroupBy(m => m.OrderId)
+                        .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First());
 
                 var list = orders.Select(o =>
                 {
@@ -1303,6 +1312,7 @@ namespace Solteira_Brands.Controllers
                         meetupRescheduledDate = (string)null,
                         meetupRescheduledDateFormatted = (string)null,
                         meetupScheduledAtFormatted = (o.MeetupDatetime ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null))?.ToString("MMM dd, yyyy hh:mm tt"),
+                        meetupOutcomeAtFormatted = latestMeetupByOrder.ContainsKey(o.Id) ? latestMeetupByOrder[o.Id].CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : (string)null,
                         meetupReceiptImageUrl = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].ReceiptImage != null ? (latestMeetupByOrder[o.Id].ReceiptImage.ImagePath + latestMeetupByOrder[o.Id].ReceiptImage.ImageFileName) : (string)null,
                         currentDate = DateTime.Today.ToString("MMM d, yyyy"),
                         isArchived = o.IsArchived
@@ -2463,6 +2473,23 @@ namespace Solteira_Brands.Controllers
                     dispatchDt = d1b;
             }
             if (!string.IsNullOrWhiteSpace(eta) && DateTime.TryParse(eta, out var d2)) etaDt = d2;
+
+            if (string.IsNullOrWhiteSpace(trackingNumber))
+            {
+                return Json(new { success = false, message = "Tracking number is required for a delivery shipment." });
+            }
+            if (!dispatchDt.HasValue)
+            {
+                return Json(new { success = false, message = "Dispatch date is required for a delivery shipment." });
+            }
+            if (!etaDt.HasValue)
+            {
+                return Json(new { success = false, message = "ETA is required for a delivery shipment." });
+            }
+            if (dispatchDt.HasValue && etaDt.HasValue && etaDt.Value.Date < dispatchDt.Value.Date)
+            {
+                return Json(new { success = false, message = "ETA cannot be earlier than the dispatch date." });
+            }
             using (var db = new SolteiraBrandsContext())
             {
                 var order = db.tbl_orders.Include("Deliveries").FirstOrDefault(o => o.Id == orderId);
@@ -2473,13 +2500,25 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Only Paid or Ready for Meetup orders can have delivery created." });
                 if (order.Deliveries != null && order.Deliveries.Any())
                     return Json(new { success = false, message = "Delivery already exists for this order." });
+
+                // Normalize tracking number + link ("num||link" or just "num").
+                string trackingNumberOnly = null;
+                string trackingLink = null;
+                if (!string.IsNullOrWhiteSpace(trackingNumber))
+                {
+                    var parts = trackingNumber.Split(new[] { "||" }, StringSplitOptions.None);
+                    trackingNumberOnly = parts.Length > 0 ? parts[0] : null;
+                    trackingLink = parts.Length > 1 ? parts[1] : null;
+                }
+
                 var courierVal = string.IsNullOrWhiteSpace(courier) ? "LBC" : courier.Trim();
                 var delivery = new tblDeliveriesModel
                 {
                     OrderId = order.Id,
                     DeliveryType = deliveryTypeVal,
                     Courier = courierVal,
-                    TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim(),
+                    TrackingNumber = string.IsNullOrWhiteSpace(trackingNumberOnly) ? null : trackingNumberOnly.Trim(),
+                    TrackingLink = string.IsNullOrWhiteSpace(trackingLink) ? null : trackingLink.Trim(),
                     DispatchDate = dispatchDt,
                     Eta = etaDt,
                     DeliveryStatus = DeliveryStatus.InTransit,
@@ -2512,8 +2551,12 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid delivery status transition." });
                 if (statusTrim == DeliveryStatus.InTransit && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase) && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
                     return Json(new { success = false, message = "Order must be Paid or In Delivery." });
-                if (statusTrim == DeliveryStatus.Delivered && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase))
-                    return Json(new { success = false, message = "Order must be In Delivery before marking Delivered." });
+                // Allow marking as Delivered when the order is already In Delivery (normal flow)
+                // OR still Paid (for older records where the status wasn't updated correctly).
+                if (statusTrim == DeliveryStatus.Delivered
+                    && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase)
+                    && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "Order must be Paid or In Delivery before marking Delivered." });
                 delivery.DeliveryStatus = statusTrim;
                 delivery.UpdatedAt = now;
                 if (statusTrim == DeliveryStatus.InTransit)
@@ -2727,7 +2770,23 @@ namespace Solteira_Brands.Controllers
                 if (string.Equals(status, DeliveryStatus.Pending, StringComparison.OrdinalIgnoreCase))
                 {
                     if (courier != null) delivery.Courier = courier.Trim();
-                    if (trackingNumber != null) delivery.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
+                    if (trackingNumber != null)
+                    {
+                        // Support both old "num||link" format and new split columns.
+                        string tnOnly = null;
+                        string tLink = null;
+                        if (!string.IsNullOrWhiteSpace(trackingNumber))
+                        {
+                            var parts = trackingNumber.Split(new[] { "||" }, StringSplitOptions.None);
+                            tnOnly = parts.Length > 0 ? parts[0] : null;
+                            tLink = parts.Length > 1 ? parts[1] : null;
+                        }
+                        delivery.TrackingNumber = string.IsNullOrWhiteSpace(tnOnly) ? null : tnOnly.Trim();
+                        if (!string.IsNullOrWhiteSpace(tLink))
+                        {
+                            delivery.TrackingLink = tLink.Trim();
+                        }
+                    }
                     DateTime d;
                     if (!string.IsNullOrWhiteSpace(dispatchDate) && DateTime.TryParse(dispatchDate, out d))
                         delivery.DispatchDate = d;
@@ -2736,7 +2795,22 @@ namespace Solteira_Brands.Controllers
                 }
                 else if (string.Equals(status, DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (trackingNumber != null) delivery.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
+                    if (trackingNumber != null)
+                    {
+                        string tnOnly = null;
+                        string tLink = null;
+                        if (!string.IsNullOrWhiteSpace(trackingNumber))
+                        {
+                            var parts = trackingNumber.Split(new[] { "||" }, StringSplitOptions.None);
+                            tnOnly = parts.Length > 0 ? parts[0] : null;
+                            tLink = parts.Length > 1 ? parts[1] : null;
+                        }
+                        delivery.TrackingNumber = string.IsNullOrWhiteSpace(tnOnly) ? null : tnOnly.Trim();
+                        if (!string.IsNullOrWhiteSpace(tLink))
+                        {
+                            delivery.TrackingLink = tLink.Trim();
+                        }
+                    }
                 }
                 delivery.UpdatedAt = now;
                 db.SaveChanges();
@@ -2794,7 +2868,13 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        /// <summary>GET: Admin — meetup order detail for View modal. Order summary, customer, meetup schedule (location), scheduled date/time. Allowed statuses: Ready for Meetup, Meetup Rescheduled, No Show, Completed, Cancelled.</summary>
+        /// <summary>
+        /// GET: Admin — meetup order detail for View modal.
+        /// Includes:
+        /// - Order summary, customer, meetup schedule (location), scheduled date/time.
+        /// - Latest meetup outcome (Completed / No Show / Cancelled) with timestamp and optional receipt image.
+        /// Allowed statuses: Ready for Meetup, Meetup Rescheduled, No Show, Completed, Cancelled.
+        /// </summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
         public JsonResult GetMeetupOrderDetail(int orderId)
@@ -2812,6 +2892,13 @@ namespace Solteira_Brands.Controllers
                 var meetupRow = db.tbl_meetup_settings.OrderByDescending(x => x.Id).FirstOrDefault();
                 var scheduledAt = order.MeetupDatetime ?? (order.Payments != null ? order.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
                 var items = order.OrderItems.Select(i => new { productName = i.ProductName, quantity = i.Quantity, unitPrice = i.UnitPrice }).ToList();
+
+                // Latest meetup outcome (Completed / No Show / Cancelled) with receipt if any.
+                var latestOutcome = db.tbl_meetup_outcomes
+                    .Include("ReceiptImage")
+                    .Where(m => m.OrderId == order.Id)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
                 var orderSummary = new
                 {
                     id = order.Id,
@@ -2826,12 +2913,22 @@ namespace Solteira_Brands.Controllers
                 };
                 var meetupSchedule = meetupRow != null ? new { locationName = meetupRow.LocationName ?? "", address = meetupRow.Address ?? "" } : null;
                 var scheduledAtFormatted = scheduledAt.HasValue ? scheduledAt.Value.ToString("MMM dd, yyyy hh:mm tt") : null;
+                var meetupOutcomeStatus = latestOutcome != null ? latestOutcome.Status : null;
+                var meetupOutcomeAtFormatted = latestOutcome != null ? latestOutcome.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : null;
+                string meetupReceiptImageUrl = null;
+                if (latestOutcome != null && latestOutcome.ReceiptImage != null)
+                {
+                    meetupReceiptImageUrl = (latestOutcome.ReceiptImage.ImagePath ?? "") + (latestOutcome.ReceiptImage.ImageFileName ?? "");
+                }
                 return Json(new
                 {
                     success = true,
                     orderSummary,
                     meetupSchedule,
-                    scheduledAtFormatted
+                    scheduledAtFormatted,
+                    meetupOutcomeStatus,
+                    meetupOutcomeAtFormatted,
+                    meetupReceiptImageUrl
                 }, JsonRequestBehavior.AllowGet);
             }
         }

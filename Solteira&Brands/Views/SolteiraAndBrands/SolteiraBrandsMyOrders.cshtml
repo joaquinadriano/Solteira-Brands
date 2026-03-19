@@ -25,11 +25,6 @@
                                 <span class="badge bg-warning text-dark small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Awaiting Verification</span>
                                 <i class="bi bi-info-circle small text-muted" ng-if="getOverallStatusTooltip(order)" title="{{getOverallStatusTooltip(order)}}" style="cursor:help;"></i>
                                 <span class="text-muted small">({{order.paymentType === 'LAYAWAY' ? 'Layaway' : 'Full payment'}})</span>
-                                <span class="d-none d-md-inline" ng-if="(order.trackingNumber || order.deliveryStatus === 'IN_TRANSIT' || order.deliveryStatus === 'DELIVERED') && getOverallStatus(order) !== 'Completed' && getOverallStatus(order) !== 'Delivered'">
-                                    <span class="text-muted small">Delivery:</span>
-                                    <span class="small fw-semibold text-success ms-1">{{(order.deliveryStatus === 'IN_TRANSIT' ? 'In Transit' : (order.deliveryStatus === 'DELIVERED' ? 'Delivered' : 'Pending'))}}</span>
-                                    <a href="#" class="btn btn-link btn-sm text-success p-0 ms-2 text-decoration-none fw-semibold" ng-if="order.trackingNumber" ng-click="goToTracking(order.trackingNumber, order.trackingLink); $event.preventDefault();">Track Delivery</a>
-                                </span>
                             </div>
                         </div>
                         <div class="card-body py-2 px-4">
@@ -77,6 +72,13 @@
                     </p>
                     <p ng-if="(getOverallStatus(selectedOrderForDetails) === 'Ready for Meetup' || getOverallStatus(selectedOrderForDetails) === 'Meetup Rescheduled') && selectedOrderForDetails.meetupScheduledAtFormatted" class="mb-1"><strong>Meetup date &amp; time:</strong> {{selectedOrderForDetails.meetupScheduledAtFormatted}}</p>
                     <p ng-if="getOverallStatus(selectedOrderForDetails) === 'No Show'" class="mb-1 text-warning"><strong>Reschedule Pending</strong> - Admin will reschedule your meetup.</p>
+                    <p ng-if="selectedOrderForDetails.meetupOutcomeStatus === 'COMPLETED' && selectedOrderForDetails.meetupOutcomeAtFormatted" class="mb-1">
+                        <strong>Completed via meetup:</strong> {{selectedOrderForDetails.meetupOutcomeAtFormatted}}
+                        <span ng-if="selectedOrderForDetails.meetupReceiptImageUrl">
+                            -
+                            <a ng-href="{{selectedOrderForDetails.meetupReceiptImageUrl}}" target="_blank" rel="noopener">View receipt</a>
+                        </span>
+                    </p>
                     <div class="buyer-order-summary-card">
                         <div class="buyer-order-item" ng-repeat="item in selectedOrderForDetails.items">
                             <img ng-src="{{item.img || defaultProductImageUrl}}" class="buyer-order-item-img" alt="{{item.name}}" />
@@ -189,15 +191,23 @@
                         </p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.dispatchDate"><strong>Dispatch Date:</strong> {{selectedOrderForDetails.dispatchDate}}</p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.eta"><strong>ETA:</strong> {{selectedOrderForDetails.eta}}</p>
-                        <p class="mb-1" ng-if="selectedOrderForDetails.trackingNumber">
+                        <p class="mb-1"
+                           ng-if="selectedOrderForDetails.trackingNumber
+                                  && (!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0)">
                             <a href="#"
                                ng-click="goToTracking(selectedOrderForDetails.trackingNumber, selectedOrderForDetails.trackingLink); $event.preventDefault();"
                                class="btn btn-sm btn-outline-primary">
                                 Open Courier Tracking
                             </a>
                         </p>
-                        <p class="small text-muted mb-0 mt-2" ng-if="!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0">Note: Please copy the tracking number and paste it on the courier website to track your parcel.</p>
-                        <p class="small text-muted mb-0 mt-2" ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">Please track your shipment directly via the courier's official website.</p>
+                        <p class="small text-muted mb-0 mt-2"
+                           ng-if="!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0">
+                            Note: Please copy the tracking number and paste it on the LBC tracking page to track your parcel.
+                        </p>
+                        <p class="small text-muted mb-0 mt-2"
+                           ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">
+                            Note: This shipment uses a custom courier. Please copy the tracking number and track it on the courier's official tracking site.
+                        </p>
                     </div>
                 </div>
                 <div class="modal-footer border-0 d-flex flex-wrap gap-2 justify-content-end">
