@@ -60,7 +60,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     }
     //to orders archive
     $scope.orderArchive = function () {
-        window.location.href = "/SolteiraAndBrands/AdminOrdersArchivePage";
+        window.location.href = "/SolteiraAndBrands/AdminOrdersPage";
     }
 
     //to reports page
@@ -476,7 +476,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.editingDelivery = null;
-    $scope.editDeliveryForm = { courierChoice: 'LBC', customCourierName: '', trackingNumber: '', trackingLink: '', dispatchDate: '', eta: '', deliveryStatus: '' };
+    $scope.editDeliveryForm = { courierChoice: 'LBC', otherCourierName: '', trackingNumber: '', trackingLink: '', dispatchDate: '', eta: '', deliveryStatus: '' };
     $scope.openDeliveryEditModal = function (d) {
         if (!d || !d.id) return;
         if ((d.deliveryStatus || '').toUpperCase() === 'DELIVERED') {
@@ -487,15 +487,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             if (res.data && res.data.success) {
                 var ov = res.data.deliveryOverview;
                 $scope.editingDelivery = res.data;
-                var isCustom = ov.courier && ov.courier.indexOf('Custom - ') === 0;
-                var customName = isCustom ? ov.courier.substring('Custom - '.length) : '';
+                var courierVal = (ov.courier || '').trim();
+                var courierChoice = 'LBC';
+                var otherCourierName = '';
+                // Backward compatibility: older records might store "Custom - <name>".
+                if (courierVal.indexOf('Custom - ') === 0) {
+                    courierChoice = 'Others';
+                    otherCourierName = courierVal.substring('Custom - '.length);
+                } else if (courierVal === 'LBC' || courierVal === 'JnT' || courierVal === 'Flash Express') {
+                    courierChoice = courierVal || 'LBC';
+                } else if (courierVal) {
+                    courierChoice = 'Others';
+                    otherCourierName = courierVal;
+                }
                 var tn = ov.trackingNumber || '';
                 var tnParts = tn.split('||');
                 var tnNumber = tnParts[0] || '';
                 var tnLink = tnParts.length > 1 ? tnParts[1] : '';
                 $scope.editDeliveryForm = {
-                    courierChoice: isCustom ? 'Custom' : (ov.courier || 'LBC'),
-                    customCourierName: customName,
+                    courierChoice: courierChoice,
+                    otherCourierName: otherCourierName,
                     trackingNumber: tnNumber,
                     trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
@@ -517,19 +528,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var id = $scope.editingDelivery.deliveryOverview.id;
         var currentStatus = ($scope.editingDelivery.deliveryOverview.deliveryStatus || '').toUpperCase();
         var courier = null;
+        var courierChoice = ($scope.editDeliveryForm.courierChoice || '').trim();
         var rawNumberEdit = ($scope.editDeliveryForm.trackingNumber || '').trim();
         var rawLinkEdit = ($scope.editDeliveryForm.trackingLink || '').trim();
+        if (courierChoice !== 'Others') rawLinkEdit = '';
         var trackingNumber = null;
         if (currentStatus === 'PENDING') {
-            if ($scope.editDeliveryForm.courierChoice === 'Custom') {
-                var customName = ($scope.editDeliveryForm.customCourierName || '').trim();
-                if (!customName) {
-                    Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
+            if (courierChoice === 'Others') {
+                var otherName = ($scope.editDeliveryForm.otherCourierName || '').trim();
+                if (!otherName) {
+                    Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Others is selected.' });
                     return;
                 }
-                courier = 'Custom - ' + customName;
+                courier = otherName;
             } else {
-                courier = $scope.editDeliveryForm.courierChoice || 'LBC';
+                courier = courierChoice || 'LBC';
             }
 
             if (!rawNumberEdit) {
@@ -650,14 +663,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         } catch (e) { /* ignore */ }
         return null;
     }
-    // Reset custom-only fields when switching back to LBC in the Add Shipment modal.
-    $scope.$watch('courierChoiceForNew', function (newVal) {
-        if (!newVal || newVal === 'LBC') {
-            $scope.customCourierNameForNew = '';
-            $scope.trackingLinkForNew = '';
-        }
-    });
-
     $scope.createDeliveryFromShipmentsPage = function () {
         var orderId = $scope.selectedOrderForDelivery ? ($scope.selectedOrderForDelivery.id || $scope.selectedOrderForDelivery.orderId) : null;
         if (!orderId) {
@@ -666,7 +671,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
 
         var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
-        var courierChoice = $scope.courierChoiceForNew || 'LBC';
+        var courierChoice = ($scope.courierForNewShipment || 'LBC').trim() || 'LBC';
+        var courier = courierChoice;
+        if (courierChoice === 'Others') {
+            var otherCourierName = ($scope.courierOtherForNew || '').trim();
+            if (!otherCourierName) {
+                Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Type the courier name when Others is selected.' });
+                return;
+            }
+            courier = otherCourierName;
+        }
 
         // Read tracking number directly from the dedicated input (most reliable).
         var rawNumber = '';
@@ -680,13 +694,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }
         } catch (e) {
             rawNumber = ($scope.trackingNumberForNew || '').trim();
-        }
-
-        var rawLink = ($scope.trackingLinkForNew || '').trim();
-        // Tracking link is only applicable for Custom courier.
-        if (courierChoice !== 'Custom') {
-            rawLink = '';
-            $scope.trackingLinkForNew = '';
         }
 
         if (!rawNumber) {
@@ -713,27 +720,15 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             return;
         }
 
-        var trackingNumber = null;
-        if (rawLink) {
-            trackingNumber = rawNumber ? (rawNumber + '||' + rawLink) : ('||' + rawLink);
-        } else {
-            trackingNumber = rawNumber || null;
-        }
+        var trackingNumber = rawNumber || null;
 
-        var customName = ($scope.customCourierNameForNew || '').trim();
-        if (courierChoice === 'Custom' && !customName) {
-            Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Custom is selected.' });
-            return;
-        }
-
-        var courier = (courierChoice === 'Custom') ? ('Custom - ' + customName) : courierChoice || 'LBC';
         SolteiraAndBrandsService.createDelivery(orderId, deliveryType, trackingNumber, courier, dispatchDate, eta).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryShipments();
                 $scope.selectedOrderForDelivery = null;
                 $scope.trackingNumberForNew = '';
-                $scope.trackingLinkForNew = '';
-                $scope.customCourierNameForNew = '';
+                $scope.courierForNewShipment = 'LBC';
+                $scope.courierOtherForNew = '';
                 $scope.dispatchDateForNew = '';
                 $scope.etaForNew = '';
                 var modalEl = document.getElementById('deliveryAddShipmentModal');

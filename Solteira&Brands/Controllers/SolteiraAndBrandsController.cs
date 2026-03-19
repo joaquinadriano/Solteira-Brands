@@ -143,16 +143,9 @@ namespace Solteira_Brands.Controllers
         [HttpPost]
         public JsonResult ArchiveOrder(int orderId)
         {
-            using (var db = new SolteiraBrandsContext())
-            {
-                var order = db.tbl_orders.FirstOrDefault(o => o.Id == orderId);
-                if (order == null) return Json(new { success = false, message = "Order not found." });
-                if (order.IsArchived) return Json(new { success = false, message = "Order is already archived." });
-                order.IsArchived = true;
-                db.SaveChanges();
-                LogActivity(db, "Order Archived", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
-                return Json(new { success = true, message = "Order archived successfully." });
-            }
+            // Archiving is intentionally disabled (e.g., system admin should not archive orders).
+            // Keep the endpoint to avoid breaking the client; return a clear failure message instead.
+            return Json(new { success = false, message = "Order archiving is disabled." });
         }
         [Authorize(Roles = "ADMIN")]
         [HttpPost]
@@ -176,9 +169,12 @@ namespace Solteira_Brands.Controllers
 
         // ----- Redirect to combined Orders/Archive page -----
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrdersPage() { return RedirectToAction("AdminOrdersArchivePage"); }
+        public ActionResult AdminOrdersPage()
+        {
+            return View(); // Views/SolteiraAndBrands/AdminOrdersPage.cshtml
+        }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
-        public ActionResult AdminOrderDetailsPage() { return RedirectToAction("AdminOrdersArchivePage"); }
+        public ActionResult AdminOrderDetailsPage() { return RedirectToAction("AdminOrdersPage"); }
         [Authorize(Roles = "MANAGER,STAFF")]
         public ActionResult AdminPaymentPage() { return View(); }
         [Authorize(Roles = "MANAGER,STAFF")]
