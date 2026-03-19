@@ -381,7 +381,8 @@ namespace Solteira_Brands.Controllers
                 emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Verify your Solteira & Brands account",
-                    "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not create an account, please ignore this email.");
+                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                    isBodyHtml: true);
             }
 
             return Json(new
@@ -473,7 +474,8 @@ namespace Solteira_Brands.Controllers
                 var emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Reset your Solteira & Brands password",
-                    "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not request a password reset, please ignore this email.");
+                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                    isBodyHtml: true);
                 if (!emailSent)
                     return Json(new { success = false, message = "We could not send the email. Please try again later." });
             }
@@ -520,14 +522,16 @@ namespace Solteira_Brands.Controllers
                     emailSent = EmailHelper.SendEmail(
                         user.Email,
                         "Reset your Solteira & Brands password",
-                        "Your password reset code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not request a password reset, please ignore this email.");
+                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                        isBodyHtml: true);
                 }
                 else
                 {
                     emailSent = EmailHelper.SendEmail(
                         user.Email,
                         "Verify your Solteira & Brands account",
-                        "Your verification code is: " + otpPlain + "\r\n\r\nThis code expires in 30 seconds. If you did not create an account, please ignore this email.");
+                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                        isBodyHtml: true);
                 }
                 if (!emailSent)
                     return Json(new { success = false, message = "We could not send the email. Please try again later." });
