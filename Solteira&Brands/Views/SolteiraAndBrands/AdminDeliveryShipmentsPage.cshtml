@@ -125,7 +125,7 @@
                             <td>{{d.deliveryAddress}}</td>
                             <td>{{d.courier || d.deliveryType || 'COURIER'}}</td>
                             <td>{{getDisplayTrackingNumber(d.trackingNumber)}}</td>
-                            <td>{{d.dispatchDateFormatted || (d.createdAt | date:'MMM d, y')}}</td>
+                            <td>{{d.dispatchDateFormatted || (d.createdAt | date:'MM/dd/yyyy')}}</td>
                             <td>{{d.etaFormatted || '-'}}</td>
                             <td>{{d.deliveryStatus}}</td>
                             <td>

@@ -305,8 +305,8 @@ namespace Solteira_Brands.Controllers
                                 x.imageUrl,
                                 x.isBestSeller,
                                 x.isFeatured,
-                                createdAtString = x.createdAt.ToString("MMM dd, yyyy"),
-                                updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MMM dd, yyyy")
+                                createdAtString = x.createdAt.ToString("MM/dd/yyyy"),
+                                updatedAtString = x.updatedAt == DateTime.MinValue ? "N/A" : x.updatedAt.ToString("MM/dd/yyyy")
                             });
 
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
@@ -1037,7 +1037,7 @@ namespace Solteira_Brands.Controllers
                         orderNumber = order.OrderNumber,
                         orderStatus = order.OrderStatus,
                         createdAt = order.CreatedAt,
-                        createdAtString = order.CreatedAt.ToString("MMM dd yyyy - hh:mm tt"),
+                        createdAtString = order.CreatedAt.ToString("MM/dd/yyyy hh:mm tt"),
                         customerName = order.CustomerName,
                         email = order.User != null ? order.User.Email : "",
                         contactNumber = order.ContactNumber,
@@ -1675,7 +1675,7 @@ namespace Solteira_Brands.Controllers
                     orderNumber = p.Order != null ? p.Order.OrderNumber : null,
                     customerName = p.Order != null ? p.Order.CustomerName : null,
                     paymentDate = p.CreatedAt.ToString("o"),
-                    paymentDateString = p.CreatedAt.ToString("MMM dd, yyyy hh:mm tt"),
+                    paymentDateString = p.CreatedAt.ToString("MM/dd/yyyy hh:mm tt"),
                     paymentOption = p.Order != null ? (string.Equals((p.Order.PaymentType ?? ""), "LAYAWAY", StringComparison.OrdinalIgnoreCase) ? "Layaway" : "Full Payment") : null,
                     paymentMethod = p.PaymentChannel ?? (p.MeetupDatetime.HasValue ? "Cash through Meetup" : (p.Order != null ? p.Order.PaymentMethod : null)),
                     amount = p.Amount,
@@ -1824,7 +1824,7 @@ namespace Solteira_Brands.Controllers
                     paymentStatus = payment.PaymentStatus,
                     rejectionReason = payment.RejectionReason,
                     proofImageUrl = payment.ProofImage != null ? (payment.ProofImage.ImagePath + payment.ProofImage.ImageFileName) : null,
-                    createdAtString = payment.CreatedAt.ToString("MMM dd yyyy - hh:mm tt")
+                    createdAtString = payment.CreatedAt.ToString("MM/dd/yyyy hh:mm tt")
                 };
 
                 var orderSummary = new
@@ -1832,7 +1832,7 @@ namespace Solteira_Brands.Controllers
                     id = order.Id,
                     orderNumber = order.OrderNumber,
                     orderStatus = order.OrderStatus,
-                    createdAtString = order.CreatedAt.ToString("MMM dd yyyy - hh:mm tt"),
+                    createdAtString = order.CreatedAt.ToString("MM/dd/yyyy hh:mm tt"),
                     customerName = order.CustomerName,
                     email = order.User != null ? order.User.Email : "",
                     contactNumber = order.ContactNumber,
@@ -1853,8 +1853,8 @@ namespace Solteira_Brands.Controllers
                     {
                         courier = latestDelivery.Courier,
                         trackingNumber = latestDelivery.TrackingNumber,
-                        dispatchDateFormatted = (latestDelivery.DispatchDate ?? latestDelivery.CreatedAt).ToString("MMM d, yyyy"),
-                        etaFormatted = latestDelivery.Eta.HasValue ? latestDelivery.Eta.Value.ToString("MMM d, yyyy") : (string)null,
+                        dispatchDateFormatted = (latestDelivery.DispatchDate ?? latestDelivery.CreatedAt).ToString("MM/dd/yyyy"),
+                        etaFormatted = latestDelivery.Eta.HasValue ? latestDelivery.Eta.Value.ToString("MM/dd/yyyy") : (string)null,
                         deliveryStatus = latestDelivery.DeliveryStatus
                     };
                 }
@@ -2294,11 +2294,15 @@ namespace Solteira_Brands.Controllers
                     if (!string.IsNullOrWhiteSpace(buyerEmail))
                     {
                         var orderNum = order.OrderNumber ?? id.ToString();
-                        var subject = "Your order has been approved – next step: payment";
-                        var body = "Hello,\r\n\r\nYour order #" + orderNum + " has been approved. Please proceed to payment at your earliest convenience.\r\n\r\nThank you.";
+                        var usernameForEmail = order.User != null && !string.IsNullOrWhiteSpace(order.User.Username)
+                            ? order.User.Username
+                            : "Customer";
+                        var subject = usernameForEmail + ", your order #" + orderNum + " has been approved – next step: payment";
+                        var payUrl = "https://localhost:44327/SolteiraAndBrands/SolteiraBrandsMyOrders";
+                        var body = EmailHelper.BuildOrderApprovedEmailHtml(usernameForEmail, orderNum, payUrl);
                         System.Threading.Tasks.Task.Run(() =>
                         {
-                            try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body); }
+                            try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body, isBodyHtml: true); }
                             catch { /* swallow email errors; log inside EmailHelper if needed */ }
                         });
                     }
@@ -2352,6 +2356,25 @@ namespace Solteira_Brands.Controllers
 
                     LogActivity(db, "Payment Rejected", "Payments", payment.Id, "Order #" + (payment.Order.OrderNumber ?? payment.OrderId.ToString()) + "; reason: " + (payment.RejectionReason ?? ""));
                     db.SaveChanges();
+
+                    // Email buyer with retry instructions and button when payment is rejected.
+                    var buyerEmail = payment.Order.User != null ? payment.Order.User.Email : null;
+                    if (!string.IsNullOrWhiteSpace(buyerEmail))
+                    {
+                        var orderNum = payment.Order.OrderNumber ?? payment.OrderId.ToString();
+                        var usernameForEmail = payment.Order.User != null && !string.IsNullOrWhiteSpace(payment.Order.User.Username)
+                            ? payment.Order.User.Username
+                            : "Customer";
+                        var myOrdersUrl = "https://localhost:44327/SolteiraAndBrands/SolteiraBrandsMyOrders";
+                        var subject = usernameForEmail + ", please retry your payment for order #" + orderNum;
+                        var body = EmailHelper.BuildPaymentRejectedEmailHtml(usernameForEmail, orderNum, myOrdersUrl, payment.RejectionReason);
+                        System.Threading.Tasks.Task.Run(() =>
+                        {
+                            try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body, isBodyHtml: true); }
+                            catch { /* swallow email errors; log inside EmailHelper if needed */ }
+                        });
+                    }
+
                     return Json(new { success = true, message = "Payment rejected.", orderStatus = payment.Order.OrderStatus });
                 }
                 var orderId = payment.OrderId;
@@ -2410,11 +2433,15 @@ namespace Solteira_Brands.Controllers
                         if (!string.IsNullOrWhiteSpace(buyerEmail))
                         {
                             var orderNum = payment.Order.OrderNumber ?? payment.OrderId.ToString();
-                            var subject = "Thank you – your order is complete";
-                            var body = "Hello,\r\n\r\nThank you for your order. Payment for order #" + orderNum + " has been verified. We appreciate your business.\r\n\r\nBest regards.";
+                            var usernameForEmail = payment.Order.User != null && !string.IsNullOrWhiteSpace(payment.Order.User.Username)
+                                ? payment.Order.User.Username
+                                : "Customer";
+                            var subject = usernameForEmail + ", thank you for your payment for order #" + orderNum;
+                            var myOrdersUrl = "https://localhost:44327/SolteiraAndBrands/SolteiraBrandsMyOrders";
+                            var body = EmailHelper.BuildPaymentConfirmedEmailHtml(usernameForEmail, orderNum, myOrdersUrl);
                             System.Threading.Tasks.Task.Run(() =>
                             {
-                                try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body); }
+                                try { EmailHelper.SendEmail(buyerEmail.Trim(), subject, body, isBodyHtml: true); }
                                 catch { /* swallow email errors; log inside EmailHelper if needed */ }
                             });
                         }
@@ -2661,8 +2688,8 @@ namespace Solteira_Brands.Controllers
                     courier = d.Courier,
                     trackingNumber = d.TrackingNumber,
                     deliveryStatus = d.DeliveryStatus,
-                    dispatchDateFormatted = (d.DispatchDate ?? d.CreatedAt).ToString("MMM d, yyyy"),
-                    etaFormatted = d.Eta.HasValue ? d.Eta.Value.ToString("MMM d, yyyy") : null,
+                    dispatchDateFormatted = (d.DispatchDate ?? d.CreatedAt).ToString("MM/dd/yyyy"),
+                    etaFormatted = d.Eta.HasValue ? d.Eta.Value.ToString("MM/dd/yyyy") : null,
                     createdAt = d.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss")
                 }).ToList();
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
@@ -2686,9 +2713,9 @@ namespace Solteira_Brands.Controllers
 
                 var order = delivery.Order;
                 var items = order.OrderItems.Select(i => new { productName = i.ProductName, quantity = i.Quantity, unitPrice = i.UnitPrice }).ToList();
-                var statusTimeline = new List<object> { new { status = "PENDING", at = delivery.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") } };
+                var statusTimeline = new List<object> { new { status = "PENDING", at = delivery.CreatedAt.ToString("MM/dd/yyyy hh:mm tt") } };
                 if (!string.Equals(delivery.DeliveryStatus, "PENDING", StringComparison.OrdinalIgnoreCase))
-                    statusTimeline.Add(new { status = delivery.DeliveryStatus, at = delivery.UpdatedAt.ToString("MMM dd, yyyy hh:mm tt") });
+                    statusTimeline.Add(new { status = delivery.DeliveryStatus, at = delivery.UpdatedAt.ToString("MM/dd/yyyy hh:mm tt") });
 
                 var dispatchDt = delivery.DispatchDate ?? delivery.CreatedAt;
                 var deliveryOverview = new
@@ -2699,12 +2726,12 @@ namespace Solteira_Brands.Controllers
                     deliveryStatus = delivery.DeliveryStatus,
                     courier = delivery.Courier,
                     trackingNumber = delivery.TrackingNumber,
-                    dispatchDateFormatted = dispatchDt.ToString("MMM d, yyyy"),
+                    dispatchDateFormatted = dispatchDt.ToString("MM/dd/yyyy"),
                     dispatchDateIso = dispatchDt.ToString("yyyy-MM-dd"),
-                    etaFormatted = delivery.Eta.HasValue ? delivery.Eta.Value.ToString("MMM d, yyyy") : null,
+                    etaFormatted = delivery.Eta.HasValue ? delivery.Eta.Value.ToString("MM/dd/yyyy") : null,
                     etaIso = delivery.Eta.HasValue ? delivery.Eta.Value.ToString("yyyy-MM-dd") : (string)null,
                     deliveryType = delivery.DeliveryType,
-                    createdAtString = delivery.CreatedAt.ToString("MMM dd yyyy - hh:mm tt")
+                    createdAtString = delivery.CreatedAt.ToString("MM/dd/yyyy hh:mm tt")
                 };
                 var orderSummary = new
                 {
@@ -2858,7 +2885,7 @@ namespace Solteira_Brands.Controllers
                             totalAmount = o.TotalAmount,
                             orderStatus = o.OrderStatus,
                             createdAt = o.CreatedAt,
-                            scheduledAtFormatted = scheduledAt.HasValue ? scheduledAt.Value.ToString("MMM dd, yyyy hh:mm tt") : (string)null,
+                            scheduledAtFormatted = scheduledAt.HasValue ? scheduledAt.Value.ToString("MM/dd/yyyy hh:mm tt") : (string)null,
                             scheduledAt = scheduledAt
                         };
                     })
@@ -3082,7 +3109,7 @@ namespace Solteira_Brands.Controllers
                 order.LastStatusUpdateAt = now;
                 LogActivity(db, "Meetup Rescheduled", "Orders", orderId, "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; new time: " + meetupDt.ToString("MMM dd, yyyy hh:mm tt"));
                 db.SaveChanges();
-                return Json(new { success = true, message = "Meetup rescheduled.", orderStatus = order.OrderStatus, scheduledAtFormatted = meetupDt.ToString("MMM dd, yyyy hh:mm tt") });
+                return Json(new { success = true, message = "Meetup rescheduled.", orderStatus = order.OrderStatus, scheduledAtFormatted = meetupDt.ToString("MM/dd/yyyy hh:mm tt") });
             }
         }
 
@@ -3238,7 +3265,7 @@ namespace Solteira_Brands.Controllers
                     .ToList()
                     .Select(x => new
                     {
-                        date = x.date.ToString("yyyy-MM-dd"),
+                        date = x.date.ToString("MM/dd/yyyy"),
                         orderNumber = x.orderNumber ?? "",
                         itemName = x.itemName,
                         category = x.category ?? "N/A",
@@ -3335,7 +3362,7 @@ namespace Solteira_Brands.Controllers
                     roleName = u.roleName,
                     isActive = u.isActive,
                     isVerified = u.isVerified,
-                    joinedAtString = u.joinedAt.ToString("MMM dd, yyyy")
+                    joinedAtString = u.joinedAt.ToString("MM/dd/yyyy")
                 }).ToList();
 
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
