@@ -7,7 +7,7 @@
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Inventory</p>
             </div>
-            <div class="col d-flex justify-content-end align-items-center gap-2">
+            <div class="col d-flex justify-content-end align-items-center gap-2 flex-wrap">
                 @if (User.IsInRole("ADMIN"))
                 {
                     <div class="btn-group me-2" role="group">
@@ -25,6 +25,15 @@
                         </button>
                     </div>
                 }
+
+                <input ng-show="inventoryProducts.length > 0"
+                       type="text"
+                       class="form-control form-control-sm"
+                       style="width: 260px;"
+                       placeholder="Search..."
+                       aria-label="Search inventory"
+                       ng-model="inventorySearchText" />
+
                 <button type="button"
                         class="btn btn-add-order px-2 py-1"
                         data-bs-toggle="modal"
@@ -172,9 +181,6 @@
         @* Inventory table (Angular-only; no DataTables to avoid list disappearing on archive/toggle) *@
         <div class="row px-4 pt-1">
             <div class="col">
-                <div class="d-flex justify-content-end mb-2" ng-if="inventoryProducts.length > 0">
-                    <input type="text" class="form-control form-control-sm" style="max-width: 220px;" placeholder="Search by name, category, ID..." ng-model="inventorySearchText" />
-                </div>
                 <table class="table table-striped table-responsive text-center inventory-datatable" id="inventoryTable">
                     <thead>
                         <tr>

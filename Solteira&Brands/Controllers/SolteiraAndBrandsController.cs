@@ -530,6 +530,276 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        // ----- CART: per-account (server-side) -----
+        private tblCartsModel GetOrCreateActiveCart(SolteiraBrandsContext db, tblUsersModel user)
+        {
+            var now = DateTime.Now;
+
+            var cart = db.tbl_carts.FirstOrDefault(c => c.UserId == user.Id && c.IsActive);
+            if (cart != null) return cart;
+
+            cart = new tblCartsModel
+            {
+                UserId = user.Id,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            db.tbl_carts.Add(cart);
+            db.SaveChanges();
+            return cart;
+        }
+
+        [BuyerAuthorize]
+        [HttpGet]
+        public JsonResult GetCartCount()
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated.", count = 0 }, JsonRequestBehavior.AllowGet);
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false, message = "User not found.", count = 0 }, JsonRequestBehavior.AllowGet);
+
+                var cart = db.tbl_carts.FirstOrDefault(c => c.UserId == user.Id && c.IsActive);
+                if (cart == null) return Json(new { success = true, count = 0 }, JsonRequestBehavior.AllowGet);
+
+                var count = db.tbl_cart_items.Where(ci => ci.CartId == cart.Id).Sum(ci => (int?)ci.Quantity) ?? 0;
+                return Json(new { success = true, count }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [BuyerAuthorize]
+        [HttpGet]
+        public JsonResult GetMyCart()
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated.", items = new object[0] }, JsonRequestBehavior.AllowGet);
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null)
+                    return Json(new { success = false, message = "User not found.", items = new object[0] }, JsonRequestBehavior.AllowGet);
+
+                var cart = db.tbl_carts.FirstOrDefault(c => c.UserId == user.Id && c.IsActive);
+                if (cart == null) return Json(new { success = true, items = new object[0] }, JsonRequestBehavior.AllowGet);
+
+                var cartItems = db.tbl_cart_items.Where(ci => ci.CartId == cart.Id).ToList();
+                if (cartItems.Count == 0) return Json(new { success = true, items = new object[0] }, JsonRequestBehavior.AllowGet);
+
+                var productIds = cartItems.Select(ci => ci.ProductId).Distinct().ToList();
+                var products = db.tbl_products.Where(p => productIds.Contains(p.Id)).ToList();
+                var productsById = products.ToDictionary(p => p.Id, p => p);
+
+                // Keep cart consistent with current stock + product archive status.
+                var changed = false;
+                for (int i = cartItems.Count - 1; i >= 0; i--)
+                {
+                    var ci = cartItems[i];
+                    if (!productsById.TryGetValue(ci.ProductId, out var p) || p.IsArchived)
+                    {
+                        db.tbl_cart_items.Remove(ci);
+                        changed = true;
+                        continue;
+                    }
+                    if (p.StockQuantity <= 0)
+                    {
+                        db.tbl_cart_items.Remove(ci);
+                        changed = true;
+                        continue;
+                    }
+                    if (ci.Quantity > p.StockQuantity)
+                    {
+                        ci.Quantity = p.StockQuantity;
+                        ci.UpdatedAt = DateTime.Now;
+                        changed = true;
+                    }
+                }
+
+                if (changed) db.SaveChanges();
+
+                // Re-load for response.
+                var responseItems = (from ci in db.tbl_cart_items
+                                      join p in db.tbl_products on ci.ProductId equals p.Id
+                                      join img in db.tbl_images on p.ImageId equals img.Id into productImages
+                                      from img in productImages.DefaultIfEmpty()
+                                      where ci.CartId == cart.Id && !p.IsArchived
+                                      orderby p.Category, p.Name
+                                      select new
+                                      {
+                                          id = p.Id,
+                                          name = p.Name,
+                                          price = p.Price,
+                                          img = img != null ? (img.ImagePath + img.ImageFileName) : null,
+                                          stones = p.Stones,
+                                          material = p.Material,
+                                          weight = p.Weight,
+                                          length = p.Length,
+                                          qty = ci.Quantity,
+                                          maxStock = p.StockQuantity
+                                      }).ToList();
+
+                return Json(new { success = true, items = responseItems }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [BuyerAuthorize]
+        [HttpPost]
+        public JsonResult AddToCart(int productId, int quantity)
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated." });
+
+            if (productId <= 0)
+                return Json(new { success = false, message = "Invalid product." });
+
+            var requestedQty = Math.Max(1, quantity);
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false, message = "User not found." });
+
+                var product = db.tbl_products.FirstOrDefault(p => p.Id == productId && !p.IsArchived);
+                if (product == null) return Json(new { success = false, message = "Product not found." });
+
+                var now = DateTime.Now;
+
+                if (product.StockQuantity <= 0)
+                    return Json(new { success = false, message = product.Name + " is currently sold out." });
+
+                var cart = GetOrCreateActiveCart(db, user);
+
+                var item = db.tbl_cart_items.FirstOrDefault(ci => ci.CartId == cart.Id && ci.ProductId == productId);
+                var existingQty = item != null ? item.Quantity : 0;
+                var availableToAdd = product.StockQuantity - existingQty;
+
+                if (availableToAdd <= 0)
+                    return Json(new { success = false, message = "Maximum reached for this item." });
+
+                var actualAdded = Math.Min(requestedQty, availableToAdd);
+                if (actualAdded <= 0)
+                    return Json(new { success = false, message = "Maximum reached for this item." });
+
+                if (item == null)
+                {
+                    item = new tblCartItemsModel
+                    {
+                        CartId = cart.Id,
+                        ProductId = productId,
+                        Quantity = actualAdded,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    db.tbl_cart_items.Add(item);
+                }
+                else
+                {
+                    item.Quantity += actualAdded;
+                    item.UpdatedAt = now;
+                }
+                db.SaveChanges();
+
+                var cartCount = db.tbl_cart_items.Where(ci => ci.CartId == cart.Id).Sum(ci => (int?)ci.Quantity) ?? 0;
+
+                return Json(new
+                {
+                    success = true,
+                    addedQuantity = actualAdded,
+                    itemQuantity = item.Quantity,
+                    maxStock = product.StockQuantity,
+                    cartCount
+                });
+            }
+        }
+
+        [BuyerAuthorize]
+        [HttpPost]
+        public JsonResult SetCartItemQuantity(int productId, int quantity)
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated." });
+
+            if (productId <= 0)
+                return Json(new { success = false, message = "Invalid product." });
+
+            var desiredQty = quantity;
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false, message = "User not found." });
+
+                var product = db.tbl_products.FirstOrDefault(p => p.Id == productId && !p.IsArchived);
+                if (product == null) return Json(new { success = false, message = "Product not found." });
+
+                var cart = db.tbl_carts.FirstOrDefault(c => c.UserId == user.Id && c.IsActive);
+                if (cart == null) return Json(new { success = false, message = "Cart not found." });
+
+                var item = db.tbl_cart_items.FirstOrDefault(ci => ci.CartId == cart.Id && ci.ProductId == productId);
+                if (item == null)
+                    return Json(new { success = false, message = "Item not found in cart." });
+
+                var now = DateTime.Now;
+                if (desiredQty <= 0 || product.StockQuantity <= 0)
+                {
+                    db.tbl_cart_items.Remove(item);
+                    db.SaveChanges();
+                    return Json(new { success = true, removed = true });
+                }
+
+                var cappedQty = Math.Min(desiredQty, product.StockQuantity);
+                if (cappedQty <= 0)
+                {
+                    db.tbl_cart_items.Remove(item);
+                    db.SaveChanges();
+                    return Json(new { success = true, removed = true });
+                }
+
+                item.Quantity = cappedQty;
+                item.UpdatedAt = now;
+                db.SaveChanges();
+
+                return Json(new { success = true, quantity = item.Quantity, maxStock = product.StockQuantity });
+            }
+        }
+
+        [BuyerAuthorize]
+        [HttpPost]
+        public JsonResult RemoveCartItem(int productId)
+        {
+            var username = User.Identity.Name;
+            if (string.IsNullOrEmpty(username))
+                return Json(new { success = false, message = "Not authenticated." });
+
+            if (productId <= 0)
+                return Json(new { success = false, message = "Invalid product." });
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Json(new { success = false, message = "User not found." });
+
+                var cart = db.tbl_carts.FirstOrDefault(c => c.UserId == user.Id && c.IsActive);
+                if (cart == null) return Json(new { success = true, removed = true });
+
+                var item = db.tbl_cart_items.FirstOrDefault(ci => ci.CartId == cart.Id && ci.ProductId == productId);
+                if (item != null)
+                {
+                    db.tbl_cart_items.Remove(item);
+                    db.SaveChanges();
+                }
+
+                return Json(new { success = true, removed = true });
+            }
+        }
+
         // ----- ORDERS: Create (buyer checkout), List/Details/UpdateStatus (admin) -----
         [BuyerAuthorize]
         [HttpPost]

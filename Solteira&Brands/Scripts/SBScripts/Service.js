@@ -75,6 +75,50 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
+    // ----- CART: server-side per account (BUYER only) -----
+    this.getMyCart = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetMyCart" });
+    };
+
+    this.getCartCount = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetCartCount" });
+    };
+
+    this.addToCart = function (productId, quantity) {
+        var form = new URLSearchParams();
+        form.append("productId", productId);
+        form.append("quantity", quantity);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/AddToCart",
+            data: form.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
+    this.setCartItemQuantity = function (productId, quantity) {
+        var form = new URLSearchParams();
+        form.append("productId", productId);
+        form.append("quantity", quantity);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/SetCartItemQuantity",
+            data: form.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
+    this.removeCartItem = function (productId) {
+        var form = new URLSearchParams();
+        form.append("productId", productId);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/RemoveCartItem",
+            data: form.toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+    };
+
     this.login = function (username, password) {
         var params = new URLSearchParams();
         params.append("username", username || "");
