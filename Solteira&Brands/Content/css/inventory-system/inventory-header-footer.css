@@ -95,8 +95,21 @@ html, body {
 }
 
 .sidebar a,
-.sidebar-ul a {
+.sidebar-ul a,
+.sidebar a:link,
+.sidebar a:visited,
+.sidebar a:focus,
+.sidebar a:active,
+.sidebar .sidebar-text {
     text-decoration: none !important;
+    color: #FFFBE8 !important;
+}
+
+.option:hover a,
+.option:hover a:link,
+.option:hover a:visited,
+.option:hover .sidebar-text {
+    color: #87AE73 !important;
 }
 
 .option img {

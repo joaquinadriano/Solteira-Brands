@@ -2938,6 +2938,43 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        // ----- USERS (Admin): registered users list -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetUsersForAdmin()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var raw = db.tbl_users
+                    .Include("Role")
+                    .OrderByDescending(u => u.CreatedAt)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        username = u.Username,
+                        email = u.Email,
+                        roleName = u.Role != null ? u.Role.Name : "UNKNOWN",
+                        isActive = u.IsActive,
+                        isVerified = u.IsVerified,
+                        joinedAt = u.CreatedAt
+                    })
+                    .ToList();
+
+                var list = raw.Select(u => new
+                {
+                    id = u.id,
+                    username = u.username,
+                    email = u.email,
+                    roleName = u.roleName,
+                    isActive = u.isActive,
+                    isVerified = u.isVerified,
+                    joinedAtString = u.joinedAt.ToString("MMM dd, yyyy")
+                }).ToList();
+
+                return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
         // ----- ACCOUNT (Login, Register, OTP, Forgot/New Password) -----
         public ActionResult SolteiraBrandsLogin()
         {

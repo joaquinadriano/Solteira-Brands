@@ -248,9 +248,7 @@
 
             });
 
-            $(document).ready(function () {
-                $('#usersTable').DataTable({ searching: false, paging: false, info: false });
-            });
+            // usersTable: Angular-driven (ng-repeat), do not init DataTables or rows won't show after load
 
 
             //----------Orders Page----------
