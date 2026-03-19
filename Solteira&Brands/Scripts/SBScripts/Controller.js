@@ -1155,6 +1155,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         angular.forEach($scope.cart, function (item) {
             item.selected = $scope.selectAll;
         });
+        if (isBuyer) {
+            try { localStorage.setItem('sb_cart', JSON.stringify($scope.cart)); } catch (e) { }
+        }
+    };
+
+    // Persist selection changes so Checkout page receives correct selected items.
+    $scope.onCartSelectionChanged = function () {
+        if (!isBuyer) return;
+        try { localStorage.setItem('sb_cart', JSON.stringify($scope.cart)); } catch (e) { }
     };
     // Keep selectAll checkbox in sync when user ticks/unticks individual items
     $scope.$watch('cart', function () {
