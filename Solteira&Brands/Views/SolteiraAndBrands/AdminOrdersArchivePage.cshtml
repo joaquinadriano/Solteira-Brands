@@ -27,7 +27,7 @@
                     </thead>
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="order in ordersList">
-                            <td>{{order.orderNumber}}</td>
+                            <td data-order="{{order.id || order.Id || 0}}">{{order.orderNumber}}</td>
                             <td>{{order.orderDateString}}</td>
                             <td>{{order.itemCount}} item(s)</td>
                             <td>{{order.deliveryAddress}}</td>

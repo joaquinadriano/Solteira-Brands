@@ -16,6 +16,8 @@ namespace Solteira_Brands.Models
         public bool IsVerified { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool AcceptedTerms { get; set; }
+        public DateTime? AcceptedAt { get; set; }
         public int? AvatarImageId { get; set; }
 
         public virtual tblRolesModel Role { get; set; }

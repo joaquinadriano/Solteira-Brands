@@ -21,15 +21,36 @@ body, html {
     align-items: center;
     justify-content: center;
     height: 100%;
+    position: relative;
+}
+
+/* Subtle tonal overlay to better match the brand palette */
+.login-image::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(135, 174, 115, 0.12), rgba(135, 174, 115, 0) 55%),
+        linear-gradient(180deg, rgba(135, 174, 115, 0.06), rgba(135, 174, 115, 0));
+    opacity: 1;
+    pointer-events: none;
 }
 
     .login-image img {
         max-width: 85%;
         max-height: 90vh;
+        display: block;
         width: auto;
         height: auto;
         object-fit: contain;
+        cursor: pointer;
+        position: relative;
+        z-index: 1;
     }
+
+.login-image-link {
+    display: block;
+    text-decoration: none;
+}
 
 .login-details {
     flex: 1;
@@ -46,20 +67,67 @@ body, html {
     background-color: white;
     padding: 3vw;
     padding-bottom: 40px;
+    width: auto; /* match reference: let it use available width */
 }
 
 .login-text {
     font-family: "Kaisei Tokumin";
     font-size: 1.5rem;
     font-weight: bold;
+    letter-spacing: 0.02em;
     text-align: center;
     margin-bottom: 1.5vw;
+    line-height: 1.2;
+    width: 100%;
+}
+
+.login-title-line1 {
+    display: block;
+    width: 100%;
+    white-space: nowrap; /* keep "Solteira & Brands." together */
+}
+
+/* Second line styling for consistent spacing */
+.login-title-line2 {
+    display: block;
+    width: 100%;
+    white-space: normal;
+    margin-top: 0.1rem;
+    line-height: 1.2;
+}
+
+/* On very small cards, allow wrapping if needed (better than overflow). */
+@media (max-width: 400px) {
+    .login-title-line1 {
+        white-space: normal;
+    }
+}
+
+
+.back-to-home-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: "Nunito";
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #6f6f6f; /* muted, secondary */
+    text-decoration: none;
+    margin-bottom: 1rem;
+    transition: color 0.2s ease;
+}
+
+.back-to-home-link:hover {
+    color: #4f4f4f;
+    text-decoration: underline;
 }
 
 .login-form .form-label {
     font-family: "Nunito";
     font-size: 1.25rem;
+    font-weight: 400;
     margin-bottom: .5vw;
+    letter-spacing: 0.01em;
 }
 
 .login-form .custom-input {
@@ -68,11 +136,23 @@ body, html {
     border: 1px solid #87AE73;
     padding: .5vw;
     border-radius: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+.login-form .text-start.mb-4,
+.login-form .text-end.mb-4 {
+    margin-bottom: 2rem !important;
 }
 
 .is-invalid {
     border: 2px solid red !important;
     background-image: none !important;
+}
+
+.is-invalid:focus {
+    box-shadow: none !important;
 }
 
 .helper-text {
@@ -114,7 +194,8 @@ body, html {
     padding: 0 1vw;
 }
 
-.form-control:focus {
+.login-form .form-control:focus {
+    outline: none;
     box-shadow: none;
     border-color: #87AE73;
 }
@@ -122,7 +203,16 @@ body, html {
 .forgot-password-text {
     font-family: "Kaisei Tokumin";
     font-size: 1.15rem;
-    color: #1e1e1e;
+    font-weight: 400;
+    color: #1e1e1e; /* black like reference */
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.forgot-password-text:hover {
+    color: #000000;
+    text-decoration: underline;
 }
 
 .login-btn {
@@ -134,7 +224,9 @@ body, html {
     border: none;
     color: #FFFBE8;
     padding: .5vw;
+    margin-top: 0;
     margin-bottom: 20px;
+    width: auto;
     transition: 0.2s ease;
 }
 
@@ -151,6 +243,7 @@ body, html {
 .password-wrapper {
     position: relative;
     border: 1px solid #87AE73;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .password-wrapper .custom-input,
@@ -158,6 +251,13 @@ body, html {
     border: none;
     width: 100%;
     padding-right: 45px;
+    background-color: #fbfbfb;
+    box-sizing: border-box;
+}
+
+.password-wrapper:focus-within {
+    border-color: #87AE73;
+    box-shadow: none;
 }
 
 .password-wrapper .toggle-password {
@@ -186,11 +286,22 @@ body, html {
     gap: 1vw;
     color: white;
     margin-top: 2vw;
+    justify-content: center;
+    align-items: baseline;
 }
 
 .register-link {
     text-decoration: underline;
+    text-underline-offset: 3px;
     color: white;
+    font-family: "Kaisei Tokumin";
+    font-weight: 400; /* just hyperlink (no bold) */
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.register-link:hover {
+    text-decoration: underline;
+    color: #FFFBE8;
 }
 
 .my-swal-title {
@@ -217,3 +328,84 @@ body, html {
     .my-swal-button:hover {
         background-color: #789F64;
     }
+
+/* Responsive: keep split layout on desktop, stack on tablet/mobile */
+@media (max-width: 991.98px) {
+    body, html {
+        overflow-x: hidden;
+        overflow-y: auto; /* allow scrolling when content grows */
+    }
+
+    .login-container {
+        flex-direction: column;
+        height: auto;
+        width: 100%;
+        min-height: 100vh;
+    }
+
+    /* Option A (recommended): hide image on smaller screens */
+    .login-image {
+        display: none;
+    }
+
+    .login-details {
+        width: 100%;
+        flex: none;
+        padding: 1.5rem 1rem;
+        justify-content: flex-start;
+        align-items: center;
+    }
+
+    .login-form {
+        width: 100%;
+        max-width: 480px; /* slightly wider for good stacked layout without forcing nowrap */
+        padding: 1.25rem 1rem;
+        padding-bottom: 1.5rem;
+    }
+
+    .login-form form {
+        width: 100%;
+    }
+
+    .back-to-home-link {
+        margin-bottom: 0.75rem;
+    }
+
+    .login-text {
+        font-size: 1.32rem;
+        letter-spacing: 0.015em;
+        margin-bottom: 1.4rem;
+        line-height: 1.18;
+    }
+
+    .login-form .form-label {
+        font-size: 1rem;
+    }
+
+    .login-form .custom-input {
+        font-size: 1rem;
+        padding: 0.75rem 0.9rem;
+    }
+
+    .login-form .text-start.mb-4,
+    .login-form .text-end.mb-4 {
+        margin-bottom: 1.35rem !important;
+    }
+
+    .login-btn {
+        width: 40% !important; /* keep centered, not full-width, on stacked layout */
+        font-size: 1.15rem;
+        padding: 0.95rem 1rem;
+        margin-top: 0.5rem;
+        margin-bottom: 14px;
+    }
+
+    .forgot-password-text {
+        font-size: 0.95rem;
+    }
+
+    .reg-desc {
+        font-size: 1rem;
+        margin-top: 1.25rem;
+    }
+}

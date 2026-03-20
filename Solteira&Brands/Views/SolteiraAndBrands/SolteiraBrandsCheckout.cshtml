@@ -82,7 +82,7 @@
 
                 <div class="radio-option-container">
                     <label class="custom-container radio-option">
-                        <input type="radio" name="payment" id="full" ng-model="paymentMethod" value="Full Payment" />
+                        <input type="radio" name="payment" id="full" ng-model="paymentMethod" value="Full Payment" ng-change="agreeTerms = false" />
                         <span class="custom-mark radio-mark"></span>
                         <div class="label-text">
                             Full Payment <br>
@@ -106,7 +106,7 @@
 
                 <div class="radio-option-container">
                     <label class="custom-container radio-option">
-                        <input type="radio" name="payment" id="layaway" ng-model="paymentMethod" value="Layaway" />
+                        <input type="radio" name="payment" id="layaway" ng-model="paymentMethod" value="Layaway" ng-change="agreeTerms = false" />
                         <span class="custom-mark radio-mark"></span>
                         <div class="label-text">
                             Layaway <br>
@@ -135,12 +135,17 @@
                 </div>
             </div>
 
-            <div class="terms-checkbox">
+            <div class="terms-checkbox" ng-if="paymentMethod">
                 <label class="custom-container">
-                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" />
+                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" ng-click="agreeTerms = $event.target.checked" />
                     <span class="custom-mark checkbox-mark"></span>
                     <span class="terms-text">
-                        I acknowledge and agree to the Full Payment Terms and Conditions above.
+                        <span ng-show="paymentMethod === 'Full Payment'">
+                            I acknowledge and agree to the Full Payment Terms and Conditions above.
+                        </span>
+                        <span ng-show="paymentMethod === 'Layaway'">
+                            I acknowledge and agree to the Layaway Terms and Conditions above.
+                        </span>
                     </span>
                 </label>
             </div>
@@ -148,7 +153,7 @@
             <div class="order-btn-container">
                 <button type="button" class="order-btn"
                         ng-click="placeOrder()"
-                        ng-disabled="checkoutForm.$invalid || !paymentMethod || !agreeTerms">
+                        ng-disabled="!isCheckoutReadyToPlaceOrder()">
                     ORDER
                 </button>
             </div>

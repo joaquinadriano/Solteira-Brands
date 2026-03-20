@@ -129,13 +129,166 @@
                         <small class="error-text" ng-if="registerErrors.verifyPassword">{{registerErrors.verifyPassword}}</small>
                     </div>
 
+                    <div class="form-group text-start mb-4 w-100">
+                        <div class="form-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="acceptedTermsCheckbox"
+                                   name="acceptedTerms"
+                                   ng-model="registerData.acceptedTerms"
+                                   ng-change="onAcceptedTermsChange()"
+                                   required />
+
+                            <label class="form-check-label" for="acceptedTermsCheckbox">
+                                I agree to the
+                                <a href="#"
+                                   class="sb-policy-link"
+                                   id="termsPolicyLink">Terms &amp; Conditions</a>
+                                and
+                                <a href="#"
+                                   class="sb-policy-link"
+                                   id="privacyPolicyLink">Privacy Policy</a>
+                            </label>
+                        </div>
+
+                        <small class="error-text" ng-if="registerErrors.acceptedTerms">
+                            {{registerErrors.acceptedTerms}}
+                        </small>
+                    </div>
+
                     <button type="submit"
                             class="create-btn w-25"
-                            ng-disabled="registerErrors.email || registerErrors.username || registerErrors.password || registerErrors.verifyPassword">
+                            ng-disabled="registerErrors.email || registerErrors.username || registerErrors.password || registerErrors.verifyPassword || registerErrors.acceptedTerms || !registerData.acceptedTerms">
                         CREATE
                     </button>
 
                 </form>
+
+                <!-- Terms & Conditions Modal -->
+                <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content sb-policy-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="termsModalLabel">Terms &amp; Conditions</h5>
+                            </div>
+                            <div class="modal-body">
+                                <div class="sb-policy-scroll" id="termsPolicyScroll">
+                                    <p class="mb-3">Welcome to Solteira &amp; Brands. By creating an account, you agree to the following terms:</p>
+                                    <ol class="mb-0">
+                                        <li>
+                                            Account Responsibility
+                                            <br />
+                                            You are responsible for maintaining the confidentiality of your account credentials and all activities under your account.
+                                        </li>
+                                        <li>
+                                            Use of the Platform
+                                            <br />
+                                            You agree not to misuse the website, attempt unauthorized access, or disrupt system functionality.
+                                        </li>
+                                        <li>
+                                            Manual Payment System
+                                            <br />
+                                            All payments are processed manually via GCash, bank transfer, or meetup.
+                                            Users are required to upload proof of payment after completing a transaction.
+                                        </li>
+                                        <li>
+                                            Payment Verification
+                                            <br />
+                                            All submitted payments are subject to admin verification.
+                                            Orders will only be confirmed once payment is validated.
+                                            We reserve the right to reject invalid or suspicious proof of payment.
+                                        </li>
+                                        <li>
+                                            Order Cancellation
+                                            <br />
+                                            Orders that remain unpaid within two (2) to three (3) business days may be cancelled.
+                                        </li>
+                                        <li>
+                                            Pricing and Availability
+                                            <br />
+                                            Prices and product availability may change without prior notice.
+                                        </li>
+                                        <li>
+                                            Shipping Policy
+                                            <br />
+                                            Shipping is free of charge for all orders.
+                                            Delivery timelines may vary depending on location and courier conditions.
+                                        </li>
+                                        <li>
+                                            No Return / No Refund Policy
+                                            <br />
+                                            All sales are final.
+                                            No returns, exchanges, or refunds are allowed once payment is verified and approved.
+                                        </li>
+                                        <li>
+                                            Limitation of Liability
+                                            <br />
+                                            Solteira &amp; Brands is not liable for delays, losses, or damages beyond our control.
+                                        </li>
+                                        <li>
+                                            Modifications
+                                            <br />
+                                            We may update these Terms at any time. Continued use of the platform means acceptance of updates.
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-success" id="termsAgreeBtn" disabled>Agree</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Policy Modal -->
+                <div class="modal fade" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content sb-policy-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="privacyModalLabel">Privacy Policy</h5>
+                            </div>
+                            <div class="modal-body">
+                                <div class="sb-policy-scroll" id="privacyPolicyScroll">
+                                    <p class="mb-3">We value your privacy and are committed to protecting your personal data.</p>
+
+                                    <h6 class="sb-policy-subtitle">1. Information We Collect</h6>
+                                    <ul class="mb-3">
+                                        <li>Name</li>
+                                        <li>Email address</li>
+                                        <li>Contact number</li>
+                                        <li>Shipping address</li>
+                                        <li>Account credentials</li>
+                                    </ul>
+
+                                    <h6 class="sb-policy-subtitle">2. How We Use Your Data</h6>
+                                    <ul class="mb-3">
+                                        <li>To process orders</li>
+                                        <li>To verify payments</li>
+                                        <li>To provide customer support</li>
+                                        <li>To improve our services</li>
+                                    </ul>
+
+                                    <h6 class="sb-policy-subtitle">3. Data Protection</h6>
+                                    <p class="mb-3">We implement security measures to protect your data from unauthorized access.</p>
+
+                                    <h6 class="sb-policy-subtitle">4. Data Sharing</h6>
+                                    <p class="mb-3">We only share necessary data with payment providers and delivery services when required.</p>
+
+                                    <h6 class="sb-policy-subtitle">5. Data Retention</h6>
+                                    <p class="mb-0">Your data is stored only as long as necessary for business and legal purposes.</p>
+
+                                    <h6 class="sb-policy-subtitle">6. Updates</h6>
+                                    <p class="mb-0">We may update this policy. Continued use means acceptance of changes.</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-success" id="privacyAgreeBtn" disabled>Agree</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <p class="login-desc d-flex">
                     Already have an account?
@@ -175,6 +328,82 @@
         })();
     </script>
     <script src="~/Scripts/SBScripts/PasswordToggle.js"></script>
+
+    <script>
+        (function () {
+            var checkbox = document.getElementById('acceptedTermsCheckbox');
+            if (!checkbox) return;
+
+            var termsLink = document.getElementById('termsPolicyLink');
+            var privacyLink = document.getElementById('privacyPolicyLink');
+
+            function setCheckboxChecked() {
+                checkbox.checked = true;
+                // Trigger Angular ng-change/ng-model updates.
+                checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            function wirePolicyModal(modalId, scrollId, agreeBtnId) {
+                var modalEl = document.getElementById(modalId);
+                var scrollEl = document.getElementById(scrollId);
+                var agreeBtn = document.getElementById(agreeBtnId);
+                if (!modalEl || !scrollEl || !agreeBtn) return;
+
+                function resetAgree() {
+                    agreeBtn.disabled = true;
+                    // Reset scroll so Agree must be earned each time.
+                    scrollEl.scrollTop = 0;
+                }
+
+                scrollEl.addEventListener('scroll', function () {
+                    var remaining = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+                    // Threshold to account for sub-pixel scrolling.
+                    if (remaining <= 2) {
+                        agreeBtn.disabled = false;
+                    } else {
+                        agreeBtn.disabled = true;
+                    }
+                });
+
+                modalEl.addEventListener('shown.bs.modal', function () {
+                    resetAgree();
+                    scrollEl.focus && scrollEl.focus();
+                });
+
+                agreeBtn.addEventListener('click', function () {
+                    setCheckboxChecked();
+                    var m = window.bootstrap ? bootstrap.Modal.getInstance(modalEl) : null;
+                    if (m) m.hide();
+                    else modalEl.classList.remove('show');
+                });
+            }
+
+            wirePolicyModal('termsModal', 'termsPolicyScroll', 'termsAgreeBtn');
+            wirePolicyModal('privacyModal', 'privacyPolicyScroll', 'privacyAgreeBtn');
+
+            function openModal(modalId) {
+                var modalEl = document.getElementById(modalId);
+                if (!modalEl || !window.bootstrap) return;
+                var m = bootstrap.Modal.getOrCreateInstance(modalEl);
+                m.show();
+            }
+
+            if (termsLink) {
+                termsLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    openModal('termsModal');
+                });
+            }
+
+            if (privacyLink) {
+                privacyLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    openModal('privacyModal');
+                });
+            }
+        })();
+    </script>
 </body>
 
 </html>

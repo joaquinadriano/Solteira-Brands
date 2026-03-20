@@ -13,6 +13,14 @@ namespace Solteira_Brands
         {
             routes.IgnoreRoute("{resource}.axd/{*pathInfo}");
 
+            // Dedicated route for email verification after login.
+            // Example: /verify?email=user@example.com
+            routes.MapRoute(
+                name: "VerifyEmail",
+                url: "verify",
+                defaults: new { controller = "Account", action = "Verify" }
+            );
+
             routes.MapRoute(
                 name: "Default",
                 url: "{controller}/{action}/{id}",

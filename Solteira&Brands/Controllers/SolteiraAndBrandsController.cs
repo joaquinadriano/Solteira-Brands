@@ -68,6 +68,25 @@ namespace Solteira_Brands.Controllers
             if (!string.Equals(order.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase)) return;
             if (string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)) return;
 
+            // New deadline system: if PaymentDeadline exists, enforce STRICT cancellation based on it.
+            if (order.PaymentDeadline.HasValue)
+            {
+                if (order.PaymentDeadline.Value <= DateTime.UtcNow)
+                {
+                            OrderDeadlineService.CancelOrder(order.Id, null);
+
+                    // Keep the current tracked entity in sync so SubmitPayment blocks correctly.
+                    var refreshed = db.tbl_orders.FirstOrDefault(o => o.Id == order.Id);
+                    if (refreshed != null)
+                    {
+                        order.OrderStatus = refreshed.OrderStatus;
+                        order.RejectionReason = refreshed.RejectionReason;
+                        order.CancellationReason = refreshed.CancellationReason;
+                    }
+                }
+                return;
+            }
+
             var layawayRow = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
             var monthsAllowed = layawayRow != null ? layawayRow.MonthsAllowed : 3;
             var gracePeriodDays = (layawayRow != null && layawayRow.GracePeriodDays.HasValue) ? layawayRow.GracePeriodDays.Value : 0;
@@ -91,16 +110,21 @@ namespace Solteira_Brands.Controllers
                 var dueDate = baseDate.AddMonths(i);
                 var graceEnd = dueDate.Date.AddDays(gracePeriodDays);
                 if (today <= graceEnd) continue;
-                order.OrderStatus = "Cancelled";
-                order.LastStatusUpdateAt = DateTime.Now;
-                if (order.OrderItems != null)
+                order.OrderStatus = OrderStatus.Cancelled;
+                // Auto-cancellation should not require a stored cancellation reason.
+                // UI shows overdue/expired via payment-deadline indicators where applicable.
+                order.RejectionReason = null;
+                order.CancellationReason = null;
+                order.LastStatusUpdateAt = DateTime.UtcNow;
+                if (order.OrderItems != null && !order.InventoryReleased)
                 {
                     foreach (var item in order.OrderItems)
                     {
                         if (!item.ProductId.HasValue) continue;
                         var product = db.tbl_products.Find(item.ProductId.Value);
-                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.UtcNow; }
                     }
+                    order.InventoryReleased = true;
                 }
                 LogActivity(db, "Order Cancelled (layaway overdue)", "Orders", order.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + "; installment overdue.");
                 db.SaveChanges();
@@ -858,6 +882,10 @@ namespace Solteira_Brands.Controllers
                     RemainingBalance = request.TotalAmount,
                     OrderStatus = OrderStatus.PendingApproval,
                     DeliveryType = deliveryType,
+                    // Deadline starts after admin approves the order (see UpdateOrderStatus when transitioning to Approved).
+                    PaymentDeadline = null,
+                    InventoryReleased = false,
+                    IsLayaway = paymentType == "LAYAWAY",
                     CreatedAt = now,
                     LastStatusUpdateAt = now
                 };
@@ -904,6 +932,7 @@ namespace Solteira_Brands.Controllers
                     .ToList();
                 var list = orders.Select(o =>
                 {
+                    var nowUtc = DateTime.UtcNow;
                     var latestDelivery = o.Deliveries != null && o.Deliveries.Any()
                         ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First()
                         : null;
@@ -947,6 +976,25 @@ namespace Solteira_Brands.Controllers
                         }
                     }
 
+                    var paymentDeadlineFormatted = o.PaymentDeadline.HasValue
+                        ? o.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                        : (string)null;
+                    var paymentDeadlineRemainingText = o.PaymentDeadline.HasValue
+                        ? ((o.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
+                            ? "Expired"
+                            : (o.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                        : (string)null;
+                    var deadlineRelevant =
+                        string.Equals(status, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(status, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(status, OrderStatus.PendingPayment, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(status, OrderStatus.PendingDownpayment, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(status, OrderStatus.LayawayActive, StringComparison.OrdinalIgnoreCase);
+
+                    var isOverdue = o.PaymentDeadline.HasValue
+                        && o.PaymentDeadline.Value <= nowUtc
+                        && deadlineRelevant;
+
                     return new
                     {
                         id = o.Id,
@@ -961,6 +1009,10 @@ namespace Solteira_Brands.Controllers
                         contactNumber = o.ContactNumber,
                         paymentMethod = o.PaymentMethod,
                         hasPayments = paymentsList.Any(),
+                        paymentDeadline = o.PaymentDeadline,
+                        paymentDeadlineFormatted = paymentDeadlineFormatted,
+                        paymentDeadlineRemainingText = paymentDeadlineRemainingText,
+                        isOverdue = isOverdue,
                         deliveryId = latestDelivery != null ? (int?)latestDelivery.Id : null,
                         deliveryStatus = latestDelivery != null ? latestDelivery.DeliveryStatus : null,
                         deliveryTrackingNumber = latestDelivery != null ? latestDelivery.TrackingNumber : null
@@ -989,6 +1041,17 @@ namespace Solteira_Brands.Controllers
                     ? order.Deliveries.OrderByDescending(d => d.CreatedAt).First()
                     : null;
                 var hasPayments = order.Payments != null && order.Payments.Any();
+                var nowUtc = DateTime.UtcNow;
+                var paymentDeadlineFormatted = order.PaymentDeadline.HasValue
+                    ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                    : (string)null;
+                var paymentDeadlineRemainingText = order.PaymentDeadline.HasValue
+                    ? ((order.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
+                        ? "Expired"
+                        : (order.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                    : (string)null;
+                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("o") : (string)null;
+                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && order.PaymentDeadline.Value <= nowUtc;
 
                 var items = order.OrderItems.Select(i => new
                 {
@@ -1032,6 +1095,11 @@ namespace Solteira_Brands.Controllers
                         id = order.Id,
                         orderNumber = order.OrderNumber,
                         orderStatus = order.OrderStatus,
+                            paymentDeadline = order.PaymentDeadline,
+                            paymentDeadlineFormatted = paymentDeadlineFormatted,
+                            paymentDeadlineRemainingText = paymentDeadlineRemainingText,
+                            paymentDeadlineUtcIso = paymentDeadlineUtcIso,
+                            paymentDeadlineExpired = paymentDeadlineExpired,
                         createdAt = order.CreatedAt,
                         createdAtString = order.CreatedAt.ToString("MM/dd/yyyy hh:mm tt"),
                         customerName = order.CustomerName,
@@ -1259,6 +1327,31 @@ namespace Solteira_Brands.Controllers
                         trackingLink = tnParts.Length > 1 ? tnParts[1] : null;
                     }
 
+                    var nowUtc = DateTime.UtcNow;
+                    var paymentDeadlineFormatted = o.PaymentDeadline.HasValue
+                        ? o.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                        : (string)null;
+                    var paymentDeadlineUtcIso = o.PaymentDeadline.HasValue ? o.PaymentDeadline.Value.ToString("o") : (string)null;
+                    var paymentDeadlineRemainingText = o.PaymentDeadline.HasValue
+                        ? ((o.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
+                            ? "Expired"
+                            : (o.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                        : (string)null;
+                    var paymentDeadlineExpired = o.PaymentDeadline.HasValue && o.PaymentDeadline.Value <= nowUtc;
+                    var deadlineRelevant =
+                        string.Equals(o.OrderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(o.OrderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(o.OrderStatus, OrderStatus.LayawayActive, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(o.OrderStatus, OrderStatus.PendingPayment, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(o.OrderStatus, OrderStatus.PendingDownpayment, StringComparison.OrdinalIgnoreCase);
+                    if (!deadlineRelevant)
+                    {
+                        paymentDeadlineFormatted = null;
+                        paymentDeadlineUtcIso = null;
+                        paymentDeadlineRemainingText = null;
+                        paymentDeadlineExpired = false;
+                    }
+
                     return new
                     {
                         orderId = o.Id,
@@ -1275,6 +1368,11 @@ namespace Solteira_Brands.Controllers
                         paymentType = o.PaymentType ?? "FULL",
                         status = o.OrderStatus,
                         rejectionReason = o.RejectionReason,
+                        paymentDeadline = o.PaymentDeadline,
+                        paymentDeadlineUtcIso = paymentDeadlineUtcIso,
+                        paymentDeadlineFormatted = paymentDeadlineFormatted,
+                        paymentDeadlineRemainingText = paymentDeadlineRemainingText,
+                        paymentDeadlineExpired = paymentDeadlineExpired,
                         latestPaymentRejectionReason = latestPaymentRejectionReason,
                         deliveryStatus = o.Deliveries != null && o.Deliveries.Any()
                             ? o.Deliveries.OrderByDescending(d => d.CreatedAt).First().DeliveryStatus
@@ -1399,8 +1497,8 @@ namespace Solteira_Brands.Controllers
                         amountDue = installmentsRemaining > 0 ? Math.Round(remainingBalanceRecalc / installmentsRemaining, 2) : remainingBalanceRecalc;
                     if (verifiedPayments.Any())
                     {
-                        var baseDate = verifiedPayments.First().VerifiedAt ?? verifiedPayments.First().CreatedAt;
-                        dueDateThisMonth = baseDate.AddMonths(verifiedPaymentsCount);
+                        // Layaway due dates are based on the order placement date so they follow strict monthly schedule.
+                        dueDateThisMonth = order.CreatedAt.AddMonths(verifiedPaymentsCount);
                     }
                 }
                 else
@@ -1413,6 +1511,31 @@ namespace Solteira_Brands.Controllers
                 int? installmentsRemainingNullable = paymentType == "LAYAWAY" ? (int?)installmentsRemaining : null;
                 if (paymentType == "LAYAWAY" && installmentMonthNumber == 0) { installmentMonthNumber = 0; }
 
+                var nowUtc = DateTime.UtcNow;
+                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("o") : (string)null;
+                var paymentDeadlineFormatted = order.PaymentDeadline.HasValue
+                    ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                    : (string)null;
+                var paymentDeadlineRemainingText = order.PaymentDeadline.HasValue
+                    ? ((order.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
+                        ? "Expired"
+                        : (order.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                    : (string)null;
+                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && order.PaymentDeadline.Value <= nowUtc;
+                var deadlineRelevant =
+                    string.Equals(orderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(orderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(orderStatus, OrderStatus.LayawayActive, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(orderStatus, OrderStatus.PendingPayment, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(orderStatus, OrderStatus.PendingDownpayment, StringComparison.OrdinalIgnoreCase);
+                if (!deadlineRelevant)
+                {
+                    paymentDeadlineUtcIso = null;
+                    paymentDeadlineFormatted = null;
+                    paymentDeadlineRemainingText = null;
+                    paymentDeadlineExpired = false;
+                }
+
                 var data = new
                 {
                     order_id = order.Id,
@@ -1420,6 +1543,11 @@ namespace Solteira_Brands.Controllers
                     order_status = orderStatus,
                     order_number = order.OrderNumber,
                     orderNumber = order.OrderNumber,
+                    paymentDeadline = order.PaymentDeadline,
+                    paymentDeadlineUtcIso = paymentDeadlineUtcIso,
+                    paymentDeadlineFormatted = paymentDeadlineFormatted,
+                    paymentDeadlineRemainingText = paymentDeadlineRemainingText,
+                    paymentDeadlineExpired = paymentDeadlineExpired,
                     payment_method = order.PaymentMethod ?? "",
                     customerName = order.CustomerName,
                     contactNumber = order.ContactNumber,
@@ -1620,6 +1748,11 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Layaway orders cannot use Cash through Meetup. Please use GCash or Bank Transfer." });
                     var now = DateTime.Now;
                     var channelDisplay = isMeetup ? "Cash through Meetup" : (string.IsNullOrEmpty(paymentChannel) ? null : paymentChannel);
+
+                    // Stop the deadline countdown as soon as the buyer submits a proof.
+                    // Admin verification/rejection will re-set PaymentDeadline when the buyer needs to resubmit.
+                    order.PaymentDeadline = null;
+
                     var payment = new tblPaymentsModel
                     {
                         OrderId = order.Id,
@@ -2234,17 +2367,19 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Rejection reason is required when rejecting an order." });
                     order.OrderStatus = OrderStatus.Rejected;
                     order.RejectionReason = rejectionReason.Trim();
-                    order.LastStatusUpdateAt = DateTime.Now;
+                    order.PaymentDeadline = null;
+                    order.LastStatusUpdateAt = DateTime.UtcNow;
 
                     var shouldRestoreStock = !restoreStock.HasValue || restoreStock.Value;
-                    if (shouldRestoreStock)
+                    if (shouldRestoreStock && !order.InventoryReleased)
                     {
                         foreach (var item in order.OrderItems)
                         {
                             if (!item.ProductId.HasValue) continue;
                             var product = db.tbl_products.Find(item.ProductId.Value);
-                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.UtcNow; }
                         }
+                        order.InventoryReleased = true;
                     }
                     LogActivity(db, "Order Rejected", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + "; reason: " + (order.RejectionReason ?? ""));
                 }
@@ -2254,17 +2389,21 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Invalid order status transition." });
                     order.OrderStatus = OrderStatus.Cancelled;
                     order.RejectionReason = string.IsNullOrWhiteSpace(rejectionReason) ? order.RejectionReason : rejectionReason.Trim();
-                    order.LastStatusUpdateAt = DateTime.Now;
+                    // Keep legacy UI field (RejectionReason) while also populating CancellationReason.
+                    order.CancellationReason = order.RejectionReason;
+                    order.PaymentDeadline = null;
+                    order.LastStatusUpdateAt = DateTime.UtcNow;
 
                     var shouldRestoreStockOnCancel = !restoreStock.HasValue || restoreStock.Value;
-                    if (shouldRestoreStockOnCancel)
+                    if (shouldRestoreStockOnCancel && !order.InventoryReleased)
                     {
                         foreach (var item in order.OrderItems)
                         {
                             if (!item.ProductId.HasValue) continue;
                             var product = db.tbl_products.Find(item.ProductId.Value);
-                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
+                            if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.UtcNow; }
                         }
+                        order.InventoryReleased = true;
                     }
                     LogActivity(db, "Order Cancelled (manual)", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()) + (order.RejectionReason != null ? "; reason: " + order.RejectionReason : ""));
                 }
@@ -2276,7 +2415,17 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Only orders with status Pending Approval can be approved." });
                     order.OrderStatus = OrderStatus.Approved;
                     order.RejectionReason = null;
-                    order.LastStatusUpdateAt = DateTime.Now;
+                    var nowUtcForDeadline = DateTime.UtcNow;
+                    // Deadline for initial/full payment starts after admin approval (strict only for non-meetup payments).
+                    var deliveryTypeRaw = (order.DeliveryType ?? string.Empty).Trim();
+                    var paymentTypeRaw = (order.PaymentType ?? string.Empty).Trim().ToUpperInvariant();
+                    var isMeetupOrder = deliveryTypeRaw.Equals("MEETUP", StringComparison.OrdinalIgnoreCase)
+                                         || paymentTypeRaw == "CASH_MEETUP";
+
+                    order.PaymentDeadline = isMeetupOrder ? (DateTime?)null : nowUtcForDeadline.AddDays(3);
+                    order.IsLayaway = string.Equals(order.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase);
+                    order.CancellationReason = null;
+                    order.LastStatusUpdateAt = nowUtcForDeadline;
                     LogActivity(db, "Order Approved", "Orders", order.Id, "Order #" + (order.OrderNumber ?? id.ToString()));
                 }
 
@@ -2333,6 +2482,7 @@ namespace Solteira_Brands.Controllers
                 if (!OrderLifecycleRules.CanTransitionPayment(payment.PaymentStatus, statusTrim))
                     return Json(new { success = false, message = "Only SUBMITTED payments can be verified or rejected." });
                 var now = DateTime.Now;
+                var nowUtc = DateTime.UtcNow;
                 payment.PaymentStatus = statusTrim;
                 payment.VerifiedByUserId = adminUser.Id;
                 payment.VerifiedAt = now;
@@ -2348,7 +2498,37 @@ namespace Solteira_Brands.Controllers
                     // Do NOT mutate order.OrderStatus here so that the buyer UI can rely on
                     // the existing Awaiting Payment Verification value + rejection_reason
                     // to drive the "Resubmit Payment" instructions and Pay Now button.
-                    payment.Order.LastStatusUpdateAt = now;
+                    // Reset deadline only when the buyer is allowed to resubmit.
+                    // Layaway must keep the strict monthly schedule (no "reset from now" like regular payments).
+                    if (payment.AllowResubmit != 0)
+                    {
+                        var orderForDeadline = payment.Order;
+                        var isLayaway = string.Equals(orderForDeadline.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase);
+
+                        // Count only VERIFIED payments (downpayment + already paid months).
+                        // The rejected payment is for the "next" slot, so verifiedCount maps to the due month number.
+                        var verifiedCount = (orderForDeadline.Payments ?? new List<tblPaymentsModel>())
+                            .Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase));
+
+                        if (isLayaway && verifiedCount > 0)
+                        {
+                            // STRICT MONTHLY: anchor to order.CreatedAt so early payments don't shift the schedule.
+                            // Resubmit grace: +3 days from the monthly deadline (so it doesn't slide based on rejection timing).
+                            var monthlyDue = orderForDeadline.CreatedAt.AddMonths(verifiedCount);
+                            payment.Order.PaymentDeadline = monthlyDue.AddDays(3);
+                        }
+                        else
+                        {
+                            // Initial downpayment isn't monthly; keep the existing 3-day window behavior.
+                            payment.Order.PaymentDeadline = nowUtc.AddDays(3);
+                        }
+                    }
+                    else
+                    {
+                        payment.Order.PaymentDeadline = null;
+                    }
+
+                    payment.Order.LastStatusUpdateAt = nowUtc;
 
                     LogActivity(db, "Payment Rejected", "Payments", payment.Id, "Order #" + (payment.Order.OrderNumber ?? payment.OrderId.ToString()) + "; reason: " + (payment.RejectionReason ?? ""));
                     db.SaveChanges();
@@ -2403,6 +2583,8 @@ namespace Solteira_Brands.Controllers
                             order.RemainingBalance = 0;
                             order.OrderStatus = OrderStatus.ReadyForMeetup;
                             order.LastStatusUpdateAt = now;
+                            // Payment is effectively completed for meetup orders.
+                            order.PaymentDeadline = null;
                         }
                         else
                         {
@@ -2413,10 +2595,24 @@ namespace Solteira_Brands.Controllers
                             if (remainingBalance <= 0)
                             {
                                 order.OrderStatus = OrderStatus.Paid;
+                                order.PaymentDeadline = null;
                             }
                             else
                             {
                                 order.OrderStatus = OrderStatus.LayawayActive;
+                                // Layaway: advance deadline monthly after each admin verification.
+                                if (string.Equals(paymentTypeRaw, "LAYAWAY", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    order.IsLayaway = true;
+                                        // Strict monthly deadline:
+                                        // next deadline is based on the layaway schedule (downpayment/baseDate + verifiedCount months),
+                                        // not on the time of approval. This prevents deadlines from sliding earlier when payments are made early.
+                                    var verifiedCount = verifiedPayments.Count; // includes downpayment + any verified months
+                                    // Anchor schedule to when the order was created so "Month 1 / Month 2 / ..." never shifts
+                                    // even if admin verifies payments out of order.
+                                    var baseDateUtc = DateTime.SpecifyKind(order.CreatedAt, DateTimeKind.Local).ToUniversalTime();
+                                    order.PaymentDeadline = baseDateUtc.AddMonths(verifiedCount);
+                                }
                             }
                         }
 
@@ -3031,12 +3227,13 @@ namespace Solteira_Brands.Controllers
                     order.RejectionReason = string.IsNullOrWhiteSpace(cancellationReason)
                         ? order.RejectionReason
                         : cancellationReason.Trim();
+                        order.CancellationReason = order.RejectionReason;
                     order.LastStatusUpdateAt = now;
 
                     // Optional stock restoration on cancel, same semantics as manual order cancel:
                     // default is to restore stock unless explicitly disabled.
                     var shouldRestoreStockOnCancel = !restoreStock.HasValue || restoreStock.Value;
-                    if (shouldRestoreStockOnCancel && order.OrderItems != null)
+                        if (shouldRestoreStockOnCancel && order.OrderItems != null && !order.InventoryReleased)
                     {
                         foreach (var item in order.OrderItems)
                         {
@@ -3048,6 +3245,7 @@ namespace Solteira_Brands.Controllers
                                 product.UpdatedAt = now;
                             }
                         }
+                            order.InventoryReleased = true;
                     }
 
                     db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
@@ -3114,32 +3312,7 @@ namespace Solteira_Brands.Controllers
         [HttpGet]
         public JsonResult CheckAndCancelOverdueOrders()
         {
-            var cutoff = DateTime.Now.AddHours(-24);
-            var cancelled = 0;
-            using (var db = new SolteiraBrandsContext())
-            {
-                var orders = db.tbl_orders
-                    .Include("OrderItems")
-                    .Include("Payments")
-                    .Where(o => (o.OrderStatus == "Pending Approval" || o.OrderStatus == "Pending" || o.OrderStatus == "Pending Payment" || o.OrderStatus == "Pending Downpayment" || o.OrderStatus == "Approved" || o.OrderStatus == "Awaiting Payment Verification") && o.CreatedAt < cutoff)
-                    .ToList();
-                foreach (var order in orders)
-                {
-                    var hasVerified = order.Payments != null && order.Payments.Any(p => p.PaymentStatus == "VERIFIED");
-                    if (hasVerified) continue;
-                    order.OrderStatus = "Cancelled";
-                    order.LastStatusUpdateAt = DateTime.Now;
-                    foreach (var item in order.OrderItems)
-                    {
-                        if (!item.ProductId.HasValue) continue;
-                        var product = db.tbl_products.Find(item.ProductId.Value);
-                        if (product != null) { product.StockQuantity += item.Quantity; product.UpdatedAt = DateTime.Now; }
-                    }
-                    LogActivity(db, "Order Cancelled (deadline)", "Orders", order.Id, "Order #" + (order.OrderNumber ?? order.Id.ToString()) + "; payment deadline exceeded.");
-                    cancelled++;
-                }
-                db.SaveChanges();
-            }
+            var cancelled = OrderDeadlineService.EnforcePaymentDeadlines();
             return Json(new { success = true, cancelled = cancelled }, JsonRequestBehavior.AllowGet);
         }
 
@@ -3278,6 +3451,7 @@ namespace Solteira_Brands.Controllers
         }
 
         // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images_uploaded/products/) -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
         public JsonResult UploadProductImage(HttpPostedFileBase file)
         {
@@ -3316,6 +3490,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
         public JsonResult GetProductImage(int imageId)
         {

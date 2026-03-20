@@ -26,7 +26,7 @@
                     </thead>
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="o in meetupOrdersList track by o.id">
-                            <td>{{o.orderNumber}}</td>
+                            <td data-order="{{o.id || 0}}">{{o.orderNumber}}</td>
                             <td>{{o.customerName}}</td>
                             <td>{{o.deliveryAddress}}</td>
                             <td>&#8369; {{o.totalAmount | number:2}}</td>

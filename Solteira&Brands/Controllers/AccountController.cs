@@ -29,20 +29,90 @@ namespace Solteira_Brands.Controllers
         private void IssueAuthCookie(tblUsersModel user)
         {
             if (user == null) return;
+            // Preserve current persistence mode (if any) so profile/password updates do not accidentally
+            // drop an existing Remember Me cookie.
+            var keepPersistent = false;
+            try
+            {
+                var authCookie = Request.Cookies[FormsAuthentication.FormsCookieName];
+                if (authCookie != null && !string.IsNullOrEmpty(authCookie.Value))
+                {
+                    var existingTicket = FormsAuthentication.Decrypt(authCookie.Value);
+                    keepPersistent = existingTicket != null && existingTicket.IsPersistent;
+                }
+            }
+            catch { /* ignore and fall back to non-persistent */ }
+
+            IssueAuthCookie(user, rememberMe: keepPersistent);
+        }
+
+        private const int RememberMeMinDays = 7;
+        private const int RememberMeMaxDays = 30;
+        private const int RememberMeDefaultDays = 14;
+        private const string RememberMeDaysKey = "RememberMeDays";
+
+        private int GetRememberMeDays()
+        {
+            var raw = ConfigurationManager.AppSettings[RememberMeDaysKey];
+            if (!int.TryParse(raw, out var days))
+                days = RememberMeDefaultDays;
+
+            if (days < RememberMeMinDays) days = RememberMeMinDays;
+            if (days > RememberMeMaxDays) days = RememberMeMaxDays;
+            return days;
+        }
+
+        private void IssueAuthCookie(tblUsersModel user, bool rememberMe)
+        {
+            if (user == null) return;
 
             var roleName = user.Role != null ? user.Role.Name : "BUYER";
             var userData = (user.Username ?? string.Empty) + "|" + roleName;
 
+            var issuedAtUtc = DateTime.UtcNow;
+
+            var isPersistent = rememberMe;
+            var expiration = isPersistent
+                ? issuedAtUtc.AddDays(GetRememberMeDays())
+                : issuedAtUtc.AddMinutes(60);
+
             var ticket = new FormsAuthenticationTicket(
                 version: 1,
                 name: user.Username,
-                issueDate: DateTime.UtcNow,
-                expiration: DateTime.UtcNow.AddMinutes(60),
-                isPersistent: false,
+                issueDate: issuedAtUtc,
+                expiration: expiration,
+                isPersistent: isPersistent,
                 userData: userData);
 
             var encTicket = FormsAuthentication.Encrypt(ticket);
-            var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, encTicket) { HttpOnly = true };
+
+            var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, encTicket)
+            {
+                HttpOnly = true,
+                Path = FormsAuthentication.FormsCookiePath
+            };
+
+            if (Request != null && Request.IsSecureConnection)
+                cookie.Secure = true;
+
+            // Set SameSite=Lax when available (safe fallback via reflection).
+            try
+            {
+                var sameSiteProp = cookie.GetType().GetProperty("SameSite");
+                if (sameSiteProp != null && sameSiteProp.CanWrite)
+                {
+                    var laxValue = Enum.Parse(sameSiteProp.PropertyType, "Lax");
+                    sameSiteProp.SetValue(cookie, laxValue, null);
+                }
+            }
+            catch { /* ignore */ }
+
+            if (isPersistent)
+            {
+                // Ensure cookie persistence matches the ticket expiration.
+                cookie.Expires = expiration;
+            }
+
             Response.Cookies.Set(cookie);
         }
 
@@ -75,7 +145,7 @@ namespace Solteira_Brands.Controllers
         /// POST: Validate username/password, create Forms auth cookie with role, return redirect URL.
         /// </summary>
         [HttpPost]
-        public ActionResult Login(string username, string password)
+        public ActionResult Login(string username, string password, bool rememberMe = false)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
             {
@@ -106,10 +176,23 @@ namespace Solteira_Brands.Controllers
                 var roleName = user.Role?.Name ?? "BUYER";
                 if (roleName == "BUYER" && !user.IsVerified)
                 {
-                    return Json(new { success = false, message = "Please verify your email before signing in. Check your inbox for the 6-digit OTP." });
+                    // Do not issue the auth cookie/session when the user isn't verified yet.
+                    // Frontend will auto-redirect to /verify?email=...
+                    var verifyUrl = Url.RouteUrl("VerifyEmail", new { email = user.Email });
+                    if (string.IsNullOrEmpty(verifyUrl))
+                    {
+                        verifyUrl = "/verify?email=" + HttpUtility.UrlEncode(user.Email ?? string.Empty);
+                    }
+
+                    return Json(new
+                    {
+                        success = false,
+                        redirectUrl = verifyUrl,
+                        message = "Please verify your email to continue"
+                    });
                 }
 
-                IssueAuthCookie(user);
+                IssueAuthCookie(user, rememberMe);
 
                 // Activity log: trail when inventory user (admin/manager/staff) logs in
                 if (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
@@ -151,12 +234,50 @@ namespace Solteira_Brands.Controllers
                 Session.Abandon();
             }
             FormsAuthentication.SignOut();
+
+            // Ensure persistent cookie is removed even if SignOut behavior changes.
+            try
+            {
+                var expired = new HttpCookie(FormsAuthentication.FormsCookieName, "")
+                {
+                    Expires = DateTime.UtcNow.AddYears(-1),
+                    HttpOnly = true,
+                    Path = FormsAuthentication.FormsCookiePath
+                };
+                if (Request != null && Request.IsSecureConnection)
+                    expired.Secure = true;
+                Response.Cookies.Set(expired);
+            }
+            catch { }
+
             Response.Cache.SetCacheability(HttpCacheability.NoCache);
             Response.Cache.SetNoStore();
             Response.AppendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
             Response.AppendHeader("Pragma", "no-cache");
             Response.Cache.SetExpires(DateTime.UtcNow.AddYears(-1));
             return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+        }
+
+        /// <summary>
+        /// GET: Email verification page (OTP) used after login when IsVerified == 0.
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public ActionResult Verify(string email)
+        {
+            var emailTrim = (email ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(emailTrim))
+                return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
+                if (user == null || user.IsVerified)
+                    return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+            }
+
+            ViewBag.Email = emailTrim;
+            return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsVerify.cshtml");
         }
 
         /// <summary>
@@ -287,9 +408,14 @@ namespace Solteira_Brands.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Register(string email, string username, string password, string verifyPassword)
+        public ActionResult Register(string email, string username, string password, string verifyPassword, bool acceptedTerms = false)
         {
             var errors = new System.Collections.Generic.Dictionary<string, string>();
+
+            if (!acceptedTerms)
+            {
+                errors["acceptedTerms"] = "You must agree to the Terms & Conditions and Privacy Policy";
+            }
 
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -358,7 +484,9 @@ namespace Solteira_Brands.Controllers
                     PasswordSalt = saltBase64,
                     IsVerified = false,
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    AcceptedTerms = acceptedTerms,
+                    AcceptedAt = acceptedTerms ? (DateTime?)DateTime.UtcNow : null
                 };
 
                 db.tbl_users.Add(user);
@@ -642,6 +770,7 @@ namespace Solteira_Brands.Controllers
         /// One-time seed: replace SEEDME password_hash/password_salt for trial accounts with PBKDF2 hash for "Password123@".
         /// Run once after executing the SQL script. Safe to call multiple times (only updates rows where password_hash = 'SEEDME').
         /// </summary>
+        [Authorize(Roles = "ADMIN")]
         [HttpGet]
         public ActionResult SeedTrialPasswords()
         {

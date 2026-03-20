@@ -22,8 +22,8 @@
 
         <div class="login-image">
 
-            <a href="@Url.Action("SolteiraBrandsHome","SolteiraAndBrands")">
-                <img src="@Url.Content("~/Content/img/account/login-img.jpg")" />
+            <a href="@Url.Action("SolteiraBrandsHome","SolteiraAndBrands")" class="login-image-link" aria-label="Back to home">
+                <img src="@Url.Content("~/Content/img/account/login-img.jpg")" alt="Solteira & Brands luxury branding artwork" />
             </a>
 
         </div>
@@ -31,8 +31,12 @@
         <div class="login-details d-flex align-items-center justify-content-center">
 
             <div class="login-form">
+                <a href="@Url.Action("SolteiraBrandsHome","SolteiraAndBrands")" class="back-to-home-link">&larr; Back to Home</a>
 
-                <p class="login-text">Welcome back to Solteira & Brands. <br /> Elegance awaits you!</p>
+                <p class="login-text">
+                    <span class="login-title-line1">Welcome back to Solteira &amp;&nbsp;Brands.</span>
+                    <span class="login-title-line2">Elegance awaits you!</span>
+                </p>
 
                 <form name="loginForm" ng-submit="login()" class="d-flex flex-column align-items-center">
 
@@ -67,6 +71,13 @@
                             </button>
                         </div>
                         <small class="error-text" ng-if="loginErrors.password">{{loginErrors.password}}</small>
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="rememberMe" class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                            <input type="checkbox" id="rememberMe" ng-model="loginData.rememberMe" />
+                            <span>Remember Me</span>
+                        </label>
                     </div>
 
                     <div class="text-end w-100 mb-4">

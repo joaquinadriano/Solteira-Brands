@@ -9,6 +9,12 @@
 
     <div class="payment-card" ng-if="paymentOrder">
         <h2 class="payment-title">PAYMENT</h2>
+        <div class="small mb-3"
+             ng-if="paymentOrder.paymentDeadlineFormatted"
+             ng-class="paymentOrder.paymentDeadlineExpired ? 'text-danger' : 'text-muted'">
+            <strong>Payment deadline:</strong> {{paymentOrder.paymentDeadlineFormatted}}
+            <span>({{paymentOrder.paymentDeadlineRemainingText}})</span>
+        </div>
 
         @* Order Rejected: show only this, no payment banners. *@
         <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') === 'REJECTED')" class="alert alert-danger mb-3">
@@ -19,7 +25,7 @@
             <button type="button" class="btn btn-sm btn-outline-dark ms-2" ng-click="reloadPaymentOrder()">Refresh</button>
         </div>
         @* Payment banners only when order is NOT rejected. *@
-        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') !== 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof) && ((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus === 'REJECTED' || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus === 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit" class="alert alert-danger mb-3">
+        <div ng-if="paymentOrder && ((paymentOrder.order_status || paymentOrder.orderStatus || '').toUpperCase().replace(/\s+/g, ' ') !== 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof) && ((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus === 'REJECTED' || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus === 'REJECTED') && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).allowResubmit" class="alert alert-success mb-3 text-dark">
             <strong>Payment was rejected. Please resubmit.</strong>
             <span ng-if="(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason"> {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}</span>
         </div>
@@ -76,7 +82,7 @@
         </div>
 
         @* Notice box consolidating rejection context (top of white container) *@
-        <div class="alert alert-danger mb-3"
+        <div class="alert alert-success mb-3 text-dark"
              ng-if="paymentOrder
                     && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
                     && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
@@ -86,7 +92,7 @@
                 {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}
             </p>
             <button type="button"
-                    class="btn btn-sm btn-outline-light"
+                    class="btn btn-sm btn-outline-dark"
                     ng-click="openViewPaymentProofModal()">
                 View Rejected Proof
             </button>
@@ -203,7 +209,7 @@
             </div>
 
             <div ng-if="paymentFormData.channel !== 'Cash through Meetup'">
-                <p class="text-danger fst-italic small mb-2"
+                <p class="text-dark fst-italic small mb-2"
                    ng-if="paymentOrder
                           && (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof)
                           && (((paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).paymentStatus || (paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).PaymentStatus) === 'REJECTED')
@@ -311,7 +317,7 @@
                         <strong>Uploaded image</strong>
                         <img ng-src="{{paymentOrder.latestPaymentForProof.proofImageUrl}}" alt="Proof" class="img-fluid rounded border mt-1" style="max-height: 280px;" />
                     </div>
-                    <p class="text-danger mb-0" ng-if="paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' && paymentOrder.latestPaymentForProof.rejectionReason"><strong>Rejection reason:</strong> {{paymentOrder.latestPaymentForProof.rejectionReason}}</p>
+                    <p class="text-dark mb-0" ng-if="paymentOrder.latestPaymentForProof.paymentStatus === 'REJECTED' && paymentOrder.latestPaymentForProof.rejectionReason"><strong>Rejection reason:</strong> {{paymentOrder.latestPaymentForProof.rejectionReason}}</p>
                 </div>
                 <div class="modal-footer"></div>
             </div>

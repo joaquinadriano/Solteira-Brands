@@ -7,6 +7,7 @@ using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
 using System.Web.Security;
+using Solteira_Brands.Services;
 
 namespace Solteira_Brands
 {
@@ -18,6 +19,9 @@ namespace Solteira_Brands
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+
+            // Enforce payment deadlines (auto-cancel + stock restoration) every 5 minutes.
+            OrderDeadlineService.StartAutoCancellationJob();
         }
 
         protected void Application_AuthenticateRequest(object sender, EventArgs e)
@@ -28,7 +32,12 @@ namespace Solteira_Brands
             try
             {
                 var ticket = FormsAuthentication.Decrypt(authCookie.Value);
-                if (ticket == null || string.IsNullOrEmpty(ticket.UserData)) return;
+                if (ticket == null || ticket.Expired || string.IsNullOrEmpty(ticket.UserData))
+                {
+                    // Expired or invalid auth cookie: keep user unauthenticated and clear cookie.
+                    try { FormsAuthentication.SignOut(); } catch { }
+                    return;
+                }
 
                 var parts = ticket.UserData.Split('|');
                 var username = parts.Length > 0 ? parts[0] : ticket.Name;

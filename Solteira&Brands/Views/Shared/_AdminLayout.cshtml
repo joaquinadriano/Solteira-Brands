@@ -22,7 +22,7 @@
 <body ng-app="SolteiraAndBrands" ng-controller="SolteiraAndBrandsController">
 
     @* ADMIN SIDEBAR: Dashboard, Inventory, Archive, Reports, Logs, Users (no Orders/Payment/Delivery) *@
-    <div class="sidebar pt-3">
+    <div id="sbAdminSidebar" class="sidebar pt-3">
         <ul class="sidebar-ul">
             <li class="option1">
                 <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")">
@@ -76,6 +76,16 @@
 
     <nav class="navbar inventory-navbar">
         <div class="container-fluid d-flex justify-content-end align-items-center gap-3">
+            <button type="button"
+                    id="sbAdminMobileMenuButton"
+                    class="sb-admin-mobile-menu-button"
+                    aria-label="Open admin menu"
+                    aria-controls="sbAdminSidebar"
+                    aria-expanded="false">
+                <span class="sb-hamburger-lines" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                </span>
+            </button>
             <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1" title="Go to ordering system">
                 <i class="bi bi-shop"></i> Buyer-Side
             </a>
@@ -118,6 +128,8 @@
             </div>
         </div>
     </nav>
+
+    <div id="sbAdminMobileMenuOverlay" class="sb-admin-mobile-menu-overlay" aria-hidden="true"></div>
 
     <div class="">
         @RenderBody()
@@ -194,6 +206,125 @@
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.forEach(function (tooltipTriggerEl) { new bootstrap.Tooltip(tooltipTriggerEl); });
         });
+    </script>
+
+    <script>
+        // 15-minute inactivity auto-logout (with 1-minute warning).
+        // Uses existing POST /Account/Logout form (includes anti-forgery token).
+        (function () {
+            var logoutForm = document.getElementById('logoutForm');
+            if (!logoutForm) return;
+
+            var TOTAL_MS = 15 * 60 * 1000;
+            var WARN_AT_MS = 14 * 60 * 1000; // 1 minute before logout
+
+            var logoutInProgress = false;
+            var warningShown = false;
+            var warnTimeoutId = null;
+            var logoutTimeoutId = null;
+            var lastResetAt = 0;
+            var RESET_THROTTLE_MS = 750; // avoid excessive scheduling on mousemove
+
+            function schedule() {
+                warnTimeoutId = setTimeout(function () {
+                    if (logoutInProgress) return;
+                    warningShown = true;
+                    try {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Inactivity',
+                            text: 'You will be logged out in 1 minute due to inactivity.',
+                            showConfirmButton: false,
+                            timer: 60000,
+                            timerProgressBar: true
+                        });
+                    } catch (e) { }
+                }, WARN_AT_MS);
+
+                logoutTimeoutId = setTimeout(function () {
+                    if (logoutInProgress) return;
+                    logoutInProgress = true;
+                    warningShown = false;
+                    try { Swal.close(); } catch (e) { }
+                    logoutForm.submit();
+                }, TOTAL_MS);
+            }
+
+            function clearScheduled() {
+                if (warnTimeoutId != null) clearTimeout(warnTimeoutId);
+                if (logoutTimeoutId != null) clearTimeout(logoutTimeoutId);
+                warnTimeoutId = null;
+                logoutTimeoutId = null;
+            }
+
+            function resetTimer() {
+                var now = Date.now();
+                if (now - lastResetAt < RESET_THROTTLE_MS) return;
+                lastResetAt = now;
+
+                clearScheduled();
+
+                if (warningShown) {
+                    warningShown = false;
+                    try { Swal.close(); } catch (e) { }
+                }
+
+                schedule();
+            }
+
+            ['mousemove', 'keydown', 'click', 'touchstart'].forEach(function (evt) {
+                document.addEventListener(evt, resetTimer, { passive: true, capture: true });
+            });
+
+            schedule();
+        })();
+    </script>
+    <script>
+        // Mobile off-canvas admin sidebar toggle
+        (function () {
+            var btn = document.getElementById('sbAdminMobileMenuButton');
+            var overlay = document.getElementById('sbAdminMobileMenuOverlay');
+            if (!btn || !overlay) return;
+
+            var isOpen = false;
+            var sidebar = document.querySelector('.sidebar');
+
+            function setOpen(next) {
+                isOpen = next;
+                btn.setAttribute('aria-expanded', String(isOpen));
+                overlay.classList.toggle('open', isOpen);
+                overlay.setAttribute('aria-hidden', String(!isOpen));
+                if (isOpen) document.body.classList.add('sb-admin-sidebar-open');
+                else document.body.classList.remove('sb-admin-sidebar-open');
+                document.body.style.overflow = isOpen ? 'hidden' : '';
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                setOpen(!isOpen);
+            });
+
+            overlay.addEventListener('click', function () {
+                setOpen(false);
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') setOpen(false);
+            });
+
+            if (sidebar) {
+                sidebar.addEventListener('click', function (e) {
+                    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                    if (!a) return;
+                    var href = a.getAttribute('href') || '';
+                    var hasDropdown = a.getAttribute('data-bs-toggle') === 'dropdown' || a.classList.contains('delivery-dropend-toggle');
+                    if (href === '#' || hasDropdown) return; // allow dropdown toggles to work
+                    setOpen(false);
+                });
+            }
+        })();
     </script>
 </body>
 </html>

@@ -402,6 +402,25 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add terms/privacy agreement acceptance fields to tbl_users if not exists
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'accepted_terms');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN accepted_terms TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_image_id;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'accepted_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN accepted_at DATETIME NULL AFTER accepted_terms;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add is_featured to tbl_products (featured products on storefront)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_products' AND COLUMN_NAME = 'is_featured');
@@ -462,6 +481,77 @@ SET @ddl := IF(@col_exists = 0,
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- Add payment_deadline to tbl_orders (deadline for payment verification/next layaway installment)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_deadline');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_deadline DATETIME NULL AFTER rejection_reason;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add payment_deadline reminder marker columns (dedupe reminder emails)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_deadline_reminder_sent_for');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_deadline_reminder_sent_for DATETIME NULL AFTER payment_deadline;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_deadline_reminder_sent_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_deadline_reminder_sent_at DATETIME NULL AFTER payment_deadline_reminder_sent_for;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add cancellation_reason to tbl_orders (used for deadline auto-cancellation)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'cancellation_reason');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN cancellation_reason VARCHAR(500) NULL AFTER payment_deadline;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add inventory_released safeguard: prevents double-restoration of stock
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'inventory_released');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN inventory_released TINYINT(1) NOT NULL DEFAULT 0 AFTER cancellation_reason;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add is_layaway convenience flag
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'is_layaway');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN is_layaway TINYINT(1) NOT NULL DEFAULT 0 AFTER inventory_released;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Backfill for existing orders that do not yet have payment_deadline:
+-- Use a 3-day window (2–3 days business rule; deterministic choice).
+UPDATE tbl_orders
+SET payment_deadline = DATE_ADD(created_at, INTERVAL 3 DAY)
+WHERE payment_deadline IS NULL
+  AND order_status NOT IN ('Paid','Cancelled','Completed','In Delivery','Ready for Meetup','No Show','Meetup Rescheduled');
+
+-- Backfill is_layaway based on payment_type when missing.
+UPDATE tbl_orders
+SET is_layaway = CASE WHEN payment_type = 'LAYAWAY' THEN 1 ELSE 0 END
+WHERE is_layaway = 0 AND payment_type = 'LAYAWAY';
 
 -- Add meetup_datetime to tbl_orders (scheduled meetup from payment or reschedule)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS

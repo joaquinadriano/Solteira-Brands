@@ -26,21 +26,26 @@
                     </thead>
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="order in ordersList">
-                            <td>{{order.orderNumber}}</td>
+                            <td data-order="{{order.id || order.Id || 0}}">{{order.orderNumber}}</td>
                             <td>{{order.orderDateString}}</td>
                             <td>{{order.itemCount}} item(s)</td>
                             <td>{{order.deliveryAddress}}</td>
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
                             <td class="text-start">
-                                <span class="order-status-display">{{order.orderStatus === 'Rejected' ? 'Payment Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-'))}}</span><i class="bi bi-info-circle ms-1 small text-muted" ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled'" title="{{order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.'}}" style="cursor:help;"></i>
+                                <span class="order-status-display">{{order.isOverdue ? 'Order Cancelled' : (order.orderStatus === 'Rejected' ? 'Payment Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-')))}}</span>
+                                <i class="bi bi-info-circle ms-1 small text-muted"
+                                   ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled' || order.isOverdue"
+                                   title="{{order.isOverdue ? 'Payment deadline exceeded.' : (order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.')}}"
+                                   style="cursor:help;"></i>
+                                <span class="badge bg-danger ms-2" ng-if="order.isOverdue">Overdue</span>
                                 @if (!User.IsInRole("ADMIN"))
                                 {
-                                    <span ng-if="order.orderStatus === 'Pending Approval'" class="ms-2">
+                                    <span ng-if="order.orderStatus === 'Pending Approval' && !order.isOverdue" class="ms-2">
                                         <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
                                         <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')">Reject</button>
                                     </span>
-                                    <span ng-if="order.orderStatus === 'Approved'" class="ms-2">
+                                    <span ng-if="order.orderStatus === 'Approved' && !order.isOverdue" class="ms-2">
                                         <button type="button" class="btn btn-sm btn-outline-secondary me-1" ng-click="revokeApproval(order.id)" ng-if="!order.hasPayments">Revoke Approval</button>
                                         <button type="button" class="btn btn-sm btn-danger" ng-click="statusChange(order.id, 'Rejected')" ng-if="!order.hasPayments">Reject</button>
                                     </span>
@@ -82,11 +87,31 @@
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <h4 class="fw-bold mb-0">Order {{selectedOrderDetails.orderNumber}}</h4>
-                                            <span class="orderDetails-badgeNew" title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment not approved.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment Rejected' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order Cancelled' : selectedOrderDetails.orderStatus)}}</span>
+                                            <span class="orderDetails-badgeNew"
+                                                  title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment not approved.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">
+                                                {{
+                                                    selectedOrderDetails.paymentDeadlineExpired === true
+                                                    && (selectedOrderDetails.orderStatus === 'Approved'
+                                                        || selectedOrderDetails.orderStatus === 'Awaiting Payment Verification'
+                                                        || selectedOrderDetails.orderStatus === 'Layaway Active'
+                                                        || selectedOrderDetails.orderStatus === 'Pending Payment'
+                                                        || selectedOrderDetails.orderStatus === 'Pending Downpayment')
+                                                        ? 'Order Cancelled'
+                                                        : (selectedOrderDetails.orderStatus === 'Rejected'
+                                                            ? 'Payment Rejected'
+                                                            : (selectedOrderDetails.orderStatus === 'Cancelled'
+                                                                ? 'Order Cancelled'
+                                                                : selectedOrderDetails.orderStatus))
+                                                }}
+                                            </span>
                                         </div>
                                         <p class="text-muted mb-0">
                                             <i class="bi bi-calendar me-1"></i>
                                             Placed on {{selectedOrderDetails.createdAtString}}
+                                        </p>
+                                        <p class="text-muted mb-0 mt-1" ng-if="selectedOrderDetails.paymentDeadlineFormatted">
+                                            <strong>Payment deadline:</strong> {{selectedOrderDetails.paymentDeadlineFormatted}}
+                                            <span class="text-warning ms-2" ng-if="selectedOrderDetails.paymentDeadlineRemainingText">{{selectedOrderDetails.paymentDeadlineRemainingText}}</span>
                                         </p>
                                     </div>
                                 </div>

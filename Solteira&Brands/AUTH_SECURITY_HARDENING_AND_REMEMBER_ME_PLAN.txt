@@ -1,0 +1,142 @@
+## Current system analysis (implemented vs missing)
+
+### Auth & roles (already in place)
+- Forms Auth cookie (encrypted ticket) is created in `AccountController.IssueAuthCookie` using `FormsAuthenticationTicket` and written to `Response.Cookies[FormsAuthentication.FormsCookieName]` (currently **HttpOnly=true**).
+- Role-based authorization is enforced via:
+  - `[Authorize(Roles="...")]` on many admin/staff endpoints in `SolteiraAndBrandsController`.
+  - `[BuyerAuthorize]` (custom attribute inheriting `AuthorizeAttribute` and setting `Roles="BUYER"`) for buyer-only pages like cart/checkout/my orders/payment.
+- Per-request principal hydration happens in `Global.asax.cs` inside `Application_AuthenticateRequest` by decrypting the Forms cookie and setting `HttpContext.Current.User` (so roles flow into `[Authorize]` checks).
+
+### Back button / cache hardening (partially in place, but incomplete)
+- `AccountController.Logout()` already sets **no-cache / no-store headers** on the logout response.
+- However, protected GET pages themselves are not consistently sending no-cache headers, so browsers may still show a stale cached HTML snapshot when using the back button after logout.
+- There is currently **no general rule/filter** that ensures all `[Authorize]` / `[BuyerAuthorize]` responses are non-cacheable.
+
+### Missing / weak authorization on a few sensitive endpoints
+From scanning the code and your existing auth reference:
+- `SolteiraAndBrandsController.UploadProductImage` (POST) has **no `[Authorize]`**.
+- `SolteiraAndBrandsController.GetProductImage` (GET) has **no `[Authorize]`**.
+- `AccountController.SeedTrialPasswords` (GET) has **no `[Authorize]`**.
+
+### Remember Me (not implemented)
+- Login UI (`SolteiraBrandsLogin.cshtml`) currently has **username + password only**.
+- Login cookie is always created as **non-persistent** (`isPersistent: false` in `IssueAuthCookie`).
+- There is **no “Remember Me” checkbox**, no persistent-cookie issuance, and no explicit cookie expiry configuration.
+
+---
+## Auth hardening (Part 1) – how the safe solution will work
+
+### 1) Identify protected pages
+Protected (authenticated) pages/actions are primarily:
+- Admin/staff views & pages in `SolteiraAndBrandsController` decorated with `[Authorize(Roles="ADMIN,...")]`.
+- Buyer-only pages decorated with `[BuyerAuthorize]` (cart, checkout, my orders, buyer payment, etc.).
+- Account/profile pages in `AccountController` decorated with `[Authorize]` (settings, profile endpoints, change password, etc.).
+
+### 2) Cache-control check result
+- Only `Logout()` explicitly sets cache headers.
+- No general rule ensures **all protected GET/HEAD responses** include `Cache-Control: no-store/no-cache`.
+
+### 3) Safe minimal implementation
+Add a **global MVC filter** that:
+- Runs only for GET/HEAD
+- Checks whether the target action/controller has `[Authorize]` / `[BuyerAuthorize]`
+- Skips actions with `[AllowAnonymous]`
+- Then sets:
+  - `Cache-Control: no-cache, no-store, must-revalidate`
+  - `Pragma: no-cache`
+  - `Response.Cache.SetNoStore()` / `SetCacheability(NoCache)` / past `Expires`
+
+This prevents browsers from reusing cached authenticated HTML after logout/back navigation, forcing a fresh request to the server for protected pages.
+
+### 4) Server re-validation on every request
+Because protected responses won’t be cached, back navigation triggers new HTTP requests, and authorization is enforced again via existing `[Authorize]` / `[BuyerAuthorize]` checks (using your cookie-derived principal).
+
+### 5) Missing `[Authorize]` fixes (only where needed)
+Add role-based `[Authorize]` to:
+- `UploadProductImage` and `GetProductImage` in `SolteiraAndBrandsController`
+
+Optionally for hardening:
+- Add `[Authorize(Roles="ADMIN")]` to `SeedTrialPasswords` (currently anonymous and resets trial passwords)
+
+---
+## Remember Me (Part 2) – minimal integration with existing cookie/session logic
+
+### 1) UI
+- Add a “Remember Me” checkbox to `SolteiraBrandsLogin.cshtml`
+- Default state: unchecked
+- Bind it to Angular model: `ng-model="loginData.rememberMe"`
+
+### 2) Authentication behavior
+Extend existing `AccountController.Login` POST to accept `rememberMe` (bool).
+- When `rememberMe=true`:
+  - Create a persistent `FormsAuthenticationTicket` (`isPersistent=true`)
+  - Expiration: configurable `RememberMeDays`, clamped to 7–30 days
+  - Cookie properties:
+    - `HttpOnly=true`
+    - `Secure=true` when HTTPS
+    - `SameSite=Lax` (or Strict if you prefer)
+    - `Expires=ticket.Expiration` (only for persistent cookies)
+- When `rememberMe=false`:
+  - Keep existing behavior (non-persistent cookie)
+
+### 3) Session interaction (keep 15-minute inactivity behavior)
+Your app does not store login state in Session; login state is cookie-based.
+- If Session expires but the persistent cookie exists:
+  - user remains authenticated automatically
+  - new Session will be created as needed on subsequent requests (normal ASP.NET behavior)
+- If no cookie (or cookie expired):
+  - redirect to login via existing forms auth `loginUrl`
+
+### 4) Security / edge cases
+- Expired cookie: strengthen `Global.asax.cs` to reject tickets whose `ticket.Expiration` is in the past; clear the cookie.
+- Tampered cookie: already rejected because `FormsAuthentication.Decrypt` fails (invalid/encrypted value won’t decrypt).
+- Avoid infinite loops: clear expired cookie before setting principal; then standard `[Authorize]` redirect flow to login occurs.
+
+### 5) Logout
+- Keep current logout behavior.
+- Ensure persistent cookie is cleared too, in addition to `FormsAuthentication.SignOut()`.
+
+---
+## Exact files to modify (minimal)
+
+### Part 1: back button/cache + missing authorize
+1. `Solteira&Brands/App_Start/FilterConfig.cs`
+   - Add a reusable global filter (e.g. `NoCacheForAuthorizedActionsAttribute`)
+   - Register it in `RegisterGlobalFilters`
+2. `Solteira&Brands/Global.asax.cs`
+   - Validate ticket expiration on every request; clear cookie if expired
+3. `Solteira&Brands/Controllers/SolteiraAndBrandsController.cs`
+   - Add `[Authorize(Roles="ADMIN,MANAGER,STAFF")]` to:
+     - `UploadProductImage` (POST)
+     - `GetProductImage` (GET)
+4. `Solteira&Brands/Controllers/AccountController.cs`
+   - Add `[Authorize(Roles="ADMIN")]` to `SeedTrialPasswords`
+
+### Part 2: Remember Me
+5. `Solteira&Brands/Views/SolteiraBrandsAccount/SolteiraBrandsLogin.cshtml`
+   - Add checkbox + Angular binding
+6. `Solteira&Brands/Scripts/SBScripts/Controller.js`
+   - Add `rememberMe` to `$scope.loginData`
+   - Pass `rememberMe` into `SolteiraBrandsService.login(...)`
+7. `Solteira&Brands/Scripts/SBScripts/Service.js`
+   - Update `login()` to send `rememberMe` to `/Account/Login`
+8. `Solteira&Brands/Controllers/AccountController.cs`
+   - Update `Login(...)` signature and `IssueAuthCookie(...)` to support persistent tickets
+   - Ensure logout clears auth cookie properly (and persistent remember-me cookie)
+9. `Solteira&Brands/Web.config`
+   - Add `appSettings` value: `RememberMeDays` (clamped in code to 7–30)
+
+---
+## Risks to be aware of (before applying changes)
+- `SameSite` property availability: setting `HttpCookie.SameSite` depends on framework/runtime API availability.
+  - If build fails, fall back to only `HttpOnly` + conditional `Secure`.
+- Protecting `GetProductImage` / `UploadProductImage`:
+  - if any internal/admin UI currently uses them without authentication, it will require admin/staff login.
+- Protecting `SeedTrialPasswords`:
+  - you will no longer be able to run it anonymously (intentional hardening).
+
+---
+## Clarifying question (before coding)
+What default Remember Me duration (in days) should be used when checked?
+- If unspecified, I suggested `RememberMeDays=14` (clamped to 7–30 in code).
+
