@@ -445,5 +445,84 @@
             })();
         </script>
     }
+
+    @if (isLoggedIn)
+    {
+        <script>
+            // 15-minute inactivity auto-logout (with 1-minute warning).
+            // Uses existing POST /Account/Logout form (includes anti-forgery token).
+            (function () {
+                var logoutForm = document.getElementById('logoutForm');
+                if (!logoutForm) return;
+
+                var TOTAL_MS = 15 * 60 * 1000;
+                var WARN_AT_MS = 14 * 60 * 1000; // 1 minute before logout
+
+                var logoutInProgress = false;
+                var warningShown = false;
+                var warnTimeoutId = null;
+                var logoutTimeoutId = null;
+                var lastResetAt = 0;
+                var RESET_THROTTLE_MS = 750; // avoid excessive scheduling on mousemove
+
+                function schedule() {
+                    warnTimeoutId = setTimeout(function () {
+                        if (logoutInProgress) return;
+                        warningShown = true;
+                        try {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'warning',
+                                title: 'Inactivity',
+                                text: 'You will be logged out in 1 minute due to inactivity.',
+                                showConfirmButton: false,
+                                timer: 60000,
+                                timerProgressBar: true
+                            });
+                        } catch (e) { }
+                    }, WARN_AT_MS);
+
+                    logoutTimeoutId = setTimeout(function () {
+                        if (logoutInProgress) return;
+                        logoutInProgress = true;
+                        warningShown = false;
+                        try { Swal.close(); } catch (e) { }
+                        logoutForm.submit();
+                    }, TOTAL_MS);
+                }
+
+                function clearScheduled() {
+                    if (warnTimeoutId != null) clearTimeout(warnTimeoutId);
+                    if (logoutTimeoutId != null) clearTimeout(logoutTimeoutId);
+                    warnTimeoutId = null;
+                    logoutTimeoutId = null;
+                }
+
+                function resetTimer() {
+                    var now = Date.now();
+                    if (now - lastResetAt < RESET_THROTTLE_MS) return;
+                    lastResetAt = now;
+
+                    clearScheduled();
+
+                    if (warningShown) {
+                        warningShown = false;
+                        try { Swal.close(); } catch (e) { }
+                    }
+
+                    schedule();
+                }
+
+                // Activity events that reset the timer
+                ['mousemove', 'keydown', 'click', 'touchstart'].forEach(function (evt) {
+                    document.addEventListener(evt, resetTimer, { passive: true, capture: true });
+                });
+
+                // Start timer immediately on page load
+                schedule();
+            })();
+        </script>
+    }
 </body>
 </html>

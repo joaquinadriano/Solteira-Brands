@@ -376,7 +376,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.loginData = {
         username: '',
-        password: ''
+        password: '',
+        rememberMe: false
     };
 
     $scope.loginErrors = { username: '', password: '' };
@@ -580,9 +581,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if ($scope.loginErrors.username || $scope.loginErrors.password) {
             return;
         }
-        SolteiraBrandsService.login($scope.loginData.username, $scope.loginData.password).then(function (r) {
+        SolteiraBrandsService.login($scope.loginData.username, $scope.loginData.password, !!$scope.loginData.rememberMe).then(function (r) {
             if (r.data && r.data.success && r.data.redirectUrl) {
-                window.location.href = r.data.redirectUrl;
+                // Replace history entry so Back doesn't return to the login page (avoids confusion).
+                window.location.replace(r.data.redirectUrl);
             } else {
                 $scope.loginErrors.username = 'Invalid username or password.';
                 $scope.loginErrors.password = 'Invalid username or password.';

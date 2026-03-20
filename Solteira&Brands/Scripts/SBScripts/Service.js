@@ -119,10 +119,11 @@ app.service("SolteiraBrandsService", function ($http) {
         });
     };
 
-    this.login = function (username, password) {
+    this.login = function (username, password, rememberMe) {
         var params = new URLSearchParams();
         params.append("username", username || "");
         params.append("password", password || "");
+        params.append("rememberMe", rememberMe ? "true" : "false");
         return $http({
             method: "POST",
             url: "/Account/Login",

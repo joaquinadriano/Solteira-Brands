@@ -3278,6 +3278,7 @@ namespace Solteira_Brands.Controllers
         }
 
         // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images_uploaded/products/) -----
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
         public JsonResult UploadProductImage(HttpPostedFileBase file)
         {
@@ -3316,6 +3317,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
         public JsonResult GetProductImage(int imageId)
         {

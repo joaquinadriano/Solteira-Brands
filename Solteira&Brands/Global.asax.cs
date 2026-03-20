@@ -28,7 +28,12 @@ namespace Solteira_Brands
             try
             {
                 var ticket = FormsAuthentication.Decrypt(authCookie.Value);
-                if (ticket == null || string.IsNullOrEmpty(ticket.UserData)) return;
+                if (ticket == null || ticket.Expired || string.IsNullOrEmpty(ticket.UserData))
+                {
+                    // Expired or invalid auth cookie: keep user unauthenticated and clear cookie.
+                    try { FormsAuthentication.SignOut(); } catch { }
+                    return;
+                }
 
                 var parts = ticket.UserData.Split('|');
                 var username = parts.Length > 0 ? parts[0] : ticket.Name;
