@@ -1,0 +1,81 @@
+Implementation notes (Back button hardening + Remember Me + 15-min inactivity)
+
+1) Build errors that showed up (and fix)
+----------------------------------------------------------------
+You saw compile errors similar to:
+- CS1061: `ResultExecutingContext` does not contain a definition for `ActionDescriptor`
+
+Cause:
+- The cache filter `NoCacheForAuthorizedAttribute` was reading `filterContext.ActionDescriptor` /
+  `filterContext.ControllerDescriptor` inside `OnResultExecuting(ResultExecutingContext ...)`.
+- In this project’s MVC version/types, those properties are not available on `ResultExecutingContext`.
+
+Fix applied:
+- Updated `NoCacheForAuthorizedAttribute` to set headers in `OnActionExecuting(ActionExecutingContext ...)`
+  instead of `OnResultExecuting(...)`.
+- `ActionExecutingContext` provides `ActionDescriptor` and `ControllerDescriptor`, so authorization attributes
+  can be detected reliably.
+
+2) Back button issue: what the final behavior is
+----------------------------------------------------------------
+For any GET/HEAD response that is protected by:
+- `[Authorize(...)]` OR
+- your derived `[BuyerAuthorize]` (which inherits `AuthorizeAttribute`)
+
+the filter sets:
+- `Cache-Control: no-cache, no-store, must-revalidate`
+- `Pragma: no-cache`
+- `Expires` to a past time
+
+It skips:
+- any action/controller explicitly marked with `[AllowAnonymous]`.
+
+Result:
+- After logout, navigating with the browser back button cannot show cached “old user” authenticated pages
+  because the browser is instructed not to cache protected HTML snapshots and must re-request pages.
+
+3) Remember Me readiness and runtime behavior (IMPORTANT)
+----------------------------------------------------------------
+Remember Me is implemented as a change in Forms Authentication cookie persistence:
+- If user checks “Remember Me” at login, the Forms auth ticket cookie is persistent and expires in
+  `RememberMeDays` (configured in `Web.config`, clamped in code to 7–30 days).
+- If user does NOT check it, behavior stays as before (non-persistent ticket).
+
+4) Your key question: if “Remember Me” is ON, will the 15-minute inactivity auto-logout still log them out?
+----------------------------------------------------------------
+YES. It will still log them out.
+
+Why:
+- The inactivity feature (15 min) does NOT just wait for session expiry.
+- It triggers the existing server logout endpoint by submitting the existing anti-forgery protected logout form
+  (`POST /Account/Logout`).
+- `AccountController.Logout()` clears:
+  - `Session`
+  - the FormsAuthentication auth cookie (via `FormsAuthentication.SignOut()`)
+  - and also explicitly removes the auth cookie by setting an expired cookie value.
+
+Therefore:
+- Even if the user had a persistent Remember Me cookie, the auto-logout endpoint clears the auth cookie.
+- After auto-logout, the user will be unauthenticated and subsequent protected-page requests will redirect to login.
+
+End-to-end scenario:
+1. User A logs in with “Remember Me” checked.
+2. User becomes inactive for 14 minutes -> warning toast appears.
+3. If still inactive at 15 minutes -> auto-logout submits the logout form.
+4. Logout clears the persistent auth cookie as well.
+5. User is logged out; going back to a protected page will redirect to login (not auto re-auth).
+
+5) What happens if the user becomes active before 15 minutes?
+----------------------------------------------------------------
+- Any of these events reset the inactivity timers:
+  `mousemove`, `keydown`, `click`, `touchstart`
+- If the 14-minute warning toast was showing, it gets closed and the timers restart.
+- So they will not be auto-logged out as long as activity happens before 15 minutes.
+
+6) Compatibility / risk notes
+----------------------------------------------------------------
+- The inactivity timer is injected in shared authenticated layouts where `logoutForm` exists.
+- For the `_SABLayout.cshtml`, a hidden `_LogoutForm` partial is injected (only when logged in)
+  so that the auto-logout submit has a target.
+- SameSite cookie setting uses reflection so it will not break older frameworks that may not expose the property.
+

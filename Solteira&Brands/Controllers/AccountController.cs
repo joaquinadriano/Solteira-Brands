@@ -176,7 +176,20 @@ namespace Solteira_Brands.Controllers
                 var roleName = user.Role?.Name ?? "BUYER";
                 if (roleName == "BUYER" && !user.IsVerified)
                 {
-                    return Json(new { success = false, message = "Please verify your email before signing in. Check your inbox for the 6-digit OTP." });
+                    // Do not issue the auth cookie/session when the user isn't verified yet.
+                    // Frontend will auto-redirect to /verify?email=...
+                    var verifyUrl = Url.RouteUrl("VerifyEmail", new { email = user.Email });
+                    if (string.IsNullOrEmpty(verifyUrl))
+                    {
+                        verifyUrl = "/verify?email=" + HttpUtility.UrlEncode(user.Email ?? string.Empty);
+                    }
+
+                    return Json(new
+                    {
+                        success = false,
+                        redirectUrl = verifyUrl,
+                        message = "Please verify your email to continue"
+                    });
                 }
 
                 IssueAuthCookie(user, rememberMe);
@@ -243,6 +256,28 @@ namespace Solteira_Brands.Controllers
             Response.AppendHeader("Pragma", "no-cache");
             Response.Cache.SetExpires(DateTime.UtcNow.AddYears(-1));
             return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+        }
+
+        /// <summary>
+        /// GET: Email verification page (OTP) used after login when IsVerified == 0.
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public ActionResult Verify(string email)
+        {
+            var emailTrim = (email ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(emailTrim))
+                return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+
+            using (var db = new SolteiraBrandsContext())
+            {
+                var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
+                if (user == null || user.IsVerified)
+                    return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+            }
+
+            ViewBag.Email = emailTrim;
+            return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsVerify.cshtml");
         }
 
         /// <summary>

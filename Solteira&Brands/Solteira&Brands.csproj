@@ -1159,6 +1159,7 @@
     <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsLogin.cshtml" />
     <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsNewPassword.cshtml" />
     <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsOTP.cshtml" />
+    <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsVerify.cshtml" />
     <Content Include="Views\SolteiraBrandsAccount\SolteiraBrandsRegister.cshtml" />
   </ItemGroup>
   <ItemGroup>

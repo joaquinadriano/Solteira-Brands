@@ -22,7 +22,9 @@
 
         <div class="login-image">
 
-            <img src="@Url.Content("~/Content/img/account/login-img.jpg")" alt="Solteira & Brands luxury branding artwork" />
+            <a href="@Url.Action("SolteiraBrandsHome","SolteiraAndBrands")" class="login-image-link" aria-label="Back to home">
+                <img src="@Url.Content("~/Content/img/account/login-img.jpg")" alt="Solteira & Brands luxury branding artwork" />
+            </a>
 
         </div>
 
@@ -31,7 +33,10 @@
             <div class="login-form">
                 <a href="@Url.Action("SolteiraBrandsHome","SolteiraAndBrands")" class="back-to-home-link">&larr; Back to Home</a>
 
-                <p class="login-text">Welcome back to Solteira & Brands. <br /> Elegance awaits you!</p>
+                <p class="login-text">
+                    <span class="login-title-line1">Welcome back to Solteira &amp;&nbsp;Brands.</span>
+                    <span class="login-title-line2">Elegance awaits you!</span>
+                </p>
 
                 <form name="loginForm" ng-submit="login()" class="d-flex flex-column align-items-center">
 

@@ -180,6 +180,10 @@ body {
     margin-top: 1rem;
 }
 
+#privacyModal .sb-policy-subtitle {
+    font-weight: 400; /* remove bold for Privacy Policy only */
+}
+
 .sb-policy-separator {
     border: 0;
     border-top: 1px solid rgba(0,0,0,0.12);
