@@ -287,9 +287,14 @@ namespace Solteira_Brands.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Register(string email, string username, string password, string verifyPassword)
+        public ActionResult Register(string email, string username, string password, string verifyPassword, bool acceptedTerms = false)
         {
             var errors = new System.Collections.Generic.Dictionary<string, string>();
+
+            if (!acceptedTerms)
+            {
+                errors["acceptedTerms"] = "You must agree to the Terms & Conditions and Privacy Policy";
+            }
 
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -358,7 +363,9 @@ namespace Solteira_Brands.Controllers
                     PasswordSalt = saltBase64,
                     IsVerified = false,
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    AcceptedTerms = acceptedTerms,
+                    AcceptedAt = acceptedTerms ? (DateTime?)DateTime.UtcNow : null
                 };
 
                 db.tbl_users.Add(user);

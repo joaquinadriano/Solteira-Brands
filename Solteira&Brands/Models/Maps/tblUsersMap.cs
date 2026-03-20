@@ -16,6 +16,8 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.IsVerified).HasColumnName("is_verified");
             Property(x => x.IsActive).HasColumnName("is_active");
             Property(x => x.CreatedAt).HasColumnName("created_at");
+            Property(x => x.AcceptedTerms).HasColumnName("accepted_terms").IsRequired();
+            Property(x => x.AcceptedAt).HasColumnName("accepted_at");
             Property(x => x.AvatarImageId).HasColumnName("avatar_image_id");
 
             HasRequired(x => x.Role)

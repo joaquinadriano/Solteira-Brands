@@ -150,3 +150,38 @@ body {
     text-decoration: underline;
     color: #1e1e1e;
 }
+
+/* Terms/Privacy agreement UI */
+.sb-policy-link {
+    text-decoration: underline;
+    color: #1e1e1e;
+}
+
+.sb-policy-modal .modal-header {
+    border-bottom: 0;
+}
+
+.sb-policy-scroll {
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 0.25rem 0.25rem 0.5rem 0.25rem;
+}
+
+.sb-policy-scroll ol {
+    padding-left: 1.1rem;
+}
+
+.sb-policy-scroll li {
+    margin-bottom: 0.75rem;
+}
+
+.sb-policy-subtitle {
+    font-weight: 700;
+    margin-top: 1rem;
+}
+
+.sb-policy-separator {
+    border: 0;
+    border-top: 1px solid rgba(0,0,0,0.12);
+    margin: 1rem 0;
+}

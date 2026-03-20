@@ -402,6 +402,25 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add terms/privacy agreement acceptance fields to tbl_users if not exists
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'accepted_terms');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN accepted_terms TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_image_id;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'accepted_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN accepted_at DATETIME NULL AFTER accepted_terms;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add is_featured to tbl_products (featured products on storefront)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_products' AND COLUMN_NAME = 'is_featured');

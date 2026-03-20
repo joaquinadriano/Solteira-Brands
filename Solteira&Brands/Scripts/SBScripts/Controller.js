@@ -385,10 +385,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         email: '',
         username: '',
         password: '',
-        verifyPassword: ''
+        verifyPassword: '',
+        acceptedTerms: false
     };
 
-    $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '' };
+    $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '', acceptedTerms: '' };
 
     function validateEmailFormat(email) {
         if (!email) return "Email is required.";
@@ -399,7 +400,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     function validateUsernameFormat(u) {
         if (!u) return "Username is required.";
-        if (u.length < 5 || u.length > 20) return "Username must be 5-20 characters.";
+        if (u.length < 5 || u.length > 14) return "Username must be 5-14 characters.";
         if (!/^[A-Za-z0-9_]+$/.test(u)) return "Use letters, numbers, and underscore only.";
         return "";
     }
@@ -472,8 +473,26 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         $scope.registerErrors.verifyPassword = (p && v && p === v) ? '' : 'Passwords do not match.';
     };
 
+    $scope.onAcceptedTermsChange = function () {
+        if ($scope.registerData && $scope.registerData.acceptedTerms) {
+            $scope.registerErrors.acceptedTerms = '';
+        }
+    };
+
     $scope.register = function (form) {
         if (!form) return;
+
+        var termsMsg = 'You must agree to the Terms & Conditions and Privacy Policy';
+        if (!$scope.registerData || !$scope.registerData.acceptedTerms) {
+            $scope.registerErrors.acceptedTerms = termsMsg;
+            Swal.fire({
+                icon: 'error',
+                title: 'Cannot create account',
+                text: termsMsg
+            });
+            return;
+        }
+        $scope.registerErrors.acceptedTerms = '';
 
         var eErr = validateEmailFormat($scope.registerData.email);
         var uErr = validateUsernameFormat($scope.registerData.username);

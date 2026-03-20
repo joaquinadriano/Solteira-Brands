@@ -137,6 +137,7 @@ app.service("SolteiraBrandsService", function ($http) {
         params.append("username", data.username || "");
         params.append("password", data.password || "");
         params.append("verifyPassword", data.verifyPassword || "");
+        params.append("acceptedTerms", data.acceptedTerms ? "true" : "false");
         params.append("__RequestVerificationToken", requestVerificationToken || "");
         return $http({
             method: "POST",
