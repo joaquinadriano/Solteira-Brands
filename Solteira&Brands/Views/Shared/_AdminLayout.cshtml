@@ -37,17 +37,17 @@
                 </a>
             </li>
             <li class="option" id="option-inventory">
-                <a href="@Url.Action("AdminInventoryPage", "SolteiraAndBrands")">
+                <a href="@Url.Action("AdminInventoryPage", "SolteiraAndBrands", new { archived = true })">
                     <img src="@Url.Content("~/Content/img/icons/inventory.svg")" id="inventory-icon" alt="" />
                     <img src="@Url.Content("~/Content/img/icons/inventory-hover.svg")" id="inventory-hover-icon" alt="" />
-                    <p class="sidebar-text">Inventory</p>
+                    <p class="sidebar-text">Archive</p>
                 </a>
             </li>
             <li class="option" id="option-archive">
                 <a href="@Url.Action("AdminOrdersPage", "SolteiraAndBrands")">
                     <img src="@Url.Content("~/Content/img/icons/archive.svg")" id="archive-icon" alt="" />
                     <img src="@Url.Content("~/Content/img/icons/archive-hover.svg")" id="archive-hover-icon" alt="" />
-                    <p class="sidebar-text">Archive</p>
+                    <p class="sidebar-text">Orders</p>
                 </a>
             </li>
             <li class="option" id="option-reports">

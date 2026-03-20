@@ -1,0 +1,211 @@
+================================================================================
+SOLTEIRA & BRANDS — AUTHENTICATION & SESSION REFERENCE
+================================================================================
+Generated for: Solteira&Brands (ASP.NET MVC 5 + Forms Authentication)
+Purpose: Internal reference for login, session, roles, logout, caching, gaps.
+
+================================================================================
+1. ARCHITECTURE OVERVIEW
+================================================================================
+
+- Authentication: ASP.NET MVC 5 + Forms Authentication (encrypted cookie).
+- Identity after login: NOT stored in Session for normal login; cookie holds
+  username and role in ticket UserData (format: username|ROLE).
+- Session: Used only for forgot-password flow (email + expiry keys), not for
+  login state.
+- No BaseController for auth. No global [Authorize] filter.
+- Global filters (FilterConfig.cs): HandleError only.
+
+
+================================================================================
+2. LOGIN — WHERE AND HOW
+================================================================================
+
+File: Controllers\AccountController.cs
+
+Action: Login (HTTP POST, returns JSON)
+
+Flow:
+  1. Require non-empty username (trimmed, max 14 chars) and password.
+  2. Load user from DB: tbl_users with Role, match Username + IsActive.
+  3. Reject if PasswordHash == "SEEDME" or salt empty (trial seed path).
+  4. Verify password: PasswordHasher.Verify(password, PasswordHash, PasswordSalt).
+  5. For role BUYER: require IsVerified or reject with OTP message.
+  6. IssueAuthCookie(user) — sets Forms auth cookie.
+  7. Optional activity log for ADMIN / MANAGER / STAFF.
+  8. Return JSON: success, redirectUrl (admin dashboard vs storefront home), role.
+
+Credentials validation: Inline in AccountController + EF (SolteiraBrandsContext)
++ PasswordHasher. No separate authentication service class.
+
+Session variables on login:
+  NONE. No Session["UserId"], Session["Role"], etc. for login.
+
+Forgot-password session keys (same controller):
+  SessionPasswordResetEmail  -> "PasswordResetEmail"
+  SessionPasswordResetExpiry -> "PasswordResetExpiry"
+
+
+================================================================================
+3. AUTH COOKIE (IssueAuthCookie)
+================================================================================
+
+File: Controllers\AccountController.cs — private method IssueAuthCookie
+
+- Role string: user.Role.Name if present, else "BUYER".
+- UserData on ticket: (Username ?? "") + "|" + roleName
+- FormsAuthenticationTicket: non-persistent, expiration UtcNow + 60 minutes.
+- Cookie: FormsAuthentication.FormsCookieName, HttpOnly = true.
+- Note: Secure and SameSite are not set in code — review for HTTPS / CSRF.
+
+
+================================================================================
+4. PRINCIPAL & ROLE ON EVERY REQUEST
+================================================================================
+
+File: Global.asax.cs — Application_AuthenticateRequest
+
+- Reads Forms auth cookie; decrypts ticket.
+- Parses UserData split by '|': username part, role part.
+- Sets HttpContext.Current.User = GenericPrincipal(GenericIdentity(ticket.Name),
+  roles: single role string from UserData).
+- Invalid ticket: catch; User stays unauthenticated.
+
+This runs on each request so User/IsInRole reflect the cookie when valid.
+This is NOT the same as requiring authentication on every page — only actions
+with [Authorize] / [BuyerAuthorize] enforce that.
+
+
+================================================================================
+5. PROTECTED PAGES / FILTERS
+================================================================================
+
+File: App_Start\FilterConfig.cs
+  - Only: new HandleErrorAttribute()
+  - No global AuthorizeAttribute.
+
+File: Controllers\SolteiraAndBrandsController.cs
+  - Admin/inventory: [Authorize(Roles = "ADMIN,MANAGER,STAFF")] and variants
+    (e.g. ADMIN only, MANAGER+STAFF for some pages).
+  - Storefront buyer areas: [BuyerAuthorize] (BUYER only; staff redirected).
+
+File: Security\BuyerAuthorizeAttribute.cs
+  - Inherits AuthorizeAttribute, Roles = "BUYER".
+  - Authenticated ADMIN/MANAGER/STAFF -> redirect AdminDashboardPage.
+  - Anonymous -> SolteiraBrandsLogin.
+
+Public by design (examples — no Authorize on action):
+  - SolteiraBrandsHome, SolteiraBrandsJewelries, SolteiraBrandsAbout,
+    SolteiraBrandsFaq
+  - JSON: GetStorefrontProducts, GetProductStock, GetProductStocks (some
+    explicitly [AllowAnonymous])
+  - JSON: GetPaymentSettings, GetMeetupSettings, GetLayawaySettings
+    ([AllowAnonymous])
+
+
+================================================================================
+6. ROLE-BASED ACCESS — SUMMARY
+================================================================================
+
+Roles used: ADMIN, MANAGER, STAFF, BUYER.
+
+Enforcement:
+  - Standard [Authorize(Roles = "...")] on admin/staff actions and views.
+  - [BuyerAuthorize] for buyer-only storefront (cart, checkout, my orders,
+    payment-related endpoints, etc.).
+
+Web.config (forms):
+  <authentication mode="Forms">
+    <forms loginUrl="~/SolteiraAndBrands/SolteiraBrandsLogin"
+           timeout="60" slidingExpiration="true" />
+  </authentication>
+
+Caveat: Role in cookie is fixed until re-login or IssueAuthCookie is called
+again (e.g. profile username change refreshes cookie). DB role changes do not
+automatically update an existing session cookie.
+
+
+================================================================================
+7. LOGOUT
+================================================================================
+
+File: Controllers\AccountController.cs — Logout (HTTP POST)
+
+- [ValidateAntiForgeryToken]
+- Session.Clear(); Session.Abandon(); (if Session != null)
+- FormsAuthentication.SignOut()
+- Response cache headers: NoCache, NoStore, Pragma no-cache, Expires in past
+- RedirectToAction SolteiraBrandsLogin on SolteiraAndBrands controller
+
+File: Views\Shared\_LogoutForm.cshtml
+  - POST form to Account/Logout with anti-forgery token.
+
+Back button note:
+  Logout response sets no-cache headers, but earlier GET responses to admin or
+  buyer pages may still be cached by the browser unless those pages also send
+  no-store / no-cache. Users might see a stale HTML snapshot until they
+  navigate away or the browser refetches.
+
+
+================================================================================
+8. CACHE HANDLING
+================================================================================
+
+Project-wide grep: Response.Cache / OutputCache only on AccountController.Logout
+for the logout action.
+
+Implication:
+  - Authenticated GET pages (dashboard, cart, settings, etc.) may be cacheable
+    by default browser behavior — back-button / bfcache risk after logout.
+  - Public catalog JSON may be cached (often acceptable).
+
+
+================================================================================
+9. SECURITY GAPS & RECOMMENDATIONS (ACTION ITEMS)
+================================================================================
+
+A) Unauthenticated sensitive endpoints (verify in SolteiraAndBrandsController):
+   - UploadProductImage (POST) — no [Authorize] in current code; allows uploads
+     to product image folder.
+   - GetProductImage (GET) — no [Authorize]; returns image URL by id.
+   Fix: Add [Authorize(Roles = "ADMIN,MANAGER,STAFF")] or stricter if only
+   ADMIN should upload.
+
+B) SeedTrialPasswords (AccountController, HTTP GET, no auth):
+   - Resets passwords for users with PasswordHash == "SEEDME".
+   - Remove in production or protect with [Authorize(Roles = "ADMIN")] and/or
+     host/environment gate.
+
+C) Strengthen cookies (HTTPS): Secure flag, SameSite, align ticket lifetime
+   with Web.config forms timeout.
+
+D) Role changes: After admin changes a user's role in DB, force re-login or
+   re-issue cookie.
+
+E) Post-logout / sensitive pages: Action filter or base policy to set
+   Cache-Control: no-store, no-cache, must-revalidate (and optionally Vary:
+   Cookie) on responses that require authentication.
+
+F) Web.config contains plaintext SMTP credentials — move to secure config /
+   environment (separate from auth but high risk).
+
+
+================================================================================
+10. KEY FILES CHECKLIST
+================================================================================
+
+Controllers\AccountController.cs     — Login, Logout, IssueAuthCookie, settings,
+                                       password reset (Session keys), SeedTrialPasswords
+Global.asax.cs                       — Application_AuthenticateRequest (cookie -> User)
+Security\BuyerAuthorizeAttribute.cs  — BUYER-only storefront authorization
+Controllers\SolteiraAndBrandsController.cs — Most routes, [Authorize] / [BuyerAuthorize]
+App_Start\FilterConfig.cs            — Global filters (HandleError only)
+Web.config                           — forms authentication, loginUrl, timeout
+Views\Shared\_LogoutForm.cshtml      — POST logout + anti-forgery
+
+Note: Folder "Reference - Buyer Side" may use Session["Username"] for demos;
+the main app (Solteira&Brands) uses Forms Authentication as above.
+
+================================================================================
+END OF REFERENCE
+================================================================================

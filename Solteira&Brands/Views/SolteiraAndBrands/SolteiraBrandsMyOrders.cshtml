@@ -192,21 +192,22 @@
                         <p class="mb-1" ng-if="selectedOrderForDetails.dispatchDate"><strong>Dispatch Date:</strong> {{selectedOrderForDetails.dispatchDate}}</p>
                         <p class="mb-1" ng-if="selectedOrderForDetails.eta"><strong>ETA:</strong> {{selectedOrderForDetails.eta}}</p>
                         <p class="mb-1"
-                           ng-if="selectedOrderForDetails.trackingNumber
-                                  && (!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0)">
+                           ng-if="selectedOrderForDetails.trackingNumber">
                             <a href="#"
-                               ng-click="goToTracking(selectedOrderForDetails.trackingNumber, selectedOrderForDetails.trackingLink); $event.preventDefault();"
+                               ng-click="goToTracking(selectedOrderForDetails.trackingNumber, selectedOrderForDetails.trackingLink, selectedOrderForDetails.courier); $event.preventDefault();"
                                class="btn btn-sm btn-outline-primary">
                                 Open Courier Tracking
                             </a>
                         </p>
                         <p class="small text-muted mb-0 mt-2"
-                           ng-if="!selectedOrderForDetails.courier || selectedOrderForDetails.courier.indexOf('LBC') === 0">
-                            Note: Please copy the tracking number and paste it on the LBC tracking page to track your parcel.
+                           ng-if="(selectedOrderForDetails.courier && selectedOrderForDetails.courier.toLowerCase().indexOf('fedex') !== -1)
+                                  || (selectedOrderForDetails.trackingLink && selectedOrderForDetails.trackingLink.toLowerCase().indexOf('fedex') !== -1)">
+                            Note: Please copy the tracking number and paste it on the FedEx tracking page to track your parcel.
                         </p>
                         <p class="small text-muted mb-0 mt-2"
-                           ng-if="selectedOrderForDetails.courier && selectedOrderForDetails.courier.indexOf('Custom') === 0">
-                            Note: This shipment uses a custom courier. Please copy the tracking number and track it on the courier's official tracking site.
+                           ng-if="(!selectedOrderForDetails.courier || selectedOrderForDetails.courier.toLowerCase().indexOf('fedex') === -1)
+                                  && (!selectedOrderForDetails.trackingLink || selectedOrderForDetails.trackingLink.toLowerCase().indexOf('fedex') === -1)">
+                            Note: Please copy the tracking number and paste it on the LBC tracking page to track your parcel.
                         </p>
                     </div>
                 </div>

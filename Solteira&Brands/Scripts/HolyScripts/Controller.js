@@ -489,24 +489,22 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.editingDelivery = res.data;
                 var courierVal = (ov.courier || '').trim();
                 var courierChoice = 'LBC';
-                var otherCourierName = '';
-                // Backward compatibility: older records might store "Custom - <name>".
-                if (courierVal.indexOf('Custom - ') === 0) {
-                    courierChoice = 'Others';
-                    otherCourierName = courierVal.substring('Custom - '.length);
-                } else if (courierVal === 'LBC' || courierVal === 'JnT' || courierVal === 'Flash Express') {
-                    courierChoice = courierVal || 'LBC';
-                } else if (courierVal) {
-                    courierChoice = 'Others';
-                    otherCourierName = courierVal;
+                // Only allow LBC + Fedex on the UI, but keep legacy values from breaking the edit modal.
+                if (courierVal && courierVal.toLowerCase().indexOf('fedex') !== -1) {
+                    courierChoice = 'Fedex';
+                } else if (courierVal && courierVal.toLowerCase().indexOf('lbc') !== -1) {
+                    courierChoice = 'LBC';
+                } else {
+                    courierChoice = 'LBC';
                 }
                 var tn = ov.trackingNumber || '';
                 var tnParts = tn.split('||');
                 var tnNumber = tnParts[0] || '';
                 var tnLink = tnParts.length > 1 ? tnParts[1] : '';
+                $scope.editTrackingNumberTouched = false;
                 $scope.editDeliveryForm = {
                     courierChoice: courierChoice,
-                    otherCourierName: otherCourierName,
+                    otherCourierName: '',
                     trackingNumber: tnNumber,
                     trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
@@ -527,26 +525,24 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!$scope.editingDelivery || !$scope.editingDelivery.deliveryOverview) return;
         var id = $scope.editingDelivery.deliveryOverview.id;
         var currentStatus = ($scope.editingDelivery.deliveryOverview.deliveryStatus || '').toUpperCase();
-        var courier = null;
         var courierChoice = ($scope.editDeliveryForm.courierChoice || '').trim();
+        try {
+            var editCourierSelectEl = document.getElementById('editCourierChoiceSelect');
+            if (editCourierSelectEl && editCourierSelectEl.value) {
+                courierChoice = (editCourierSelectEl.value || '').toString().trim() || courierChoice;
+            }
+        } catch (e) { }
+        var courier = (courierChoice && courierChoice.toLowerCase().indexOf('fedex') !== -1) ? 'Fedex' : 'LBC';
         var rawNumberEdit = ($scope.editDeliveryForm.trackingNumber || '').trim();
         var rawLinkEdit = ($scope.editDeliveryForm.trackingLink || '').trim();
-        if (courierChoice !== 'Others') rawLinkEdit = '';
         var trackingNumber = null;
         if (currentStatus === 'PENDING') {
-            if (courierChoice === 'Others') {
-                var otherName = ($scope.editDeliveryForm.otherCourierName || '').trim();
-                if (!otherName) {
-                    Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Enter courier name when Others is selected.' });
-                    return;
-                }
-                courier = otherName;
-            } else {
-                courier = courierChoice || 'LBC';
-            }
-
             if (!rawNumberEdit) {
                 Swal.fire({ icon: 'warning', title: 'Tracking number required', text: 'Please enter a tracking number.' });
+                return;
+            }
+            if (!$scope.isValidTrackingNumber(rawNumberEdit)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
                 return;
             }
             if (!$scope.editDeliveryForm.dispatchDate) {
@@ -561,9 +557,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
                 return;
             }
+        } else {
+            // IN_TRANSIT: validate only if the user provided a new tracking number.
+            if (rawNumberEdit && !$scope.isValidTrackingNumber(rawNumberEdit)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
+                return;
+            }
         }
         if (rawLinkEdit) {
-            trackingNumber = rawNumberEdit ? (rawNumberEdit + '||' + rawLinkEdit) : ('||' + rawLinkEdit);
+            // Only persist link alongside a valid tracking number.
+            trackingNumber = rawNumberEdit ? (rawNumberEdit + '||' + rawLinkEdit) : null;
         } else {
             trackingNumber = rawNumberEdit || null;
         }
@@ -626,10 +629,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         $('#deliveryShipmentsTable').DataTable().destroy();
                     }
                 } catch (e) { }
-                if ($scope.shipmentsList && $scope.shipmentsList.length > 0) {
-                    window.initializeStandardTable('#deliveryShipmentsTable', 0);
-                }
-            }, 150);
+                // Wait one more tick to ensure ng-repeat rows are in the DOM.
+                $timeout(function () {
+                    if ($scope.shipmentsList && $scope.shipmentsList.length > 0) {
+                        window.initializeStandardTable('#deliveryShipmentsTable', 0);
+                    }
+                }, 0);
+            }, 250);
         });
     };
     $scope.getDisplayTrackingNumber = function (raw) {
@@ -638,6 +644,19 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (!s) return '-';
         var parts = s.split('||');
         return parts[0] || parts[1] || '-';
+    };
+    var TRACKING_NUMBER_REGEX = /^\d{10,22}$/;
+    $scope.isValidTrackingNumber = function (val) {
+        var s = (val || '').toString().trim();
+        return !!s && TRACKING_NUMBER_REGEX.test(s);
+    };
+    $scope.trackingNumberForNewTouched = false;
+    $scope.editTrackingNumberTouched = false;
+    $scope.onTrackingNumberForNewInputChange = function () {
+        $scope.trackingNumberForNewTouched = true;
+    };
+    $scope.onEditTrackingNumberInputChange = function () {
+        $scope.editTrackingNumberTouched = true;
     };
     function toYyyyMmDd(val) {
         if (!val && val !== 0) return null;
@@ -671,16 +690,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
 
         var deliveryType = $scope.deliveryTypeForNew || 'COURIER';
+        // Read courier from DOM as well (modal select binding can occasionally lag behind click).
         var courierChoice = ($scope.courierForNewShipment || 'LBC').trim() || 'LBC';
-        var courier = courierChoice;
-        if (courierChoice === 'Others') {
-            var otherCourierName = ($scope.courierOtherForNew || '').trim();
-            if (!otherCourierName) {
-                Swal.fire({ icon: 'warning', title: 'Courier name required', text: 'Type the courier name when Others is selected.' });
-                return;
+        try {
+            var courierSelectEl = document.getElementById('courierForNewShipmentSelect');
+            if (courierSelectEl && courierSelectEl.value) {
+                courierChoice = (courierSelectEl.value || '').toString().trim() || courierChoice;
             }
-            courier = otherCourierName;
-        }
+        } catch (e) { }
+        // Only persist LBC + Fedex from this page.
+        var courier = (courierChoice && courierChoice.toLowerCase().indexOf('fedex') !== -1) ? 'Fedex' : 'LBC';
 
         // Read tracking number directly from the dedicated input (most reliable).
         var rawNumber = '';
@@ -698,6 +717,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
         if (!rawNumber) {
             Swal.fire({ icon: 'warning', title: 'Tracking number required', text: 'Please enter a tracking number.' });
+            return;
+        }
+        if (!$scope.isValidTrackingNumber(rawNumber)) {
+            Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
             return;
         }
 
@@ -727,8 +750,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.loadDeliveryShipments();
                 $scope.selectedOrderForDelivery = null;
                 $scope.trackingNumberForNew = '';
+                $scope.trackingNumberForNewTouched = false;
                 $scope.courierForNewShipment = 'LBC';
-                $scope.courierOtherForNew = '';
                 $scope.dispatchDateForNew = '';
                 $scope.etaForNew = '';
                 var modalEl = document.getElementById('deliveryAddShipmentModal');
@@ -1419,11 +1442,27 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.inventoryEditPhotoFile = null;
     $scope.editProduct = null;
     $scope.nextProductDisplayId = 'P-001';
+    $scope.inventoryTableVisible = true;
 
     $scope.loadInventoryProducts = function () {
         var showArchived = $scope.showArchivedInventory;
         $scope.inventorySearchText = '';
+        
+        // Guard against out-of-order responses when the user clicks tabs quickly.
+        $scope.inventoryLoadSeq = ($scope.inventoryLoadSeq || 0) + 1;
+        var seq = $scope.inventoryLoadSeq;
+
+        // Reset immediately so DataTables never shows stale rows.
+        try {
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                $('#inventoryTable').DataTable().destroy();
+            }
+        } catch (e) { }
+        $scope.inventoryProducts = [];
+        $scope.inventoryTableVisible = false;
+
         SolteiraAndBrandsService.getInventoryProducts(showArchived).then(function (res) {
+            if (seq !== $scope.inventoryLoadSeq) return; // stale response
             var list = [];
             var d = res.data;
             if (angular.isArray(d)) {
@@ -1443,20 +1482,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.nextProductDisplayId = 'P-' + ('000' + (maxId + 1)).slice(-3);
             }
 
-            // Initialize DataTables for inventory table (same pattern as AdminOrdersArchivePage)
+            // Re-render the table (ng-if) to guarantee DataTables rebinds to current rows.
             $timeout(function () {
-                if (typeof window.initializeStandardTable !== 'function') return;
-                try {
-                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
-                        $('#inventoryTable').DataTable().destroy();
-                    }
-                } catch (e) { }
-                if ($scope.inventoryProducts && $scope.inventoryProducts.length > 0) {
-                    // Sort by Product ID column (index 1) descending by default.
+                if (seq !== $scope.inventoryLoadSeq) return; // stale response
+                $scope.inventoryTableVisible = true;
+                $timeout(function () {
+                    if (typeof window.initializeStandardTable !== 'function') return;
                     window.initializeStandardTable('#inventoryTable', 1);
-                }
-            }, 150);
+                }, 0);
+            }, 0);
         }, function () {
+            if (seq !== $scope.inventoryLoadSeq) return; // stale response
             $scope.inventoryProducts = [];
             // Ensure any existing DataTable instance is cleaned up when list becomes empty.
             $timeout(function () {
@@ -1465,6 +1501,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         $('#inventoryTable').DataTable().destroy();
                     }
                 } catch (e) { }
+            }, 0);
+            $timeout(function () {
+                if (seq !== $scope.inventoryLoadSeq) return; // stale response
+                $scope.inventoryTableVisible = true;
             }, 0);
         });
     };
@@ -1555,7 +1595,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
-        if (!$scope.newProduct.stones || !$scope.newProduct.material || !$scope.newProduct.weight || !$scope.newProduct.length) {
+        if (!$scope.newProduct.stones || !$scope.newProduct.material) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
@@ -1598,7 +1638,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     $scope.inventoryFileValidationMessage = '';
                     Swal.fire({
                         title: 'Inventory item added!',
-                        text: 'Refresh the page to see it in the list.',
+                        text: 'Click OK to update the inventory list.',
                         icon: 'success',
                         iconColor: '#FFFBE8',
                         background: '#8eb078',
@@ -1606,6 +1646,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                         confirmButtonColor: '#FFFBE8',
                         buttonsStyling: true,
                         customClass: { title: 'status-title', confirmButton: 'status-button' }
+                    }).then(function () {
+                        $timeout(function () { $scope.loadInventoryProducts(); }, 0);
                     });
                 } else {
                     Swal.fire({
@@ -1662,7 +1704,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.closeViewPhotoAndEdit = function (item) {
         $('#inventoryViewPhotoModal').modal('hide');
         $scope.viewPhotoItem = null;
-        if (item) $scope.openEditProduct(item);
     };
     $scope.openImagePreview = function (src) {
         if (!src) return;
@@ -1709,7 +1750,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             });
             return;
         }
-        if (!$scope.editProduct.stones || !$scope.editProduct.material || !$scope.editProduct.weight || !$scope.editProduct.length) {
+        if (!$scope.editProduct.stones || !$scope.editProduct.material) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
@@ -1802,9 +1843,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     // Initialize when inventory table is present
-    if (document.getElementById('inventoryTable')) {
-        $scope.loadInventoryProducts();
-    }
+    $timeout(function () {
+        if ($('#inventoryTable').length) {
+            // If the URL includes `?archived=true`, open the inventory page in the archived tab.
+            // This is used by the system admin sidebar navigation for "Archive".
+            try {
+                var params = new URLSearchParams(window.location.search || '');
+                var archivedParam = params.get('archived');
+                if (archivedParam != null) {
+                    $scope.showArchivedInventory = archivedParam === 'true' || archivedParam === '1';
+                }
+            } catch (e) { }
+            $scope.loadInventoryProducts();
+        }
+    }, 0);
 
     //for when status is changed in the DELIVERY SHIPMENTS Page
     $scope.shipmentsStatus = function () {
@@ -2059,9 +2111,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                                 title: 'status-title',
                                 confirmButton: 'status-button'
                             }
+                        }).then(function () {
+                            // Refresh after user confirms, so DataTable re-init doesn't race with SweetAlert overlay.
+                            $timeout(function () { $scope.loadInventoryProducts(); }, 0);
                         });
-                        // Run reload in Angular digest so the list updates in the view
-                        $timeout(function () { $scope.loadInventoryProducts(); }, 0);
                     } else {
                         Swal.fire({
                             title: 'Unable to update item.',
@@ -2832,15 +2885,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         let related = $scope.jewelries.filter(j =>
             j.category === $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
         );
-
-        // 2. If we have less than 4, fill the gap with items from other categories
-        if (related.length < 4) {
-            let others = $scope.jewelries.filter(j =>
-                j.category !== $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
-            );
-            // Combine and take the remainder needed
-            related = related.concat(others).slice(0, 4);
-        }
 
         return related.slice(0, 4);
     };

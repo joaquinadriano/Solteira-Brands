@@ -41,21 +41,10 @@
                                         <select id="courierForNewShipmentSelect"
                                                 class="form-select delivery-input-field"
                                                 ng-model="courierForNewShipment"
-                                                ng-init="courierForNewShipment = 'LBC'">
+                                                ng-init="courierForNewShipment = courierForNewShipment || 'LBC'">
                                             <option value="LBC">LBC</option>
-                                            <option value="JnT">JnT</option>
-                                            <option value="Flash Express">Flash Express</option>
-                                            <option value="Others">Others</option>
+                                            <option value="Fedex">Fedex</option>
                                         </select>
-                                    </div>
-                                </div>
-                                <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery && courierForNewShipment === 'Others'">
-                                    <div class="col-sm-5"><label class="delivery-label">Courier name <span class="delivery-required">*</span></label></div>
-                                    <div class="col-sm-7">
-                                        <input type="text"
-                                               class="form-control delivery-input-field"
-                                               ng-model="courierOtherForNew"
-                                               placeholder="Type courier name" />
                                     </div>
                                 </div>
                                 <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
@@ -65,7 +54,17 @@
                                                type="text"
                                                class="form-control delivery-input-field"
                                                ng-model="trackingNumberForNew"
-                                               placeholder="e.g. 1234567890" />
+                                                       placeholder="e.g. 1234567890 (10-22 digits)"
+                                                       maxlength="22"
+                                               inputmode="numeric"
+                                               pattern="\\d*"
+                                               oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+                                               ng-change="onTrackingNumberForNewInputChange()"
+                                               ng-class="{'is-invalid': trackingNumberForNewTouched && trackingNumberForNew && !isValidTrackingNumber(trackingNumberForNew)}" />
+                                        <div class="invalid-feedback d-block"
+                                             ng-if="trackingNumberForNewTouched && trackingNumberForNew && !isValidTrackingNumber(trackingNumberForNew)">
+                                            Tracking number must be 10-22 digits.
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="row mb-3 align-items-center" ng-if="selectedOrderForDelivery">
@@ -277,24 +276,27 @@
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">Courier</label>
-                            <select class="form-select" ng-model="editDeliveryForm.courierChoice">
+                            <select id="editCourierChoiceSelect" class="form-select" ng-model="editDeliveryForm.courierChoice">
                                 <option value="LBC">LBC</option>
-                                <option value="JnT">JnT</option>
-                                <option value="Flash Express">Flash Express</option>
-                                <option value="Others">Others</option>
+                                <option value="Fedex">Fedex</option>
                             </select>
-                        </div>
-                        <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING' && editDeliveryForm.courierChoice === 'Others'">
-                            <label class="form-label">Courier Name</label>
-                            <input type="text" class="form-control" ng-model="editDeliveryForm.otherCourierName" placeholder="e.g. J&T, Flash Express" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Tracking Number</label>
-                            <input type="text" class="form-control" ng-model="editDeliveryForm.trackingNumber" placeholder="Tracking number" />
-                        </div>
-                        <div class="mb-3" ng-if="editDeliveryForm.courierChoice === 'Others'">
-                            <label class="form-label">Tracking Link (optional)</label>
-                            <input type="text" class="form-control" ng-model="editDeliveryForm.trackingLink" placeholder="Paste tracking URL here" />
+                            <input type="text"
+                                   class="form-control"
+                                   ng-model="editDeliveryForm.trackingNumber"
+                                   placeholder="Tracking number (10-22 digits)"
+                                   maxlength="22"
+                                   inputmode="numeric"
+                                   pattern="\\d*"
+                                   oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+                                   ng-change="onEditTrackingNumberInputChange()"
+                                   ng-class="{'is-invalid': editTrackingNumberTouched && editDeliveryForm.trackingNumber && !isValidTrackingNumber(editDeliveryForm.trackingNumber)}" />
+                            <div class="invalid-feedback d-block"
+                                 ng-if="editTrackingNumberTouched && editDeliveryForm.trackingNumber && !isValidTrackingNumber(editDeliveryForm.trackingNumber)">
+                                Tracking number must be 10-22 digits.
+                            </div>
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">Dispatch Date</label>

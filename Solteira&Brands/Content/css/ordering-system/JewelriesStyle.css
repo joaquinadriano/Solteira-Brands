@@ -523,6 +523,95 @@
     padding-bottom: 2vw;
 }
 
+/* Carousel styles reused by Featured-products (home) and Related-products (detail). */
+.featured-carousel-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.featured-carousel {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.featured-carousel-viewport {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.carousel-track {
+    display: flex;
+    transition: transform 0.4s ease;
+    width: 100%;
+}
+
+.carousel-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.featured-carousel-dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding: 0;
+    list-style: none;
+}
+
+.featured-carousel-dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #1a1a1a;
+    opacity: 0.28;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.featured-carousel-dot:hover {
+    opacity: 0.55;
+}
+
+.featured-carousel-dot.is-active {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+.featured-carousel-dot:focus-visible {
+    outline: 2px solid #1a1a1a;
+    outline-offset: 2px;
+}
+
+@media (max-width: 991px) {
+    .featured-carousel-dots { margin-top: 1rem; gap: 0.4rem; }
+}
+
+.related-carousel-container {
+    /* Let the related-products carousel use more of the available page width. */
+    max-width: none;
+    margin: 0 auto;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 991px) {
+    .related-carousel-container {
+        padding: 0 0.25rem;
+    }
+}
+
 .related-title {
     font-family: "Kaisei Tokumin";
     font-size: 1.75rem;
@@ -537,6 +626,18 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 2vw;
     position: relative;
+}
+
+@media (min-width: 576px) and (max-width: 991px) {
+    .related-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 575px) {
+    .related-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .related-item {

@@ -8,11 +8,40 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.jewelries = [];
     $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
 
+    /** Jewelries page: open detail when URL has ?id= after catalog has loaded (init ran too early before). */
+    function tryOpenProductFromUrl() {
+        if (!document.querySelector('.jewelry-grid-container')) return;
+        var urlParams = new URLSearchParams(window.location.search);
+        var productId = parseInt(urlParams.get('id'), 10);
+        if (!productId) return;
+        var product = ($scope.jewelries || []).find(function (j) { return j.id === productId; });
+        if (!product) return;
+        $scope.selectedProduct = product;
+        $scope.qty = 1;
+        $scope.viewMode = 'detail';
+        $scope.transitionDir = 'forward';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $scope.buildRelatedSlides();
+        $timeout(function () { $scope.startRelatedCarousel(); }, 0);
+        SolteiraBrandsService.getProductStock(product.id).then(function (r) {
+            if (r.data && r.data.success && $scope.selectedProduct && $scope.selectedProduct.id === product.id) {
+                $scope.selectedProduct.stockQuantity = r.data.stockQuantity;
+                $scope.capDetailQtyToStock();
+            }
+        });
+    }
+
     $scope.loadStorefrontProducts = function () {
         SolteiraBrandsService.getStorefrontProducts().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
                 $scope.jewelries = res.data.data;
                 $scope.buildFeaturedSlides();
+                tryOpenProductFromUrl();
+                $timeout(function () {
+                    if (document.querySelector('.featured-carousel-container')) {
+                        $scope.startFeaturedCarousel();
+                    }
+                }, 0);
             } else {
                 $scope.jewelries = [];
                 $scope.featuredCarouselSlides = [];
@@ -29,6 +58,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     var FEATURED_SLIDE_INTERVAL_MS = 10000;
     var FEATURED_MAX = 12;
 
+    /** Up to 4 featured products per slide; next slide shows the remainder (e.g. 5 items → slide of 4, then slide of 1). */
     $scope.buildFeaturedSlides = function () {
         var list = ($scope.jewelries || []).filter(function (j) { return j.isFeatured === true; }).slice(0, FEATURED_MAX);
         var slides = [];
@@ -56,6 +86,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         $scope.startFeaturedCarousel();
     };
 
+    $scope.goToFeaturedSlide = function (index) {
+        var total = $scope.featuredCarouselSlides.length;
+        if (total <= 1 || index < 0 || index >= total) return;
+        $scope.currentFeaturedSlide = index;
+        $scope.stopFeaturedCarousel();
+        $scope.startFeaturedCarousel();
+    };
+
     $scope.startFeaturedCarousel = function () {
         if ($scope.featuredCarouselInterval) $interval.cancel($scope.featuredCarouselInterval);
         if ($scope.featuredCarouselSlides.length <= 1) return;
@@ -77,9 +115,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.goBack = function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('from') === 'featured') {
+            window.location.href = '/SolteiraAndBrands/SolteiraBrandsHome';
+            return;
+        }
+        $scope.stopRelatedCarousel();
+        $scope.relatedCarouselSlides = [];
+        $scope.currentRelatedSlide = 0;
         $scope.transitionDir = 'backward';
         $scope.viewMode = 'list';
         $scope.selectedProduct = null;
+        if (window.history && window.history.replaceState) {
+            if (params.has('id')) {
+                params.delete('id');
+                var qs = params.toString();
+                window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+            }
+        }
     };
 
     $scope.selectProduct = function (item, event) {
@@ -107,6 +160,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 $scope.viewMode = 'detail';
                 $scope.transitionDir = 'forward';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                $scope.buildRelatedSlides();
+                $timeout(function () { $scope.startRelatedCarousel(); }, 0);
+                if (window.history && window.history.replaceState) {
+                    try {
+                        var url = new URL(window.location.href);
+                        url.searchParams.set('id', String(item.id));
+                        url.searchParams.delete('from');
+                        window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+                    } catch (e) { /* ignore */ }
+                }
                 SolteiraBrandsService.getProductStock(item.id).then(function (r) {
                     if (r.data && r.data.success && $scope.selectedProduct && $scope.selectedProduct.id === item.id) {
                         $scope.selectedProduct.stockQuantity = r.data.stockQuantity;
@@ -137,21 +200,87 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return item.id !== $scope.selectedProduct.id;
     };
 
+    $scope.relatedCarouselSlides = [];
+    $scope.currentRelatedSlide = 0;
+    $scope.relatedCarouselInterval = null;
+
+    var RELATED_SLIDE_INTERVAL_MS = FEATURED_SLIDE_INTERVAL_MS; // Match featured transitions timing.
+    var RELATED_MAX_PER_SLIDE = 4;
+
+    function normalizeCategory(cat) {
+        return (cat === undefined || cat === null) ? '' : cat.toString().trim().toLowerCase();
+    }
+
+    // Related products must be the same category (and never the selected product itself).
     $scope.getRelatedProducts = function () {
         if (!$scope.selectedProduct) return [];
 
-        let related = $scope.jewelries.filter(j =>
-            j.category === $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
-        );
+        var selectedCategory = normalizeCategory($scope.selectedProduct.category);
 
-        if (related.length < 4) {
-            let others = $scope.jewelries.filter(j =>
-                j.category !== $scope.selectedProduct.category && j.id !== $scope.selectedProduct.id
-            );
-            related = related.concat(others).slice(0, 4);
+        return ($scope.jewelries || []).filter(function (j) {
+            if (!j) return false;
+            return normalizeCategory(j.category) === selectedCategory && j.id !== $scope.selectedProduct.id;
+        });
+    };
+
+    // Build 4-items-per-slide carousel.
+    $scope.buildRelatedSlides = function () {
+        var related = $scope.getRelatedProducts();
+
+        var slides = [];
+        for (var i = 0; i < related.length; i += RELATED_MAX_PER_SLIDE) {
+            slides.push(related.slice(i, i + RELATED_MAX_PER_SLIDE));
         }
 
-        return related.slice(0, 4);
+        $scope.relatedCarouselSlides = slides;
+        $scope.currentRelatedSlide = 0;
+    };
+
+    $scope.nextRelatedSlide = function () {
+        var total = $scope.relatedCarouselSlides.length;
+        if (total <= 1) return;
+
+        $scope.currentRelatedSlide++;
+        if ($scope.currentRelatedSlide >= total) $scope.currentRelatedSlide = 0;
+        $scope.stopRelatedCarousel();
+        $scope.startRelatedCarousel();
+    };
+
+    $scope.prevRelatedSlide = function () {
+        var total = $scope.relatedCarouselSlides.length;
+        if (total <= 1) return;
+
+        $scope.currentRelatedSlide--;
+        if ($scope.currentRelatedSlide < 0) $scope.currentRelatedSlide = total - 1;
+        $scope.stopRelatedCarousel();
+        $scope.startRelatedCarousel();
+    };
+
+    $scope.goToRelatedSlide = function (index) {
+        var total = $scope.relatedCarouselSlides.length;
+        if (total <= 1 || index < 0 || index >= total) return;
+
+        $scope.currentRelatedSlide = index;
+        $scope.stopRelatedCarousel();
+        $scope.startRelatedCarousel();
+    };
+
+    $scope.startRelatedCarousel = function () {
+        if ($scope.relatedCarouselInterval) $interval.cancel($scope.relatedCarouselInterval);
+        if ($scope.relatedCarouselSlides.length <= 1) return;
+
+        $scope.relatedCarouselInterval = $interval(function () {
+            var total = $scope.relatedCarouselSlides.length;
+            $scope.currentRelatedSlide++;
+            if ($scope.currentRelatedSlide >= total) $scope.currentRelatedSlide = 0;
+        }, RELATED_SLIDE_INTERVAL_MS);
+    };
+
+    $scope.stopRelatedCarousel = function () {
+        if ($scope.relatedCarouselInterval) {
+            $interval.cancel($scope.relatedCarouselInterval);
+            $scope.relatedCarouselInterval = null;
+        }
     };
 
     /** Short description for product cards: max 2 lines / ~80 chars, ellipsis. */
@@ -220,18 +349,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.init = function () {
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Load products for storefront jewelries page
+        // Load products for storefront jewelries page (?id= deep link handled after load in tryOpenProductFromUrl)
         if (document.querySelector('.jewelry-grid-container')) {
             $scope.loadStorefrontProducts();
-        }
-        const productId = parseInt(urlParams.get('id'));
-
-        if (productId) {
-            const product = $scope.jewelries.find(j => j.id === productId);
-            if (product) {
-                $scope.selectedProduct = product;
-                $scope.viewMode = 'detail';
-            }
         }
 
         const mode = urlParams.get('mode');
@@ -247,7 +367,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.init();
 
     $scope.goToProduct = function (item) {
-        window.location.href = '/SolteiraAndBrands/SolteiraBrandsJewelries?id=' + item.id;
+        if (!item || item.id == null) return;
+        window.location.href = '/SolteiraAndBrands/SolteiraBrandsJewelries?id=' + encodeURIComponent(item.id) + '&from=featured';
     };
 
     $scope.showPassword = false;
@@ -1333,15 +1454,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return 'View Details';
     };
 
-    $scope.goToTracking = function (trackingNumberRaw, trackingLinkExplicit) {
+    $scope.goToTracking = function (trackingNumberRaw, trackingLinkExplicit, courierRaw) {
         var raw = (trackingNumberRaw || '').toString().trim();
+        var courier = (courierRaw || '').toString().trim();
+        var courierLower = courier.toLowerCase();
+        var defaultTrackingUrl = (courierLower.indexOf('fedex') !== -1) ? 'https://www.fedex.com/en-us/tracking.html' : 'https://www.lbcexpress.com/track/';
         if (!raw) {
             if (trackingLinkExplicit && /^https?:\/\//i.test(trackingLinkExplicit)) {
                 window.open(trackingLinkExplicit, '_blank');
                 return;
             } else {
-                // No tracking number or explicit link: open LBC default page as a fallback.
-                window.open('https://www.lbcexpress.com/track/', '_blank');
+                // No tracking number or explicit link: open carrier default as a fallback.
+                window.open(defaultTrackingUrl, '_blank');
                 return;
             }
         }
@@ -1353,8 +1477,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (link && /^https?:\/\//i.test(link)) {
             window.open(link, '_blank');
         } else {
-            // When there is no valid URL stored, fall back to LBC tracking page.
-            window.open('https://www.lbcexpress.com/track/', '_blank');
+            // When there is no valid URL stored, fall back to carrier tracking page.
+            window.open(defaultTrackingUrl, '_blank');
         }
     };
 
@@ -1419,7 +1543,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Pay Downpayment') {
             $scope.goToPayment(order.orderId);
         } else if (label === 'Track Now') {
-            $scope.goToTracking(order.trackingNumber);
+            $scope.goToTracking(order.trackingNumber, order.trackingLink, order.courier);
         } else {
             // Always show the full Order Summary first to avoid confusion.
             // Payment proof can then be viewed from the Order Summary footer.

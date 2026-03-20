@@ -126,17 +126,44 @@
 
             <div class="related-section">
                 <h2 class="related-title">RELATED PRODUCTS</h2>
-                <div class="related-grid">
-                    <div class="related-item"
-                         ng-repeat="rel in getRelatedProducts()"
-                         ng-click="selectProduct(rel)">
-                        <div class="image-wrapper">
-                            <img ng-src="{{rel.img || defaultProductImageUrl}}" alt="{{rel.name}}">
+                <div class="related-carousel-container"
+                     ng-if="relatedCarouselSlides.length > 0"
+                     ng-mouseenter="stopRelatedCarousel()"
+                     ng-mouseleave="startRelatedCarousel()">
+                    <div class="featured-carousel-inner related-carousel-inner">
+                        <div class="featured-carousel related-carousel">
+                            <div class="featured-carousel-viewport related-carousel-viewport">
+                                <div class="carousel-track" ng-style="{'transform': 'translateX(-' + (currentRelatedSlide * 100) + '%)'}">
+                                    <div class="carousel-slide" ng-repeat="slide in relatedCarouselSlides track by $index">
+                                        <div class="related-grid">
+                                            <div class="related-item"
+                                                 ng-repeat="rel in slide track by rel.id"
+                                                 ng-click="selectProduct(rel)">
+                                                <div class="image-wrapper">
+                                                    <img ng-src="{{rel.img || defaultProductImageUrl}}" alt="{{rel.name}}">
+                                                </div>
+                                                <span class="related-item-category">{{rel.category || 'Jewelry'}}</span>
+                                                <p class="related-item-name">{{rel.name}}</p>
+                                                <p class="related-item-desc">{{getShortDescription(rel)}}</p>
+                                                <span class="related-item-price">&#8369; {{rel.price | number:2}}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <span class="related-item-category">{{rel.category || 'Jewelry'}}</span>
-                        <p class="related-item-name">{{rel.name}}</p>
-                        <p class="related-item-desc">{{getShortDescription(rel)}}</p>
-                        <span class="related-item-price">&#8369; {{rel.price | number:2}}</span>
+
+                        <div class="featured-carousel-dots related-carousel-dots"
+                             ng-if="relatedCarouselSlides.length > 1"
+                             role="group"
+                             aria-label="Related products slides">
+                            <button type="button"
+                                    class="featured-carousel-dot"
+                                    ng-repeat="slide in relatedCarouselSlides track by $index"
+                                    ng-class="{'is-active': currentRelatedSlide === $index}"
+                                    ng-click="goToRelatedSlide($index)"
+                                    aria-label="Show related products slide {{$index + 1}}"></button>
+                        </div>
                     </div>
                 </div>
             </div>
