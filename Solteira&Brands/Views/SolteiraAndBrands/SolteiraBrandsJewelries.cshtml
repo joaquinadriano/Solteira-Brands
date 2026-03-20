@@ -1,5 +1,13 @@
 @{
     Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+    // BUYER-only: hide add-to-cart UI for ADMIN / MANAGER / STAFF (inventory roles)
+    bool isLoggedIn = User != null
+        && User.Identity != null
+        && User.Identity.IsAuthenticated;
+    bool isBuyer = isLoggedIn && User.IsInRole("BUYER");
+    // Anonymous users may click "Add to Cart" but are forced to log in via notification.
+    // Inventory roles must not see cart actions.
+    bool showAddToCartUi = isBuyer || !isLoggedIn;
 }
 
 <link rel="stylesheet" href="~/Content/css/ordering-system/JewelriesStyle.css" />
@@ -51,9 +59,12 @@
                     <div class="image-wrapper">
                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
                         <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
-                        <div class="cart-icon-overlay" ng-show="(item.stockQuantity || 0) > 0" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
-                            <i class="bi bi-cart-plus-fill"></i>
-                        </div>
+                                @if (showAddToCartUi)
+                                {
+                                    <div class="cart-icon-overlay" ng-show="(item.stockQuantity || 0) > 0" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
+                                        <i class="bi bi-cart-plus-fill"></i>
+                                    </div>
+                                }
                     </div>
                     <div class="product-info">
                         <span class="product-category">{{item.category || 'Jewelry'}}</span>
@@ -105,22 +116,25 @@
 
                     <hr class="separator">
 
-                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) > 0">
-                        <div class="quantity-container">
-                            <span class="label">Quantity:</span>
-                            <div class="quantity-controls">
-                                <button type="button" ng-click="changeDetailQty(-1)">-</button>
-                                <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
-                                <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
+                    @if (showAddToCartUi)
+                    {
+                        <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) > 0">
+                            <div class="quantity-container">
+                                <span class="label">Quantity:</span>
+                                <div class="quantity-controls">
+                                    <button type="button" ng-click="changeDetailQty(-1)">-</button>
+                                    <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
+                                    <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
+                                </div>
                             </div>
+                            <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
+                                <i class="bi bi-cart-plus"></i>Add to Cart
+                            </button>
                         </div>
-                        <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
-                            <i class="bi bi-cart-plus"></i>Add to Cart
-                        </button>                    
-                    </div>
-                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) === 0">
-                        <button class="add-to-cart-btn" disabled><i class="bi bi-cart-plus"></i>SOLD OUT</button>
-                    </div>
+                        <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) === 0">
+                            <button class="add-to-cart-btn" disabled><i class="bi bi-cart-plus"></i>SOLD OUT</button>
+                        </div>
+                    }
                 </div>
             </div>
 

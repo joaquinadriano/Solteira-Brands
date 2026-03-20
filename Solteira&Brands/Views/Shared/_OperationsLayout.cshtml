@@ -22,7 +22,7 @@
 <body ng-app="SolteiraAndBrands" ng-controller="SolteiraAndBrandsController">
 
     @* OPERATIONS SIDEBAR: Dashboard, Inventory, Orders, Payment, Delivery, Reports (no Archive, Logs, Users) *@
-    <div class="sidebar pt-3">
+    <div id="sbAdminSidebar" class="sidebar pt-3">
         <ul class="sidebar-ul">
             <li class="option1">
                 <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")">
@@ -90,6 +90,16 @@
 
     <nav class="navbar inventory-navbar">
         <div class="container-fluid d-flex justify-content-end align-items-center gap-3">
+            <button type="button"
+                    id="sbAdminMobileMenuButton"
+                    class="sb-admin-mobile-menu-button"
+                    aria-label="Open admin menu"
+                    aria-controls="sbAdminSidebar"
+                    aria-expanded="false">
+                <span class="sb-hamburger-lines" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                </span>
+            </button>
             <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1" title="Go to ordering system">
                 <i class="bi bi-shop"></i> Buyer-Side
             </a>
@@ -132,6 +142,8 @@
             </div>
         </div>
     </nav>
+
+    <div id="sbAdminMobileMenuOverlay" class="sb-admin-mobile-menu-overlay" aria-hidden="true"></div>
 
     <div class="">
         @RenderBody()
@@ -208,6 +220,51 @@
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.forEach(function (tooltipTriggerEl) { new bootstrap.Tooltip(tooltipTriggerEl); });
         });
+    </script>
+    <script>
+        // Mobile off-canvas admin sidebar toggle
+        (function () {
+            var btn = document.getElementById('sbAdminMobileMenuButton');
+            var overlay = document.getElementById('sbAdminMobileMenuOverlay');
+            if (!btn || !overlay) return;
+
+            var isOpen = false;
+            var sidebar = document.querySelector('.sidebar');
+
+            function setOpen(next) {
+                isOpen = next;
+                btn.setAttribute('aria-expanded', String(isOpen));
+                overlay.classList.toggle('open', isOpen);
+                overlay.setAttribute('aria-hidden', String(!isOpen));
+                if (isOpen) document.body.classList.add('sb-admin-sidebar-open');
+                else document.body.classList.remove('sb-admin-sidebar-open');
+                document.body.style.overflow = isOpen ? 'hidden' : '';
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                setOpen(!isOpen);
+            });
+
+            overlay.addEventListener('click', function () {
+                setOpen(false);
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') setOpen(false);
+            });
+
+            if (sidebar) {
+                sidebar.addEventListener('click', function (e) {
+                    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                    if (!a) return;
+                    var href = a.getAttribute('href') || '';
+                    var hasDropdown = a.getAttribute('data-bs-toggle') === 'dropdown' || a.classList.contains('delivery-dropend-toggle');
+                    if (href === '#' || hasDropdown) return;
+                    setOpen(false);
+                });
+            }
+        })();
     </script>
 </body>
 </html>

@@ -1005,6 +1005,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     // ----- CART: server-side per account (BUYER only) -----
     var isBuyer = !!(window.sbIsBuyer);
+    var isLoggedIn = !!(window.sbIsLoggedIn);
     $scope.cart = [];
 
     function getSelectedCartSessionKey() {
@@ -1095,7 +1096,22 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.addToCart = function (product, quantity) {
         if (!isBuyer) {
-            window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+            if (!isLoggedIn) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Login required',
+                    text: 'Please log in first to add items to your cart.'
+                }).then(function () {
+                    window.location.href = '/SolteiraAndBrands/SolteiraBrandsLogin';
+                });
+            } else {
+                // Inventory roles (ADMIN / MANAGER / STAFF) can browse products, but cart actions are BUYER-only.
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Not allowed',
+                    text: 'Your role cannot add items to cart. Only BUYERS can do this.'
+                });
+            }
             return;
         }
         var requestedQty = Math.max(1, parseInt(quantity, 10) || 1);

@@ -137,3 +137,126 @@ footer {
     footer .bi-instagram:hover {
         opacity: 0.7;
     }
+
+/* Mobile navigation (hamburger + slide-in) */
+.sb-mobile-menu-button {
+    display: none;
+    background: transparent;
+    border: none;
+    color: #1e1e1e;
+    font-size: 1.7rem;
+    line-height: 1;
+    padding: 0.25rem 0.5rem;
+}
+
+.sb-hamburger-lines {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.18rem;
+}
+
+.sb-hamburger-lines span {
+    display: block;
+    width: 1.35rem;
+    height: 0.12rem;
+    background: #1e1e1e;
+    border-radius: 999px;
+}
+
+.sb-mobile-menu-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 1000;
+}
+
+.sb-mobile-menu-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sb-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 85%;
+    max-width: 320px;
+    background: #ffffff;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+    padding-top: 0.75rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sb-mobile-menu.open {
+    transform: translateX(0);
+}
+
+.sb-mobile-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sb-mobile-menu-item-spacer {
+    height: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sb-mobile-menu-link {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0.85rem 1.25rem;
+    font-family: "Kaisei Tokumin";
+    font-size: 1.15rem;
+    color: #1E1E1E;
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sb-mobile-menu-link:hover {
+    background-color: rgba(135, 174, 115, 0.14);
+    color: #1E1E1E;
+}
+
+.sb-mobile-menu .dropdown-menu {
+    border-radius: 0;
+    border: none;
+}
+
+@media (max-width: 991.98px) {
+    .sb-mobile-menu-button {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .sb-desktop-nav,
+    .sb-desktop-actions {
+        display: none !important;
+    }
+
+    .sb-mobile-menu,
+    .sb-mobile-menu-overlay {
+        display: block;
+    }
+
+    .sb-mobile-menu .custom-account-dropdown {
+        min-width: auto !important;
+        width: 100%;
+    }
+
+    /* Make sure dropdown content doesn't feel cramped in the offcanvas menu */
+    .sb-mobile-menu .dropdown-item {
+        padding: 0.65rem 1rem;
+    }
+}

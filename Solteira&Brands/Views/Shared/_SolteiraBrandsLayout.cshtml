@@ -40,7 +40,18 @@
             <div class="container-fluid px-4">
                 <div class="flex-grow-1 d-none d-lg-block"></div>
 
-                <ul class="navbar-nav flex-row gap-3 gap-lg-5">
+                <button id="sbMobileMenuButton"
+                        class="sb-mobile-menu-button"
+                        type="button"
+                        aria-label="Open navigation menu"
+                        aria-controls="sbMobileMenu"
+                        aria-expanded="false">
+                    <span class="sb-hamburger-lines" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </span>
+                </button>
+
+                <ul class="navbar-nav flex-row gap-3 gap-lg-5 sb-desktop-nav">
                     <li class="nav-item">
                         <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsHome" ? "active" : "")" href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")">HOME</a>
                     </li>
@@ -55,7 +66,7 @@
                     </li>
                 </ul>
 
-                <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
+                <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3 sb-desktop-actions">
                     @if (isInventoryRole)
                     {
                         <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
@@ -72,7 +83,7 @@
                     }
                     else if (!isInventoryRole)
                     {
-                        <a href="@Url.Action("SolteiraBrandsLogin", "SolteiraAndBrands")" class="icon-link nav-item-align" title="Sign in to shop" aria-label="Sign in">
+                        <a href="@Url.Action("SolteiraBrandsLogin", "SolteiraAndBrands")" class="icon-link nav-item-align sb-cart-login-link" title="Sign in to shop" aria-label="Sign in">
                             <i class="bi bi-cart2"></i>
                         </a>
                     }
@@ -103,7 +114,7 @@
                                 <li class="px-3 py-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-circle me-2">
-                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                            <img id="sbMobileLayoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
                                         <span class="profile-name fw-bold">@displayName</span>
                                     </div>
@@ -133,7 +144,7 @@
                                 <li class="px-3 py-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="avatar-circle me-2">
-                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                            <img id="sbMobileLayoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
                                         <span class="profile-name fw-bold">@displayName</span>
                                     </div>
@@ -149,6 +160,101 @@
                 </div>
             </div>
         </nav>
+
+        <!-- Mobile navigation -->
+        <div id="sbMobileMenuOverlay" class="sb-mobile-menu-overlay" aria-hidden="true"></div>
+        <div id="sbMobileMenu" class="sb-mobile-menu" role="dialog" aria-modal="true" aria-label="Navigation menu">
+            <ul class="sb-mobile-menu-list">
+                <li>
+                    <a class="sb-mobile-menu-link @(currentAction == "SolteiraBrandsHome" ? "active" : "")" href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")">HOME</a>
+                </li>
+                <li>
+                    <a class="sb-mobile-menu-link @(currentAction == "SolteiraBrandsJewelries" ? "active" : "")" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">JEWELRIES</a>
+                </li>
+                <li>
+                    <a class="sb-mobile-menu-link @(currentAction == "SolteiraBrandsAbout" ? "active" : "")" href="@Url.Action("SolteiraBrandsAbout", "SolteiraAndBrands")">ABOUT</a>
+                </li>
+                <li>
+                    <a class="sb-mobile-menu-link @(currentAction == "SolteiraBrandsFaq" ? "active" : "")" href="@Url.Action("SolteiraBrandsFaq", "SolteiraAndBrands")">FAQs</a>
+                </li>
+
+                <li class="sb-mobile-menu-item-spacer"></li>
+
+                <li>
+                    @* Cart item: BUYER -> cart, anonymous -> login, inventory roles -> inventory dashboard *@
+                    @if (isBuyer)
+                    {
+                        <a class="sb-mobile-menu-link" href="@Url.Action("SolteiraBrandsCart", "SolteiraAndBrands")">
+                            <i class="bi bi-cart2 me-2" aria-hidden="true"></i>Cart
+                        </a>
+                    }
+                    else if (!isInventoryRole)
+                    {
+                        <a class="sb-mobile-menu-link sb-cart-login-link" href="@Url.Action("SolteiraBrandsLogin", "SolteiraAndBrands")">
+                            <i class="bi bi-cart2 me-2" aria-hidden="true"></i>Cart
+                        </a>
+                    }
+                    else
+                    {
+                        <a class="sb-mobile-menu-link" href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")">
+                            <i class="bi bi-box-seam me-2" aria-hidden="true"></i>Inventory
+                        </a>
+                    }
+                </li>
+
+                <li>
+                    <div class="dropdown sb-mobile-profile-dropdown">
+                        <a href="#"
+                           class="sb-mobile-menu-link sb-mobile-dropdown-toggle"
+                           id="sbMobileProfileMenu"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">
+                            <i class="bi bi-person-circle me-2" aria-hidden="true"></i>Profile
+                        </a>
+
+                        <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="sbMobileProfileMenu">
+                            @if (!isLoggedIn)
+                            {
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsLogin","SolteiraAndBrands")">Login</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsRegister","SolteiraAndBrands")">Register</a></li>
+                            }
+                            else if (isBuyer)
+                            {
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>@Html.Partial("_LogoutForm")</li>
+                            }
+                            else if (isInventoryRole)
+                            {
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>@Html.Partial("_LogoutForm")</li>
+                            }
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
     </header>
 
     <main class="min-vh-100">
@@ -182,6 +288,8 @@
     <script>
         // Expose BUYER role flag to Angular so cart logic is buyer-only
         window.sbIsBuyer = @(isBuyer ? "true" : "false");
+        // Used to distinguish anonymous users from authenticated non-buyers.
+        window.sbIsLoggedIn = @(isLoggedIn ? "true" : "false");
         // Used to scope checkbox selection when navigating Cart -> Checkout.
         window.sbUsername = '@(isBuyer ? (User.Identity.Name ?? "") : "")';
 
@@ -220,6 +328,83 @@
                 var count = (e && e.detail != null) ? e.detail : 0;
                 setBadge(count);
             });
+
+            // If user is anonymous and clicks the cart icon on the top-right navbar,
+            // show the same "login required" alert and then redirect to login.
+            (function attachNavbarCartGuard() {
+                try {
+                    var loginLink = document.querySelector('.sb-cart-login-link');
+                    if (!loginLink) return;
+                    loginLink.addEventListener('click', function (e) {
+                        if (window.sbIsLoggedIn) return; // shouldn't happen because of server-side rendering
+                        e.preventDefault();
+                        var href = loginLink.getAttribute('href') || '/SolteiraAndBrands/SolteiraBrandsLogin';
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Login required',
+                            text: 'Please log in first to add items to your cart.'
+                        }).then(function () {
+                            window.location.href = href;
+                        });
+                    });
+                } catch (e) { }
+            })();
+        })();
+    </script>
+
+    <script>
+        // Mobile hamburger menu toggle (minimal, accessible, no link behavior changes)
+        (function () {
+            var btn = document.getElementById('sbMobileMenuButton');
+            var menu = document.getElementById('sbMobileMenu');
+            var overlay = document.getElementById('sbMobileMenuOverlay');
+            if (!btn || !menu || !overlay) return;
+
+            var isOpen = false;
+
+            function setOpen(next) {
+                isOpen = next;
+                if (isOpen) {
+                    btn.setAttribute('aria-expanded', 'true');
+                    overlay.setAttribute('aria-hidden', 'false');
+                    overlay.classList.add('open');
+                    menu.classList.add('open');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    btn.setAttribute('aria-expanded', 'false');
+                    overlay.setAttribute('aria-hidden', 'true');
+                    overlay.classList.remove('open');
+                    menu.classList.remove('open');
+                    document.body.style.overflow = '';
+                }
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                setOpen(!isOpen);
+            });
+
+            overlay.addEventListener('click', function () {
+                setOpen(false);
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') setOpen(false);
+            });
+
+            // Close menu when a real navigation link is clicked.
+            menu.addEventListener('click', function (e) {
+                var link = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                if (!link) return;
+
+                var href = link.getAttribute('href') || '';
+                if (!href) return;
+
+                // Dropdown toggles use href="#", do not treat them as navigation.
+                if (href === '#' || href === 'javascript:void(0)') return;
+
+                setOpen(false);
+            });
         })();
     </script>
     <script src="~/Scripts/SBScripts/Module.js"></script>
@@ -248,8 +433,10 @@
                             if (d.success && d.avatarUrl) {
                                 var el = document.getElementById('layoutProfileImg');
                                 var trigger = document.getElementById('layoutProfileImgTrigger');
+                                var mobileEl = document.getElementById('sbMobileLayoutProfileImg');
                                 if (el) el.src = d.avatarUrl;
                                 if (trigger) trigger.src = d.avatarUrl;
+                                if (mobileEl) mobileEl.src = d.avatarUrl;
                             }
                         } catch (e) { }
                     }
