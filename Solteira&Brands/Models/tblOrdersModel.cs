@@ -20,6 +20,9 @@ namespace Solteira_Brands.Models
         public decimal RemainingBalance { get; set; }
         public string OrderStatus { get; set; }
         public DateTime? PaymentDeadline { get; set; }
+        // Used to prevent spamming reminder emails for the same payment deadline.
+        public DateTime? PaymentDeadlineReminderSentFor { get; set; }
+        public DateTime? PaymentDeadlineReminderSentAt { get; set; }
         public string CancellationReason { get; set; }
         // When false: stock is currently deducted/reserved for this order and has NOT been restored yet.
         // When true: stock restoration has already happened (prevents double-restoration).

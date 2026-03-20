@@ -3,6 +3,7 @@ using System.Data.Entity;
 using System.Linq;
 using System.Threading;
 using Solteira_Brands.Constants;
+using Solteira_Brands.Helpers;
 using Solteira_Brands.Models;
 using Solteira_Brands.Models.Context;
 
@@ -59,6 +60,9 @@ namespace Solteira_Brands.Services
 
             using (var db = new SolteiraBrandsContext())
             {
+                // Send reminders before enforcing cancellations.
+                try { SendPaymentDeadlineReminders(db, nowUtc); } catch { /* don't break cancellation */ }
+
                 var overdueOrderIds = db.tbl_orders
                     .Where(o =>
                         !o.IsArchived
@@ -75,6 +79,159 @@ namespace Solteira_Brands.Services
             }
 
             return cancelled;
+        }
+
+        private static void SendPaymentDeadlineReminders(SolteiraBrandsContext db, DateTime nowUtc)
+        {
+            // Send reminders only once per exact payment_deadline value.
+            // FULL: 1 day before
+            // LAYAWAY: 2 days before
+            var leadDaysFull = 1;
+            var leadDaysLayaway = 2;
+
+            // Remind close to exactly 1 day / 2 days before, with a small tolerance window.
+            // (Using "date" boundaries can cause earlier-than-24h reminders depending on job runtime.)
+            var reminderTolerance = TimeSpan.FromMinutes(30);
+            var fullTargetCenter = nowUtc.AddDays(leadDaysFull);
+            var fullTargetStart = fullTargetCenter - reminderTolerance;
+            var fullTargetEnd = fullTargetCenter + reminderTolerance;
+
+            var layawayTargetCenter = nowUtc.AddDays(leadDaysLayaway);
+            var layawayTargetStart = layawayTargetCenter - reminderTolerance;
+            var layawayTargetEnd = layawayTargetCenter + reminderTolerance;
+
+            var pendingStatuses = new[]
+            {
+                OrderStatus.PendingPayment,
+                OrderStatus.PendingDownpayment,
+                OrderStatus.Approved,
+                OrderStatus.AwaitingPaymentVerification
+            };
+            var activeStatuses = new[]
+            {
+                OrderStatus.LayawayActive
+            };
+            var statuses = pendingStatuses.Concat(activeStatuses).ToArray();
+
+            var layawayRow = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
+            var downpaymentPct = layawayRow != null ? layawayRow.DownpaymentPercentage : 30m;
+            var monthsAllowed = layawayRow != null ? layawayRow.MonthsAllowed : 3;
+
+            var myOrdersUrl = "https://localhost:44327/SolteiraAndBrands/SolteiraBrandsMyOrders";
+
+            var fullCandidates = db.tbl_orders
+                .Include("User")
+                .Include("Payments")
+                .Where(o =>
+                    !o.IsArchived
+                    && o.PaymentDeadline.HasValue
+                    && o.PaymentDeadline.Value >= fullTargetStart
+                    && o.PaymentDeadline.Value < fullTargetEnd
+                    && statuses.Contains(o.OrderStatus)
+                    && !string.Equals(o.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
+
+            var layawayCandidates = db.tbl_orders
+                .Include("User")
+                .Include("Payments")
+                .Where(o =>
+                    !o.IsArchived
+                    && o.PaymentDeadline.HasValue
+                    && o.PaymentDeadline.Value >= layawayTargetStart
+                    && o.PaymentDeadline.Value < layawayTargetEnd
+                    && statuses.Contains(o.OrderStatus)
+                    && string.Equals(o.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
+
+            // FULL reminders
+            foreach (var order in fullCandidates)
+            {
+                if (order.PaymentDeadlineReminderSentFor.HasValue && order.PaymentDeadlineReminderSentFor.Value == order.PaymentDeadline.Value)
+                    continue;
+
+                if (order.User == null || string.IsNullOrWhiteSpace(order.User.Email))
+                    continue;
+
+                var paymentsList = order.Payments ?? new List<tblPaymentsModel>();
+                var verifiedPayments = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).ToList();
+                var totalPaidVerified = verifiedPayments.Sum(p => p.Amount);
+                var amountDue = order.TotalAmount - totalPaidVerified;
+                if (amountDue < 0) amountDue = 0;
+
+                if (amountDue <= 0) continue;
+
+                var deadlineDate = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy") : null;
+                var username = order.User.Username ?? "User";
+                var orderNumber = order.OrderNumber ?? order.Id.ToString();
+                var subject = username + ", payment due soon for order #" + orderNumber;
+                var body = EmailHelper.BuildPaymentDeadlineReminderFullEmailHtml(username, orderNumber, amountDue, deadlineDate, myOrdersUrl);
+
+                var sent = false;
+                try
+                {
+                    sent = EmailHelper.SendEmail(order.User.Email.Trim(), subject, body, isBodyHtml: true);
+                }
+                catch { sent = false; }
+
+                if (sent)
+                {
+                    order.PaymentDeadlineReminderSentFor = order.PaymentDeadline.Value;
+                    order.PaymentDeadlineReminderSentAt = nowUtc;
+                }
+            }
+
+            // LAYAWAY reminders
+            foreach (var order in layawayCandidates)
+            {
+                if (order.PaymentDeadlineReminderSentFor.HasValue && order.PaymentDeadlineReminderSentFor.Value == order.PaymentDeadline.Value)
+                    continue;
+
+                if (order.User == null || string.IsNullOrWhiteSpace(order.User.Email))
+                    continue;
+
+                var paymentsList = order.Payments ?? new List<tblPaymentsModel>();
+                var verifiedPayments = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).ToList();
+                var verifiedCount = verifiedPayments.Count;
+                var totalPaidVerified = verifiedPayments.Sum(p => p.Amount);
+                var remainingBalanceRecalc = order.TotalAmount - totalPaidVerified;
+                if (remainingBalanceRecalc < 0) remainingBalanceRecalc = 0;
+
+                var totalInstallments = 1 + monthsAllowed;
+                var installmentsRemaining = totalInstallments - verifiedCount;
+                if (installmentsRemaining < 0) installmentsRemaining = 0;
+
+                decimal amountDue;
+                if (verifiedCount == 0)
+                    amountDue = Math.Round(order.TotalAmount * (downpaymentPct / 100m), 2);
+                else
+                    amountDue = installmentsRemaining > 0 ? Math.Round(remainingBalanceRecalc / installmentsRemaining, 2) : remainingBalanceRecalc;
+
+                if (amountDue <= 0) continue;
+
+                var deadlineDate = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy") : null;
+                var username = order.User.Username ?? "User";
+                var orderNumber = order.OrderNumber ?? order.Id.ToString();
+                var subject = username + ", your layaway installment is due soon for order #" + orderNumber;
+                var body = EmailHelper.BuildPaymentDeadlineReminderLayawayEmailHtml(username, orderNumber, amountDue, deadlineDate, myOrdersUrl);
+
+                var sent = false;
+                try
+                {
+                    sent = EmailHelper.SendEmail(order.User.Email.Trim(), subject, body, isBodyHtml: true);
+                }
+                catch { sent = false; }
+
+                if (sent)
+                {
+                    order.PaymentDeadlineReminderSentFor = order.PaymentDeadline.Value;
+                    order.PaymentDeadlineReminderSentAt = nowUtc;
+                }
+            }
+
+            // Persist reminder markers.
+            db.SaveChanges();
         }
 
         // Centralized, idempotent cancellation routine.

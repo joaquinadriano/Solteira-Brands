@@ -310,6 +310,190 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
+        public static string BuildPaymentDeadlineReminderFullEmailHtml(string username, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
+        {
+            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
+            var safeDeadline = string.IsNullOrWhiteSpace(deadlineDate) ? "your payment deadline" : deadlineDate.Trim();
+            var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
+            var amountText = amountDue > 0 ? "&#8369; " + amountDue.ToString("0.##") : "your outstanding balance";
+
+            var subjectTitle = "Payment due soon";
+            var logoUrl = "https://i.imgur.com/gHQJtBc.png";
+
+            return
+@"<!doctype html>
+<html>
+  <head>
+    <meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" />
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+    <title>" + System.Net.WebUtility.HtmlEncode(subjectTitle) + @"</title>
+  </head>
+  <body style=""margin:0; padding:0; background-color:#87ae73;"">
+    <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color:#87ae73;"">
+      <tr>
+        <td align=""center"" style=""padding:24px 12px 24px 12px;"">
+          <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""600"" style=""width:600px; max-width:600px;"">
+            <tr>
+              <td align=""center"" bgcolor=""#87ae73"" style=""background-color:#87ae73; padding:30px 0 30px 0;"">
+                <img src=""" + logoUrl + @""" alt=""Solteira &amp; Brands"" style=""max-width:190px; height:auto; display:block; margin:0 auto; border:0;"" />
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor=""#ffffff"" style=""background-color:#ffffff; padding:28px 32px 32px 32px;"">
+                <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"">
+                  <tr>
+                    <td align=""center"" style=""padding:0 0 16px 0;"">
+                      <div style=""font-family:Georgia, 'Times New Roman', serif; font-size:24px; line-height:30px; color:#87ae73; font-weight:600;"">Payment reminder</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""left"" style=""padding:0 16px 0 16px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                        <div style=""margin-bottom:10px;"">Dear " + System.Net.WebUtility.HtmlEncode(safeName) + @",</div>
+                        <div style=""color:#444444; margin-bottom:10px;"">
+                          This is a reminder that your payment for order <strong>#"
+                            + System.Net.WebUtility.HtmlEncode(safeOrder) +
+@"</strong> is due on <strong>" + System.Net.WebUtility.HtmlEncode(safeDeadline) + @"</strong>.
+                        </div>
+                        <div style=""color:#444444; margin-bottom:10px;"">
+                          Please pay <strong>" + amountText + @"</strong> to keep your order reserved.
+                        </div>
+                        <div style=""color:#b02a37; font-weight:600;"">
+                          If we do not receive your payment before the deadline, your order may be cancelled.
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""center"" style=""padding:28px 16px 10px 16px;"">
+                      <a href=""" + System.Net.WebUtility.HtmlEncode(safeUrl) + @""" target=""_blank""
+                         style=""background-color:#87ae73; color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:4px; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:600; display:inline-block;"">
+                        Pay now
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""center"" style=""padding:0 32px 0 32px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#666666; line-height:18px; padding-top:4px;"">
+                        You can also review the latest payment status from your My Orders page.
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""left"" style=""padding:24px 16px 0 16px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                        Warm regards,<br />
+                        <span style=""font-weight:600;"">Solteira &amp; Brands Team</span>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align=""center"" style=""padding:14px 10px 0 10px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#f3f7f1;"">
+                © " + DateTime.Now.Year + @" Solteira &amp; Brands
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+        }
+
+        public static string BuildPaymentDeadlineReminderLayawayEmailHtml(string username, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
+        {
+            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
+            var safeDeadline = string.IsNullOrWhiteSpace(deadlineDate) ? "your payment deadline" : deadlineDate.Trim();
+            var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
+            var amountText = amountDue > 0 ? "&#8369; " + amountDue.ToString("0.##") : "your next layaway installment";
+
+            var subjectTitle = "Layaway installment due soon";
+            var logoUrl = "https://i.imgur.com/gHQJtBc.png";
+
+            return
+@"<!doctype html>
+<html>
+  <head>
+    <meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" />
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+    <title>" + System.Net.WebUtility.HtmlEncode(subjectTitle) + @"</title>
+  </head>
+  <body style=""margin:0; padding:0; background-color:#87ae73;"">
+    <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color:#87ae73;"">
+      <tr>
+        <td align=""center"" style=""padding:24px 12px 24px 12px;"">
+          <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""600"" style=""width:600px; max-width:600px;"">
+            <tr>
+              <td align=""center"" bgcolor=""#87ae73"" style=""background-color:#87ae73; padding:30px 0 30px 0;"">
+                <img src=""" + logoUrl + @""" alt=""Solteira &amp; Brands"" style=""max-width:190px; height:auto; display:block; margin:0 auto; border:0;"" />
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor=""#ffffff"" style=""background-color:#ffffff; padding:28px 32px 32px 32px;"">
+                <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"">
+                  <tr>
+                    <td align=""center"" style=""padding:0 0 16px 0;"">
+                      <div style=""font-family:Georgia, 'Times New Roman', serif; font-size:24px; line-height:30px; color:#87ae73; font-weight:600;"">Layaway reminder</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""left"" style=""padding:0 16px 0 16px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                        <div style=""margin-bottom:10px;"">Dear " + System.Net.WebUtility.HtmlEncode(safeName) + @",</div>
+                        <div style=""color:#444444; margin-bottom:10px;"">
+                          This is a reminder that your next layaway installment for order <strong>#"
+                            + System.Net.WebUtility.HtmlEncode(safeOrder) +
+@"</strong> is due on <strong>" + System.Net.WebUtility.HtmlEncode(safeDeadline) + @"</strong>.
+                        </div>
+                        <div style=""color:#444444; margin-bottom:10px;"">
+                          Please pay <strong>" + amountText + @"</strong> to keep your order active.
+                        </div>
+                        <div style=""color:#b02a37; font-weight:600; margin-bottom:10px;"">
+                          If the installment is not settled by the deadline, your order will be cancelled.
+                        </div>
+                        <div style=""color:#444444;"">
+                          You can submit your payment from your My Orders page.
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""center"" style=""padding:28px 16px 10px 16px;"">
+                      <a href=""" + System.Net.WebUtility.HtmlEncode(safeUrl) + @""" target=""_blank""
+                         style=""background-color:#87ae73; color:#ffffff; text-decoration:none; padding:12px 32px; border-radius:4px; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:600; display:inline-block;"">
+                        Pay now
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""left"" style=""padding:24px 16px 0 16px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                        Warm regards,<br />
+                        <span style=""font-weight:600;"">Solteira &amp; Brands Team</span>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align=""center"" style=""padding:14px 10px 0 10px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#f3f7f1;"">
+                © " + DateTime.Now.Year + @" Solteira &amp; Brands
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+        }
+
         public static string BuildOtpEmailHtml(string otp, string purposeTitle, string recipientLabel)
         {
             var safeOtp = (otp ?? "").Trim();

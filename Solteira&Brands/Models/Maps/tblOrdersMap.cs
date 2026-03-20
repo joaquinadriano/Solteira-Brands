@@ -21,6 +21,8 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.RemainingBalance).HasColumnName("remaining_balance");
             Property(x => x.OrderStatus).HasColumnName("order_status").HasMaxLength(50).IsRequired();
             Property(x => x.PaymentDeadline).HasColumnName("payment_deadline").IsOptional();
+            Property(x => x.PaymentDeadlineReminderSentFor).HasColumnName("payment_deadline_reminder_sent_for").IsOptional();
+            Property(x => x.PaymentDeadlineReminderSentAt).HasColumnName("payment_deadline_reminder_sent_at").IsOptional();
             Property(x => x.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(500).IsOptional();
             Property(x => x.InventoryReleased).HasColumnName("inventory_released").IsOptional();
             Property(x => x.IsLayaway).HasColumnName("is_layaway").IsOptional();

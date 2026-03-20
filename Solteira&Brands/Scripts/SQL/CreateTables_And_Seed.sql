@@ -492,6 +492,25 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add payment_deadline reminder marker columns (dedupe reminder emails)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_deadline_reminder_sent_for');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_deadline_reminder_sent_for DATETIME NULL AFTER payment_deadline;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'payment_deadline_reminder_sent_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_orders ADD COLUMN payment_deadline_reminder_sent_at DATETIME NULL AFTER payment_deadline_reminder_sent_for;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add cancellation_reason to tbl_orders (used for deadline auto-cancellation)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_orders' AND COLUMN_NAME = 'cancellation_reason');
