@@ -211,7 +211,7 @@
         $(document).ready(function () {
             if ($('#userTable').length) $('#userTable').DataTable({ searching: false, paging: false, info: false });
             // usersTable: Angular-driven (ng-repeat), do not init DataTables or rows won't show after load
-            if ($('#ordersTable').length) $('#ordersTable').DataTable();
+            if ($('#ordersTable').length) $('#ordersTable').DataTable({ order: [[0, 'desc']] });
             // adminOrdersTable, orderArchiveTable, paymentTable, deliveryShipmentsTable, deliveryMeetupTable, inventoryTable: initialized by Angular controller via initializeStandardTable() after data loads
         });
     </script>

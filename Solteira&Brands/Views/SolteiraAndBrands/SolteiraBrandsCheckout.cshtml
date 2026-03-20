@@ -137,7 +137,7 @@
 
             <div class="terms-checkbox" ng-if="paymentMethod">
                 <label class="custom-container">
-                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" />
+                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" ng-click="agreeTerms = $event.target.checked" />
                     <span class="custom-mark checkbox-mark"></span>
                     <span class="terms-text">
                         <span ng-show="paymentMethod === 'Full Payment'">
@@ -153,7 +153,7 @@
             <div class="order-btn-container">
                 <button type="button" class="order-btn"
                         ng-click="placeOrder()"
-                        ng-disabled="checkoutForm.$invalid || !paymentMethod || !agreeTerms">
+                        ng-disabled="!isCheckoutReadyToPlaceOrder()">
                     ORDER
                 </button>
             </div>

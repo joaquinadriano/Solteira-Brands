@@ -20,6 +20,10 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.TotalAmount).HasColumnName("total_amount");
             Property(x => x.RemainingBalance).HasColumnName("remaining_balance");
             Property(x => x.OrderStatus).HasColumnName("order_status").HasMaxLength(50).IsRequired();
+            Property(x => x.PaymentDeadline).HasColumnName("payment_deadline").IsOptional();
+            Property(x => x.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(500).IsOptional();
+            Property(x => x.InventoryReleased).HasColumnName("inventory_released").IsOptional();
+            Property(x => x.IsLayaway).HasColumnName("is_layaway").IsOptional();
             Property(x => x.DeliveryType).HasColumnName("delivery_type").HasMaxLength(50).IsOptional();
             Property(x => x.MeetupDatetime).HasColumnName("meetup_datetime").IsOptional();
             Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(500).IsOptional();

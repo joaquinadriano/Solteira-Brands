@@ -7,6 +7,7 @@ using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
 using System.Web.Security;
+using Solteira_Brands.Services;
 
 namespace Solteira_Brands
 {
@@ -18,6 +19,9 @@ namespace Solteira_Brands
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+
+            // Enforce payment deadlines (auto-cancel + stock restoration) every 5 minutes.
+            OrderDeadlineService.StartAutoCancellationJob();
         }
 
         protected void Application_AuthenticateRequest(object sender, EventArgs e)

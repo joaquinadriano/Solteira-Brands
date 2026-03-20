@@ -38,9 +38,15 @@
                             </div>
                         </div>
                         <div class="card-footer border-0 bg-transparent d-flex justify-content-between align-items-center py-3 px-4">
-                            <div class="d-flex align-items-center">
-                                <span class="text-muted">Total:</span>
-                                <span class="fw-bold text-success fs-6 ms-2">&#8369; {{order.total | number:2}}</span>
+                            <div class="d-flex flex-column align-items-start">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted">Total:</span>
+                                    <span class="fw-bold text-success fs-6 ms-2">&#8369; {{order.total | number:2}}</span>
+                                </div>
+                                <small class="text-muted mt-1"
+                                       ng-if="order.paymentDeadlineFormatted && getOverallStatus(order) !== 'Cancelled'">
+                                    Pay by: {{order.paymentDeadlineFormatted}} ({{order.paymentDeadlineRemainingText}})
+                                </small>
                             </div>
                             <button type="button" class="btn btn-outline-success btn-sm" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
                         </div>
@@ -99,6 +105,10 @@
                     <div class="buyer-order-meta mt-3">
                         <p class="mb-1"><strong>Order #</strong> {{selectedOrderForDetails.orderNumber}}</p>
                         <p class="mb-1"><strong>Date</strong> {{selectedOrderForDetails.orderDate | date:'MMM d, y'}}</p>
+                        <p class="mb-1" ng-if="selectedOrderForDetails.paymentDeadlineFormatted && getOverallStatus(selectedOrderForDetails) !== 'Cancelled'">
+                            <strong>Payment deadline</strong> {{selectedOrderForDetails.paymentDeadlineFormatted}}
+                            <span class="text-muted">({{selectedOrderForDetails.paymentDeadlineRemainingText}})</span>
+                        </p>
                         <p class="mb-1"><strong>Payment</strong> {{selectedOrderForDetails.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</p>
                         <p ng-if="selectedOrderForDetails.status === 'Rejected' && selectedOrderForDetails.rejectionReason" class="text-danger mb-0"><strong>Rejection reason:</strong> {{selectedOrderForDetails.rejectionReason}}</p>
                         <p ng-if="selectedOrderForDetails.latestPaymentRejectionReason
@@ -108,12 +118,12 @@
                            class="text-warning mb-0">
                             <strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.
                         </p>
-                        <p ng-if="selectedOrderForDetails.status === 'Cancelled'" class="text-muted mb-0">
+                        <p ng-if="getOverallStatus(selectedOrderForDetails) === 'Cancelled'" class="text-muted mb-0">
                             <span ng-if="selectedOrderForDetails.rejectionReason">
                                 <strong>Cancellation reason:</strong> {{selectedOrderForDetails.rejectionReason}}
                             </span>
                             <span ng-if="!selectedOrderForDetails.rejectionReason">
-                                This order was cancelled.
+                                Payment overdue/expired. This order was cancelled.
                             </span>
                         </p>
                     </div>

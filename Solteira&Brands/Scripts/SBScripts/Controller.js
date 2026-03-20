@@ -1366,7 +1366,80 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return selected.reduce(function (total, item) { return total + (item.price * item.qty); }, 0);
     };
 
+    // Checkout gating helpers.
+    // NOTE: Your checkout checkbox ng-model isn't syncing reliably, so we read the checkbox's DOM checked state.
+    $scope.isCheckoutTermsAccepted = function () {
+        try {
+            var el = document.getElementById('agreeFull');
+            if (el) return !!el.checked;
+        } catch (e) { }
+        return !!$scope.agreeTerms;
+    };
+
+    $scope.isCheckoutReadyToPlaceOrder = function () {
+        var nameOk = !!(($scope.customerName || '').trim());
+        var contact = ($scope.contactNumber || '').trim();
+        var contactOk = /^\d{11}$/.test(contact);
+        var addressOk = !!(($scope.deliveryAddress || '').trim());
+        var paymentOk = !!(($scope.paymentMethod || '').trim());
+        var termsOk = $scope.isCheckoutTermsAccepted();
+        return nameOk && contactOk && addressOk && paymentOk && termsOk;
+    };
+
     $scope.orders = [];
+    $scope._paymentDeadlineCountdownIntervalId = null;
+    $scope.initPaymentDeadlineCountdowns = function () {
+        // Ensure only one interval is running.
+        if ($scope._paymentDeadlineCountdownIntervalId) {
+            try { clearInterval($scope._paymentDeadlineCountdownIntervalId); } catch (e) { }
+            $scope._paymentDeadlineCountdownIntervalId = null;
+        }
+        if (!$scope.orders || $scope.orders.length === 0) return;
+
+        function pad2(n) { return (n < 10 ? '0' : '') + n; }
+        function formatRemaining(diffMs) {
+            var totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+            var days = Math.floor(totalSeconds / 86400);
+            totalSeconds = totalSeconds % 86400;
+            var hours = Math.floor(totalSeconds / 3600);
+            totalSeconds = totalSeconds % 3600;
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            // Display: Xd HH:MM:SS (matches the server "Expired" fallback when negative).
+            return (days > 0 ? (days + 'd ') : '') + pad2(hours) + ':' + pad2(minutes) + ':' + pad2(seconds);
+        }
+
+        var tick = function () {
+            if (!$scope.orders) return;
+            var now = Date.now();
+            var changed = false;
+            angular.forEach($scope.orders, function (o) {
+                if (!o) return;
+                if (!o.paymentDeadlineUtcIso) return;
+                var dl = new Date(o.paymentDeadlineUtcIso);
+                if (isNaN(dl.getTime())) return;
+                var diff = dl.getTime() - now;
+                if (diff <= 0) {
+                    if (o.paymentDeadlineRemainingText !== 'Expired') {
+                        o.paymentDeadlineRemainingText = 'Expired';
+                        o.paymentDeadlineExpired = true;
+                        changed = true;
+                    }
+                } else {
+                    var newText = formatRemaining(diff);
+                    if (o.paymentDeadlineRemainingText !== newText) {
+                        o.paymentDeadlineRemainingText = newText;
+                        o.paymentDeadlineExpired = false;
+                        changed = true;
+                    }
+                }
+            });
+            if (changed) $scope.$applyAsync();
+        };
+
+        tick();
+        $scope._paymentDeadlineCountdownIntervalId = setInterval(tick, 1000);
+    };
     $scope.loadMyOrders = function () {
         if (!isBuyer) return;
         SolteiraBrandsService.getMyOrders().then(function (r) {
@@ -1375,11 +1448,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             } else {
                 $scope.orders = [];
             }
+            $scope.initPaymentDeadlineCountdowns();
             $scope.checkOpenOrderDetailsFromQuery();
         }, function () {
             $scope.orders = [];
         });
     };
+
+    // Prevent interval leaks when leaving the page.
+    $scope.$on && $scope.$on('$destroy', function () {
+        if ($scope._paymentDeadlineCountdownIntervalId) {
+            try { clearInterval($scope._paymentDeadlineCountdownIntervalId); } catch (e) { }
+            $scope._paymentDeadlineCountdownIntervalId = null;
+        }
+        if ($scope._paymentDeadlineCountdownIntervalIdForPayment) {
+            try { clearInterval($scope._paymentDeadlineCountdownIntervalIdForPayment); } catch (e) { }
+            $scope._paymentDeadlineCountdownIntervalIdForPayment = null;
+        }
+    });
     $scope.myOrdersDataTableInstance = null;
     $scope.initMyOrdersDataTable = function () {
         var el = document.getElementById('myOrdersTable');
@@ -1432,6 +1518,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (deliveryStatus === 'delivered') return 'Delivered';
         if (statusLower === 'in delivery') return deliveryStatus === 'delivered' ? 'Delivered' : 'In Delivery';
         if (statusLower === 'rejected') return 'Order Rejected';
+        // UI safety net: when deadline is past, show cancelled immediately even before background job updates DB.
+        // Deadline enforcement applies only to states where payment is expected.
+        if (order.paymentDeadlineExpired === true
+            && (statusLower === 'approved'
+                || statusLower === 'awaiting payment verification'
+                || statusLower === 'layaway active'
+                || statusLower === 'pending payment'
+                || statusLower === 'pending downpayment')) return 'Cancelled';
         if (statusLower === 'pending approval') return 'Pending Approval';
         if (statusLower === 'awaiting payment verification') {
             // If there is a rejection reason but no SUBMITTED payment, resubmission is needed.
@@ -1682,6 +1776,51 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.getMinMeetupDate = getMinMeetupDate;
     $scope.minMeetupDate = getMinMeetupDate();
 
+    $scope._paymentDeadlineCountdownIntervalIdForPayment = null;
+    $scope.initPaymentDeadlineCountdownsForPaymentPage = function () {
+        if ($scope._paymentDeadlineCountdownIntervalIdForPayment) {
+            try { clearInterval($scope._paymentDeadlineCountdownIntervalIdForPayment); } catch (e) { }
+            $scope._paymentDeadlineCountdownIntervalIdForPayment = null;
+        }
+        if (!$scope.paymentOrder || !$scope.paymentOrder.paymentDeadlineUtcIso) return;
+
+        function pad2(n) { return (n < 10 ? '0' : '') + n; }
+        function formatRemaining(diffMs) {
+            var totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+            var days = Math.floor(totalSeconds / 86400);
+            totalSeconds = totalSeconds % 86400;
+            var hours = Math.floor(totalSeconds / 3600);
+            totalSeconds = totalSeconds % 3600;
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            return (days > 0 ? (days + 'd ') : '') + pad2(hours) + ':' + pad2(minutes) + ':' + pad2(seconds);
+        }
+
+        var tick = function () {
+            if (!$scope.paymentOrder || !$scope.paymentOrder.paymentDeadlineUtcIso) return;
+            var dl = new Date($scope.paymentOrder.paymentDeadlineUtcIso);
+            if (isNaN(dl.getTime())) return;
+            var diff = dl.getTime() - Date.now();
+            if (diff <= 0) {
+                if ($scope.paymentOrder.paymentDeadlineRemainingText !== 'Expired') {
+                    $scope.paymentOrder.paymentDeadlineRemainingText = 'Expired';
+                    $scope.paymentOrder.paymentDeadlineExpired = true;
+                    $scope.$applyAsync();
+                }
+            } else {
+                var newText = formatRemaining(diff);
+                if ($scope.paymentOrder.paymentDeadlineRemainingText !== newText) {
+                    $scope.paymentOrder.paymentDeadlineRemainingText = newText;
+                    $scope.paymentOrder.paymentDeadlineExpired = false;
+                    $scope.$applyAsync();
+                }
+            }
+        };
+
+        tick();
+        $scope._paymentDeadlineCountdownIntervalIdForPayment = setInterval(tick, 1000);
+    };
+
     // Payment page: use only API values. Never compute remainingBalance, progressPercent, amountDue, installmentsRemaining locally.
     $scope.getLayawayPaidPercent = function () {
         if (!$scope.paymentOrder || $scope.paymentOrder.paymentType !== 'LAYAWAY') return 0;
@@ -1748,6 +1887,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         SolteiraBrandsService.getOrderForPayment(orderId).then(function (r) {
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
+                $scope.initPaymentDeadlineCountdownsForPaymentPage();
                 $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
                 if ($scope.paymentOrder.paymentType === 'LAYAWAY') {
                     if ($scope.paymentFormData.channel === 'Cash through Meetup' || !$scope.paymentFormData.channel) {
@@ -1783,6 +1923,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         SolteiraBrandsService.getOrderForPayment($scope.paymentOrder.orderId).then(function (r) {
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
+                $scope.initPaymentDeadlineCountdownsForPaymentPage();
                 $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
                 if ($scope.paymentOrder.paymentType === 'LAYAWAY' && ($scope.paymentFormData.channel === 'Cash through Meetup' || !$scope.paymentFormData.channel)) {
                     $scope.paymentFormData.channel = 'GCash';
@@ -1846,6 +1987,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.paymentOrder) return false;
         var status = ($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '';
         var statusU = (status || '').toUpperCase().replace(/\s+/g, ' ');
+        if ($scope.paymentOrder.paymentDeadlineExpired === true) return false;
         var remaining = $scope.paymentOrder.remainingBalance != null ? Number($scope.paymentOrder.remainingBalance) : null;
         var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
         var paymentRejectedCanResubmit = latest && (latest.paymentStatus || latest.PaymentStatus) === 'REJECTED' && latest.allowResubmit;
@@ -2031,6 +2173,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
         if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
         if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
+        // Terms checkbox: rely on actual DOM state (ng-model is unreliable on this checkout view).
+        if (!$scope.isCheckoutTermsAccepted()) { Swal.fire({ icon: 'warning', title: 'Terms required', text: 'Please acknowledge the payment Terms & Conditions before placing the order.' }); return; }
 
         var payload = {
             CustomerName: name,

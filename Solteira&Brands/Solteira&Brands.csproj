@@ -149,6 +149,7 @@
     <Compile Include="Constants\DeliveryStatus.cs" />
     <Compile Include="Helpers\EmailHelper.cs" />
     <Compile Include="Services\OrderLifecycleRules.cs" />
+    <Compile Include="Services\OrderDeadlineService.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\SolteiraAndBrandsController.cs" />

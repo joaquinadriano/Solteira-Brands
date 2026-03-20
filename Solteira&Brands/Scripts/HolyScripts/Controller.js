@@ -206,8 +206,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.archiveOrdersList && $scope.archiveOrdersList.length > 0) {
-                    // Sort archived orders by Order Date column (index 1) descending.
-                    window.initializeStandardTable('#orderArchiveTable', 1);
+                    // Sort archived orders by Order ID column (index 0) descending so most recent is on top.
+                    window.initializeStandardTable('#orderArchiveTable', 0);
                 }
             }, 150);
         }, function () {

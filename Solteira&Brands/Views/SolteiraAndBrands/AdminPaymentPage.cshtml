@@ -31,7 +31,7 @@
                     </thead>
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="payment in paymentsList">
-                            <td>PMT-{{payment.paymentId}}</td>
+                            <td data-order="{{payment.paymentId || 0}}">PMT-{{payment.paymentId}}</td>
                             <td>{{payment.orderNumber}}</td>
                             <td>{{payment.customerName}}</td>
                             <td>{{payment.paymentDateString}}</td>

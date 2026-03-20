@@ -19,6 +19,13 @@ namespace Solteira_Brands.Models
         public decimal TotalAmount { get; set; }
         public decimal RemainingBalance { get; set; }
         public string OrderStatus { get; set; }
+        public DateTime? PaymentDeadline { get; set; }
+        public string CancellationReason { get; set; }
+        // When false: stock is currently deducted/reserved for this order and has NOT been restored yet.
+        // When true: stock restoration has already happened (prevents double-restoration).
+        public bool InventoryReleased { get; set; }
+        // Convenience flag for deadline/layaway behavior.
+        public bool IsLayaway { get; set; }
         public string DeliveryType { get; set; }
         public DateTime? MeetupDatetime { get; set; }
         public string RejectionReason { get; set; }

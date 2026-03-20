@@ -267,7 +267,7 @@
 
             //----------Orders Page----------
             $(document).ready(function () {
-                $('#ordersTable').DataTable();
+                $('#ordersTable').DataTable({ order: [[0, 'desc']] });
             });
 
             //----------Orders Archive, Payment, Delivery, Inventory----------
