@@ -10,9 +10,21 @@ html, body {
 
 .inventory-view-link {
     font-size: 0.9rem;
-    color: #87AE73;
+    color: #87AE73 !important;
     text-decoration: underline;
     cursor: pointer;
+    background: none;
+    vertical-align: baseline;
+}
+.inventory-view-link:hover,
+.inventory-view-link:focus-visible {
+    color: #6d945c !important;
+}
+
+/* Photo column: outline button, distinct from Action eye icon */
+.btn.inventory-view-photo-btn {
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 /* View Product Modal: layout, image, typography, badges */
@@ -143,5 +155,32 @@ html, body {
     cursor: pointer;
     width: 1.1rem;
     height: 1.1rem;
+}
+
+/* Full product view modal: square image (1:1), crop with object-fit */
+.inventory-product-fullview-modal .product-view-grid .product-image-section {
+    display: flex;
+    justify-content: center;
+}
+.inventory-product-fullview-modal .product-view-grid .product-image-section .product-view-img {
+    width: min(100%, 420px);
+    max-width: min(100%, 420px);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
+    object-position: center;
+}
+.inventory-product-fullview-modal .product-view-grid .product-image-section .product-view-img--no-photo {
+    object-fit: contain;
+    background: #f8f9fa;
+    padding: 1.25rem;
+    box-sizing: border-box;
+}
+.inventory-product-fullview-modal .product-view-description-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 0;
 }
 

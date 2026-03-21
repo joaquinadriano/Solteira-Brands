@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content" ng-init="loadDeliveryMeetup()">
     <div class="container-fluid delivery-container px-1">
@@ -20,8 +20,8 @@
                             <th>Total</th>
                             <th>Status</th>
                             <th>Scheduled</th>
-                            <th>Actions</th>
-                            <th>View</th>
+                            <th class="table-col-actions">Actions</th>
+                            <th class="table-col-actions">View</th>
                         </tr>
                     </thead>
                     <tbody class="table-group-divider">
@@ -41,31 +41,35 @@
                                 </span>
                             </td>
                             <td>{{o.scheduledAtFormatted || '-'}}</td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-success me-1"
+                            <td class="table-col-actions">
+                                <div class="d-flex justify-content-center align-items-center flex-wrap gap-1">
+                                <button type="button" class="btn btn-sm btn-success"
                                         ng-click="completeMeetupWithReceipt(o.id)"
                                         ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
                                     Mark Completed (upload receipt)
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
                                         ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')"
                                         ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
                                     Mark No Show
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                                <button type="button" class="btn btn-sm btn-outline-primary"
                                         ng-click="openRescheduleModal(o)"
                                         ng-if="o.orderStatus === 'No Show'">
                                     Reschedule
                                 </button>
-                                <button type="button" class="btn btn-sm btn-danger me-1"
+                                <button type="button" class="btn btn-sm btn-danger"
                                         ng-click="updateMeetupOutcome(o.id, 'CANCELLED')"
                                         ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled' || o.orderStatus === 'No Show'">
                                     Cancel
                                 </button>
+                                </div>
                             </td>
-                            <td>
-                                <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
-                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openMeetupViewModal(o)"><img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" /></a>
+                            <td class="table-col-actions">
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
+                                        <a class="order-action-icon" href="javascript:void(0)" ng-click="openMeetupViewModal(o)"><img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" /></a>
+                                    </div>
                                 </div>
                             </td>
                         </tr>

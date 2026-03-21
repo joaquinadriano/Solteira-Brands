@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 <div class="main-content" ng-init="loadDeliveryShipments()">
     <div class="container-fluid delivery-container px-1">
@@ -111,7 +111,7 @@
                             <th>Dispatch Date</th>
                             <th>ETA</th>
                             <th>Delivery Status </th>
-                            <th>Action </th>
+                            <th class="table-col-actions">Action</th>
                         </tr>
                     </thead>
 
@@ -126,14 +126,16 @@
                             <td>{{d.dispatchDateFormatted || (d.createdAt | date:'MM/dd/yyyy')}}</td>
                             <td>{{d.etaFormatted || '-'}}</td>
                             <td>{{d.deliveryStatus}}</td>
-                            <td>
-                                <div class="d-inline-block me-1" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
-                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryViewModal(d)"><img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" /></a>
+                            <td class="table-col-actions">
+                                <div class="d-flex justify-content-center align-items-center gap-1 flex-wrap">
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View">
+                                        <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryViewModal(d)"><img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" /></a>
+                                    </div>
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit" ng-if="d.deliveryStatus !== 'DELIVERED'">
+                                        <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryEditModal(d)"><img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" /></a>
+                                    </div>
+                                    <span ng-if="d.deliveryStatus === 'DELIVERED'" class="text-muted small">-</span>
                                 </div>
-                                <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit" ng-if="d.deliveryStatus !== 'DELIVERED'">
-                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openDeliveryEditModal(d)"><img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" /></a>
-                                </div>
-                                <span ng-if="d.deliveryStatus === 'DELIVERED'" class="text-muted small">-</span>
                             </td>
                         </tr>
                         <tr ng-if="shipmentsList.length === 0">

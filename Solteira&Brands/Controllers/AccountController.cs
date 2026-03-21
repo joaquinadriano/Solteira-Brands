@@ -768,9 +768,11 @@ namespace Solteira_Brands.Controllers
 
         /// <summary>
         /// One-time seed: replace SEEDME password_hash/password_salt for trial accounts with PBKDF2 hash for "Password123@".
-        /// Run once after executing the SQL script. Safe to call multiple times (only updates rows where password_hash = 'SEEDME').
+        /// Run once after executing the SQL script (must be callable before any user can log in — trial admins use SEEDME too).
+        /// Safe to call multiple times (only updates rows where password_hash = 'SEEDME').
+        /// Remove this action or restrict it (e.g. localhost / config flag) before production if the site is exposed.
         /// </summary>
-        [Authorize(Roles = "ADMIN")]
+        [AllowAnonymous]
         [HttpGet]
         public ActionResult SeedTrialPasswords()
         {

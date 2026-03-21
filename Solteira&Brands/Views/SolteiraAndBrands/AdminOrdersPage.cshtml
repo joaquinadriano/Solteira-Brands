@@ -1,5 +1,6 @@
 @{
-    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml"
+        : (User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml");
 }
 <div class="main-content" ng-init="loadOrders()">
     <div class="container-fluid orders-container px-1">
@@ -21,7 +22,7 @@
                             <th>Total</th>
                             <th>Payment Type</th>
                             <th>Order Status</th>
-                            <th>Action</th>
+                            <th class="table-col-actions">Action</th>
                         </tr>
                     </thead>
                     <tbody class="table-group-divider">
@@ -39,7 +40,7 @@
                                    title="{{order.isOverdue ? 'Payment deadline exceeded.' : (order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.')}}"
                                    style="cursor:help;"></i>
                                 <span class="badge bg-danger ms-2" ng-if="order.isOverdue">Overdue</span>
-                                @if (!User.IsInRole("ADMIN"))
+                                @if (User.IsInRole("MANAGER"))
                                 {
                                     <span ng-if="order.orderStatus === 'Pending Approval' && !order.isOverdue" class="ms-2">
                                         <button type="button" class="btn btn-sm btn-success me-1" ng-click="statusChange(order.id, 'Approved')">Approve</button>
@@ -51,11 +52,13 @@
                                     </span>
                                 }
                             </td>
-                            <td>
-                                <div class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
-                                    <a class="order-action-icon" href="javascript:void(0)" ng-click="openOrderDetails(order)">
-                                        <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
-                                    </a>
+                            <td class="table-col-actions">
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View Order Details">
+                                        <a class="order-action-icon" href="javascript:void(0)" ng-click="openOrderDetails(order)">
+                                            <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="View" />
+                                        </a>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -235,7 +238,7 @@
 
                     <div class="modal-footer border-0 p-4 flex-wrap">
                         <span class="order-status-display me-2">Order status: <strong>{{selectedOrderDetails.orderStatus}}</strong></span>
-                        @if (!User.IsInRole("ADMIN"))
+                        @if (User.IsInRole("MANAGER"))
                         {
                             <span ng-if="selectedOrderDetails.orderStatus === 'Pending Approval'">
                                 <button type="button" class="btn btn-success me-2" ng-click="statusChange(selectedOrderDetails.id, 'Approved')">Approve</button>

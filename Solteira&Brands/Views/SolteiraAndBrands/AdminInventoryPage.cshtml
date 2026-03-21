@@ -1,7 +1,8 @@
 @{
-    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml"
+        : (User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml");
 }
-<div class="main-content">
+<div class="main-content" ng-init="inventoryDefaultPhotoUrl='@Url.Content("~/Content/img/shared/default-product.svg")'">
     <div class="container-fluid orders-container px-1">
         <div class="row px-4 pb-0 mb-0 align-items-center">
             <div class="col">
@@ -26,6 +27,8 @@
                     </div>
                 }
 
+                @if (User.IsInRole("ADMIN") || User.IsInRole("MANAGER"))
+                {
                 <button type="button"
                         class="btn btn-add-order px-2 py-1"
                         data-bs-toggle="modal"
@@ -167,6 +170,7 @@
                     </div>
                 </div>
                 @*Modal - Add Item end*@
+                }
             </div>
         </div>
 
@@ -176,7 +180,7 @@
                 <table ng-if="inventoryTableVisible" class="table table-striped table-responsive text-center inventory-datatable" id="inventoryTable">
                     <thead>
                         <tr>
-                            <th>Photo</th>
+                            <th class="text-center">Photo</th>
                             <th>Product ID</th>
                             <th>Category</th>
                             <th>Product Name</th>
@@ -186,14 +190,18 @@
                             <th>Sold</th>
                             <th>Date Added</th>
                             <th>Date Updated</th>
-                            <th class="text-center">Action</th>
+                            <th class="table-col-actions">Action</th>
                         </tr>
                     </thead>
 
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="item in inventoryProducts">
-                            <td>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" ng-click="openViewPhotoModal(item)">View</button>
+                            <td class="text-center align-middle">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary inventory-view-photo-btn"
+                                        ng-click="openInventoryPhotoOnly(item)">
+                                    View photo
+                                </button>
                             </td>
                             <td>{{item.id}}</td>
                             <td>{{item.category}}</td>
@@ -208,9 +216,17 @@
                             <td>{{item.sold != null ? item.sold : 0}}</td>
                             <td>{{item.createdAtString}}</td>
                             <td>{{item.updatedAtString}}</td>
-                            <td class="text-center align-middle">
-                                <div class="d-flex justify-content-center gap-2 w-100">
+                            <td class="table-col-actions">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
                                     @if (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF"))
+                                    {
+                                        <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View product details">
+                                            <a class="order-action-icon" ng-click="openViewPhotoModal(item)" aria-label="View product details">
+                                                <img src="@Url.Content("~/Content/img/icons/view.svg")" alt="" />
+                                            </a>
+                                        </div>
+                                    }
+                                    @if (User.IsInRole("ADMIN") || User.IsInRole("MANAGER"))
                                     {
                                         <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Item">
                                             <a class="order-action-icon" ng-click="openEditProduct(item)">
@@ -221,13 +237,13 @@
 
                                     @if (User.IsInRole("ADMIN"))
                                     {
-                                        <a class="order-action-icon"
-                                           data-bs-toggle="tooltip"
-                                           data-bs-placement="bottom"
-                                           data-bs-title="{{showArchivedInventory ? 'Restore Item' : 'Archive Item'}}"
-                                           ng-click="inventoryArchiveAlert(item)">
-                                            <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="Archive" />
-                                        </a>
+                                        <div data-bs-toggle="tooltip"
+                                             data-bs-placement="bottom"
+                                             data-bs-title="{{showArchivedInventory ? 'Restore Item' : 'Archive Item'}}">
+                                            <a class="order-action-icon" ng-click="inventoryArchiveAlert(item)" aria-label="Archive or restore item">
+                                                <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="" />
+                                            </a>
+                                        </div>
                                     }
                                 </div>
                             </td>
@@ -237,9 +253,9 @@
             </div>
         </div>
 
-@* View Product Modal: clean 2-column layout + Product Description (no duplicate fields, multi-line safe) *@
-        <div class="modal fade product-view-modal" id="inventoryViewPhotoModal" tabindex="-1" aria-labelledby="inventoryViewPhotoLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+@* View Product Modal: full view with large image (ADMIN / MANAGER / STAFF) *@
+        <div class="modal fade product-view-modal inventory-product-fullview-modal" id="inventoryViewPhotoModal" tabindex="-1" aria-labelledby="inventoryViewPhotoLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content delivery-form-box shadow-lg" ng-if="viewPhotoItem">
                     <div class="modal-header border-0 pb-0">
                         <div>
@@ -261,7 +277,7 @@
                                 <img ng-if="!viewPhotoItem.imageUrl"
                                      src="@Url.Content("~/Content/img/shared/default-product.svg")"
                                      alt="No image"
-                                     class="product-view-img" />
+                                     class="product-view-img product-view-img--no-photo" />
                             </div>
                             <div class="product-details-section">
                                 <p class="product-view-detail-row"><strong>Product ID:</strong> {{viewPhotoItem.id}}</p>
@@ -272,17 +288,15 @@
                                 <p class="product-view-detail-row"><strong>Date Added:</strong> {{viewPhotoItem.createdAtString}}</p>
                                 <p class="product-view-detail-row"><strong>Date Updated:</strong> {{viewPhotoItem.updatedAtString}}</p>
                                 <p class="product-view-detail-row"><strong>Featured Status:</strong> <span class="badge badge-featured" ng-if="viewPhotoItem.isFeatured">Featured</span><span class="badge badge-not-featured" ng-if="!viewPhotoItem.isFeatured">Not Featured</span></p>
-                                <div class="product-description-table mt-3">
-                                    <p class="product-view-detail-row fw-bold mb-2">Product Description</p>
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr><td class="text-muted pe-2">Stones</td><td>{{viewPhotoItem.stones || '—'}}</td></tr>
-                                            <tr><td class="text-muted pe-2">Material</td><td>{{viewPhotoItem.material || '—'}}</td></tr>
-                                            <tr><td class="text-muted pe-2">Weight</td><td>{{viewPhotoItem.weight}}</td></tr>
-                                            <tr><td class="text-muted pe-2">Length</td><td>{{viewPhotoItem.length}}</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <p class="product-view-detail-row product-view-description-text mt-3 mb-0" ng-if="viewPhotoItem.description">{{viewPhotoItem.description}}</p>
+                                <table class="table table-sm table-borderless mb-0 mt-3">
+                                    <tbody>
+                                        <tr><td class="text-muted pe-2">Stones</td><td>{{ displayInventoryField(viewPhotoItem.stones) }}</td></tr>
+                                        <tr><td class="text-muted pe-2">Material</td><td>{{ displayInventoryField(viewPhotoItem.material) }}</td></tr>
+                                        <tr><td class="text-muted pe-2">Weight</td><td>{{ displayInventoryField(viewPhotoItem.weight) }}</td></tr>
+                                        <tr><td class="text-muted pe-2">Length</td><td>{{ displayInventoryField(viewPhotoItem.length) }}</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

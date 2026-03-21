@@ -1696,6 +1696,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.viewPhotoItem = null;
+    /** Full product details modal (inventory): image + specs — opened from Action eye icon. */
     $scope.openViewPhotoModal = function (item) {
         if (!item) return;
         $scope.viewPhotoItem = item;
@@ -1705,20 +1706,51 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         $('#inventoryViewPhotoModal').modal('hide');
         $scope.viewPhotoItem = null;
     };
+    /** Photo column only: same-page fullscreen overlay, image only (no details modal). */
+    $scope.openInventoryPhotoOnly = function (item) {
+        if (!item) return;
+        var url = item.imageUrl;
+        if (url == null || String(url).trim() === '') {
+            url = $scope.inventoryDefaultPhotoUrl || '/Content/img/shared/default-product.svg';
+        }
+        $scope.openImagePreview(url);
+    };
     $scope.openImagePreview = function (src) {
         if (!src) return;
         var overlay = document.createElement('div');
         overlay.className = 'image-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Photo preview');
         var img = document.createElement('img');
         img.src = src;
         img.alt = '';
         overlay.appendChild(img);
-        overlay.onclick = function () { overlay.remove(); };
+        function close() {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+        }
+        function onKey(e) {
+            if (e.key === 'Escape') close();
+        }
+        overlay.onclick = function (e) {
+            if (e.target === overlay) close();
+        };
+        document.addEventListener('keydown', onKey);
         document.body.appendChild(overlay);
     };
     $scope.formatProductPrice = function (price) {
         if (price == null || price === undefined) return '';
         return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(price);
+    };
+    /** Safe display for inventory text fields: empty string for null/blank/dash-only/mojibake (no placeholder glyphs). */
+    $scope.displayInventoryField = function (v) {
+        if (v == null || v === '') return '';
+        var s = String(v).trim();
+        if (!s) return '';
+        if (/^[\u002D\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D\u00AD\s]+$/.test(s)) return '';
+        if (/^â€/.test(s)) return '';
+        return s;
     };
     function escapeHtml(text) {
         if (!text) return '';
