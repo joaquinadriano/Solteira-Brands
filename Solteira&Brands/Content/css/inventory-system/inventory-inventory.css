@@ -8,6 +8,11 @@ html, body {
     object-fit: cover;
 }
 
+.view-prod {
+    background-color: white !important;
+    border-radius: 0.8vw !important;
+}
+
 .inventory-view-link {
     font-size: 0.9rem;
     color: #87AE73 !important;
@@ -156,6 +161,35 @@ html, body {
     width: 1.1rem;
     height: 1.1rem;
 }
+
+/* Button styles for showing active vs archived inventory */
+#btn-showactive {
+    border-color: #87AE73;
+    color: black;
+    font-family: 'Nunito', sans-serif;
+}
+
+    #btn-showactive:hover,
+    #btn-showactive.active {
+        background-color: #87AE73 !important;
+        border-color: #87AE73 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+#btn-showarchive {
+    border-color: #95a5a6;
+    color: #95a5a6;
+    font-family: 'Nunito', sans-serif;
+}
+
+    #btn-showarchive:hover,
+    #btn-showarchive.active {
+        background-color: #95a5a6 !important;
+        border-color: #95a5a6 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
 
 /* Full product view modal: square image (1:1), crop with object-fit */
 .inventory-product-fullview-modal .product-view-grid .product-image-section {

@@ -1,0 +1,157 @@
+@{
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+}
+<div class="main-content" ng-init="loadDashboardData()">
+    <div class="container-fluid dashboard-container">
+        <div class="row px-4 pb-0 mb-0">
+            <div class="col">
+                <p class="h1 fw-bold inventory-title ps-0 ms-0">Dashboard</p>
+                <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+                    <label class="fw-semibold mb-0 me-2" style="font-size: 1rem;">Filter:</label>
+                    <select class="form-select form-select-sm" style="width: auto; max-width: 180px;" ng-model="dashboardRange" ng-change="onDashboardRangeChange()">
+                        <option value="today">Today</option>
+                        <option value="lastweek">Last week</option>
+                        <option value="lastmonth">Last month</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                    <div ng-if="dashboardRange === 'custom'" class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customStartDate" placeholder="From" />
+                        <span class="text-muted">to</span>
+                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customEndDate" placeholder="To" />
+                        <button type="button" class="btn btn-sm btn-outline-dark" ng-click="applyCustomRange()">Apply</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <p class="h1 h4 ps-0 ms-0 text-end">{{dashboardDate}}</p>
+            </div>
+        </div>
+        <div class="row px-5">
+            <div class="d-flex justify-content-center px-5">
+                <div class="col-3 dashboard-card-container-1 ">
+                    <div class="row dashboard-card-content ">
+                        <div class="col dashboard-card-content">
+                            <p><i class="bi bi-cash-stack me-3"></i>Total Sales</p>
+                            <p>&#8369; {{dashboardStats.totalSales | number:2}}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3 dashboard-card-container ">
+                    <div class="row dashboard-card-content ">
+                        <div class="col dashboard-card-content">
+                            <p><i class="bi bi-tags  me-3"></i></i>Product Sold</p>
+                            <p>{{dashboardStats.productSold}}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 dashboard-card-container ">
+                    <div class="row dashboard-card-content-2">
+                        <div class="col d-flex align-items-center justify-content-center">
+                            <p class="dashboard-card2-title"><i class="bi bi-cart-check  me-3"></i>Orders</p>
+                        </div>
+                        <div class="col dashboard-card-content-2 vl-right">
+                            <p>{{dashboardStats.pendingOrders}}</p>
+                            <p>Pending</p>
+                        </div>
+                        <div class="col dashboard-card-content-2 vl-left vl-right">
+                            <p>{{dashboardStats.approvedOrders}}</p>
+                            <p>Approved</p>
+                        </div>
+                        <div class="col dashboard-card-content-2 vl-left">
+                            <p>{{dashboardStats.shippedOrders}}</p>
+                            <p>Shipped</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+         </div>
+
+        @*----------Charts------------*@
+        <div class="row p-5 charts-row">
+            <div class="dashboard-chart-1">
+                <p class="fw-bold text-center h4">Total Sales (Daily Breakdown)</p>
+                @*----------Line Chart----------*@
+                <div class="chart-container chart-container--line">
+                    <canvas id="line" class="chart chart-line" chart-data="lineData"
+                            chart-labels="lineLabels" chart-series="series" chart-options="lineOptions"
+                            chart-dataset-override="datasetOverride" chart-colors="lineChartColors" chart-click="onClick">
+                    </canvas>
+                </div>
+            </div>
+            <div class=" dashboard-chart-2">
+                <p class="fw-bold text-center h4">Sales by Category</p>
+                @*----------Pie Chart----------*@
+                <div class="chart-container chart-container--pie">
+                    <canvas id="pie" class="chart chart-pie" ng-if="pieLabels.length && pieData.length"
+                            chart-data="pieData" chart-labels="pieLabels" chart-options="pieOptions">
+                    </canvas>
+                    <p ng-if="!pieLabels.length || !pieData.length" class="text-muted text-center py-5 mb-0">Loading chart...</p>
+                </div>
+            </div>
+        </div>
+        @*----------Charts end------------*@
+
+        @*----------Table----------*@
+        <div class="row  px-5 pt-1 table-row1">
+            <div class=" table-col-1">
+                <table class="table table-responsive text-center" id="dashboardInventoryTable">
+                    <thead>
+                        <tr>
+                            <th colspan=5 class="text-start h5">Inventory Stock</th>
+                        </tr>
+                        <tr>
+                            <th>Photo</th>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-group-divider">
+                        <tr ng-repeat="item in dashboardInventoryStock">
+                            <td>
+                                <img ng-src="{{item.imageUrl || dashboardDefaultProductImage}}" alt="" style="max-width: 50px; max-height: 50px; object-fit: contain;" />
+                            </td>
+                            <td>P-{{item.id | numberPad:3}}</td>
+                            <td>{{item.name}}</td>
+                            <td>{{item.stockQuantity}}</td>
+                            <td>{{getStockStatus(item.stockQuantity)}}</td>
+                        </tr>
+                        <tr ng-if="dashboardInventoryStock.length === 0">
+                            <td colspan="5" class="text-muted py-3">No products in inventory.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="  table-col-2">
+                <table class="table table-responsive text-center" id="dashboardTopSellingTable">
+                    <thead>
+                        <tr>
+                            <th colspan=4 class="text-center h5">Top Selling Products</th>
+                        </tr>
+                        <tr>
+                            <th>Photo</th>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Number of Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-group-divider">
+                        <tr ng-repeat="item in dashboardTopSelling">
+                            <td>
+                                <img ng-src="{{item.imageUrl || dashboardDefaultProductImage}}" alt="" style="max-width: 50px; max-height: 50px; object-fit: contain;" />
+                            </td>
+                            <td>P-{{item.id | numberPad:3}}</td>
+                            <td>{{item.name}}</td>
+                            <td>{{item.totalSold}}</td>
+                        </tr>
+                        <tr ng-if="dashboardTopSelling.length === 0">
+                            <td colspan="4" class="text-muted py-3">No sales yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @*----------Table end----------*@
+    </div>
+</div>

@@ -1,0 +1,95 @@
+@{
+    Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+}
+
+<div class="main-content" ng-init="onReportsPageInit()">
+    <div class="container-fluid orders-container px-1">
+
+        <div class="row px-4 pb-0 mb-0 align-items-center">
+            <div class="col">
+                <p class="h1 fw-bold inventory-title ps-0 ms-0">Sales Reports</p>
+            </div>
+            <div class="col-auto d-flex gap-2  filter-category" >
+                <button type="button" class="btn btn-outline-danger  shadow-sm" id="btn-report-1" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as PDF'}}">
+                    <i class="bi bi-file-earmark-pdf-fill me-2"></i>Export as PDF
+                </button>
+                <button type="button" class="btn btn-outline-success shadow-sm" id="btn-report-2" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as CSV'}}">
+                    <i class="bi bi-filetype-csv me-2"></i>Export as CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="row px-4 pt-3 pb-2">
+            <div class="col-md-12">
+                <div class="card border-0 p-3 rounded-3 card-filter">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3 filter-category">
+                            <label class="form-label fw-bold">Filter</label>
+                            <select class="form-select" ng-model="reportRange" ng-change="onReportRangeChange()">
+                                <option value="all">All</option>
+                                <option value="today">Today</option>
+                                <option value="lastweek">Last week</option>
+                                <option value="lastmonth">Last month</option>
+                                <option value="custom">Custom range</option>
+                            </select>
+                        </div>
+                        <div ng-if="reportRange === 'custom'" class="col-md-4 d-flex align-items-end gap-2 flex-wrap  filter-category ">
+                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportStart" />
+                            <span class="text-muted align-self-center">to</span>
+                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportEnd" />
+                            <button type="button" class="btn btn-primary btn-sm" ng-click="applyReportFilters()">Apply</button>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Category</label>
+                            <select class="form-select" ng-model="reportCategory" ng-change="loadSalesReport()">
+                                <option value="All Categories">All Categories</option>
+                                <option value="Ring">Ring</option>
+                                <option value="Earring">Earring</option>
+                                <option value="Necklace">Necklace</option>
+                                <option value="Bracelet">Bracelet</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row px-4 pt-1">
+            <div class="col">
+                <table class="table table-hover table-responsive " id="salesReportTable" >
+                    <thead>
+                        <tr>
+                            <th >Date</th>
+                            <th>Order ID</th>
+                            <th >Item Name</th>
+                            <th>Category</th>
+                            <th >Qty</th>
+                            <th class="unit-tt">Unit Price</th>
+                            <th class="text-end total-tt">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="row in salesReportRows">
+                            <td>{{row.date}}</td>
+                            <td>{{row.orderNumber}}</td>
+                            <td>{{row.itemName}}</td>
+                            <td>{{row.category}}</td>
+                            <td>{{row.qty}}</td>
+                            <td class="unit-t">{{formatReportCurrency(row.unitPrice)}}</td>
+                            <td class="fw-bold text-end total-t">{{formatReportCurrency(row.total)}}</td>
+                        </tr>
+                        <tr ng-if="salesReportRows.length === 0">
+                            <td colspan="7" class="text-muted py-4">No sales data for the selected filter.</td>
+                        </tr>
+                    </tbody>
+                    <tfoot class=" fw-bold border-top">
+                        <tr>
+                            <td colspan="6" class="text-end text-uppercase ">Grand Total:</td>
+                            <td class="text-success fs-5 ps-0 pe-5 text-end">{{formatReportCurrency(salesReportGrandTotal)}}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

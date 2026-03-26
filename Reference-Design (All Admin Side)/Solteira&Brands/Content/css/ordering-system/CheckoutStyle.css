@@ -1,0 +1,368 @@
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.checkout-page-wrapper {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 3vw;
+}
+
+.checkout-main-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    max-width: 70vw;
+    gap: 4vw;
+    box-sizing: border-box;
+}
+
+.order-summary-section {
+    flex: 3;
+}
+
+.checkout-item {
+    display: flex;
+    flex-direction: row;
+    gap: 1vw;
+    padding: 1vw 0;
+    border-bottom: 1px solid #ececec;
+}
+
+.checkout-item-img img {
+    width: 12vw;
+    height: 12vw;
+    object-fit: cover;
+}
+
+.checkout-item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: .5vw;
+}
+
+.checkout-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.checkout-form-card .product-name {
+    font-family: "Kaisei Tokumin";
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #1e1e1e;
+}
+
+.checkout-form-card .remove-btn {
+    background: none;
+    border: none;
+    color: #87AE73;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+    transition: 0.2s ease;
+}
+
+    .checkout-form-card .remove-btn:hover {
+        color: #ff4d4d;
+    }
+
+.checkout-form-card .product-price {
+    font-size: 1.5rem;
+    margin-bottom: .5vw;
+    color: #1e1e1e;
+}
+
+.product-desc {
+    font-size: 1rem;
+    color: #666;
+    display: block;
+}
+
+.product-qty {
+    font-size: 1.25rem;
+    color: #1e1e1e;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 1.5vw 0;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.total-price {
+    color: #87AE73;
+}
+
+.checkout-form-card {
+    flex: 2.25;
+    background-color: #87AE73;
+    padding: 2vw 3vw;
+    color: white;
+    height: fit-content;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+    .checkout-form-card h3 {
+        font-family: "Kaisei Tokumin";
+        font-weight: bold;
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 1.5vw;
+    }
+
+.checkout-form-card .form-group {
+    margin-bottom: 1.5vw;
+}
+
+    .checkout-form-card .form-group label {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin-bottom: .5vw;
+    }
+
+    .checkout-form-card .form-group input {
+        font-size: 1.25rem;
+        width: 100%;
+        padding: .75vw;
+        border: none;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .checkout-form-card .form-group .validation-error {
+        display: block;
+        font-size: 0.9rem;
+        color: #ffebee;
+        background-color: rgba(180, 0, 0, 0.4);
+        padding: 0.35vw 0.5vw;
+        margin-top: 0.35vw;
+    }
+
+.custom-container {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 1vw;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .custom-container input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+        height: 0;
+        width: 0;
+    }
+
+.custom-mark {
+    position: relative;
+    display: inline-block;
+    height: 1vw;
+    width: 1vw;
+    background-color: transparent;
+    border: 2px solid white;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+    margin-top: 0.2vw;
+}
+
+.radio-mark {
+    border-radius: 50%;
+}
+
+.custom-container:hover .custom-mark {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.custom-mark::after {
+    content: "";
+    position: absolute;
+    display: none;
+    top: 3px;
+    left: 3px;
+    right: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s ease;
+}
+
+.radio-mark::after {
+    border-radius: 50%;
+}
+
+.custom-container input:checked ~ .custom-mark::after {
+    display: block;
+}
+
+.custom-container input:checked ~ .custom-mark {
+    background-color: transparent;
+}
+
+.radio-option {
+    background: rgba(255, 255, 255, 0.1);
+    padding: .75vw;
+    margin-top: 1vw;
+}
+
+.payment-options label {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.label-text, .terms-text {
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.payment-terms {
+    margin-left: 2.5vw;
+    margin-top: .5vw;
+    font-size: 1.25rem;
+    color: white;
+}
+
+    .payment-terms ol {
+        padding-left: 1vw;
+        margin-bottom: .75vw;
+    }
+
+    .payment-terms li {
+        margin-bottom: .75vw;
+    }
+
+.terms-checkbox {
+    margin-top: 1.5vw;
+    color: white;
+}
+
+.layaway-details {
+    margin-top: 1vw;
+    line-height: 1.4;
+}
+
+.terms-group {
+    margin-bottom: 1vw;
+}
+
+    .terms-group strong {
+        display: block;
+        font-size: 1.25rem;
+        margin-bottom: 0.3vw;
+        color: white; 
+    }
+
+    .terms-group ul {
+        list-style-type: disc;
+        padding-left: 1.5vw;
+        margin: 0;
+    }
+
+        .terms-group ul li {
+            font-size: 1.25rem;
+            margin-bottom: 0.4vw;
+        }
+
+.order-btn-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.order-btn {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.25rem;
+    text-align: center;
+    background-color: white;
+    color: #87AE73;
+    padding: .5vw 2vw;
+    transition: 0.2s ease;
+    margin: 1vw;
+    cursor: pointer;
+    border: none;
+    outline: none;
+}
+
+    .order-btn:hover:not(:disabled) {
+        background-color: #789F64;
+        color: white;
+        border: none;
+        outline: none;
+    }
+
+    .order-btn:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        border: none;
+        outline: none;
+    }
+
+.swal-no-border {
+    border-radius: 0;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+.custom-swal-content {
+    color: white;
+    text-align: center;
+}
+
+.swal-icon-stack {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 20px;
+    color: white;
+}
+
+.heart-overlay {
+    position: absolute;
+    bottom: 5px;
+    right: -10px;
+    font-size: 2.5rem;
+    text-shadow: 0 0 5px #87AE73;
+}
+
+.swal-custom-title {
+    font-family: "Kaisei Tokumin";
+    font-weight: bold;
+    font-size: 1.75rem;
+    margin-top: 0.5vw;
+    color: white;
+}
+
+.swal-custom-text {
+    font-size: 1.1rem;
+    margin-top: 0.75vw;
+    color: white;
+}
+
+.swal-white-button {
+    background-color: white;
+    color: #87AE73;
+    border: none;
+    padding: 0.5vw 1vw;
+    font-family: "Kaisei Tokumin";
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 20px;
+    border-radius: 0;
+    transition: 0.3s ease;
+}
+
+    .swal-white-button:hover {
+        background-color: #f0f0f0;
+    }

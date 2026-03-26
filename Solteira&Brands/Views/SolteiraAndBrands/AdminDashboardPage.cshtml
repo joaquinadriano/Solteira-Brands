@@ -28,15 +28,19 @@
             </div>
         </div>
         <div class="row px-5">
-            <div class="d-flex justify-content-center">
-                <div class="col-6 dashboard-card-container ">
+            <div class="d-flex justify-content-center px-5">
+                <div class="col-3 dashboard-card-container-1 ">
                     <div class="row dashboard-card-content ">
-                        <div class="col dashboard-card-content vl-right">
-                            <p>Total Sales</p>
+                        <div class="col dashboard-card-content">
+                            <p><i class="bi bi-cash-stack me-3"></i>Total Sales</p>
                             <p>&#8369; {{dashboardStats.totalSales | number:2}}</p>
                         </div>
-                        <div class="col dashboard-card-content vl-left">
-                            <p>Product Sold</p>
+                    </div>
+                </div>
+                <div class="col-3 dashboard-card-container ">
+                    <div class="row dashboard-card-content ">
+                        <div class="col dashboard-card-content">
+                            <p><i class="bi bi-tags  me-3"></i>Product Sold</p>
                             <p>{{dashboardStats.productSold}}</p>
                         </div>
                     </div>
@@ -44,7 +48,7 @@
                 <div class="col-6 dashboard-card-container ">
                     <div class="row dashboard-card-content-2">
                         <div class="col d-flex align-items-center justify-content-center">
-                            <p class="dashboard-card2-title">Orders</p>
+                            <p class="dashboard-card2-title"><i class="bi bi-cart-check  me-3"></i>Orders</p>
                         </div>
                         <div class="col dashboard-card-content-2 vl-right">
                             <p>{{dashboardStats.pendingOrders}}</p>
@@ -64,8 +68,8 @@
         </div>
 
         @*----------Charts------------*@
-        <div class="row p-5">
-            <div class="col-6">
+        <div class="row p-5 charts-row">
+            <div class="dashboard-chart-1">
                 <p class="fw-bold text-center h4">Total Sales (Daily Breakdown)</p>
                 @*----------Line Chart----------*@
                 <div class="chart-container chart-container--line">
@@ -75,7 +79,7 @@
                     </canvas>
                 </div>
             </div>
-            <div class="col-6">
+            <div class=" dashboard-chart-2">
                 <p class="fw-bold text-center h4">Sales by Category</p>
                 @*----------Pie Chart----------*@
                 <div class="chart-container chart-container--pie">
@@ -89,9 +93,9 @@
         @*----------Charts end------------*@
 
         @*----------Table----------*@
-        <div class="row  px-5 pt-1">
-            <div class="col">
-                <table class="table table-striped table-responsive text-center" id="dashboardInventoryTable">
+        <div class="row  px-5 pt-1 table-row1">
+            <div class=" table-col-1">
+                <table class="table table-responsive text-center" id="dashboardInventoryTable">
                     <thead>
                         <tr>
                             <th colspan=5 class="text-start h5">Inventory Stock</th>
@@ -120,7 +124,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="col">
+            <div class="  table-col-2">
                 <table class="table table-responsive text-center" id="dashboardTopSellingTable">
                     <thead>
                         <tr>

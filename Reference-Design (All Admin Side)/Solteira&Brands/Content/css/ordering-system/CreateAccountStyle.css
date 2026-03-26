@@ -1,0 +1,153 @@
+body {
+    background-color: #87AE73;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.register-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 32vw;
+    margin: 1vw 3vw;
+    padding: 1.5vw;
+    background-color: white;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+.register-logo {
+    display: flex;
+    align-items: center;
+}
+
+    .register-logo img {
+        width: 4vw;
+    }
+
+.register-details {
+    padding: 2vw;
+}
+
+.register-text {
+    font-family: "Kaisei Tokumin";
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-align: center;
+    color: #1e1e1e;
+}
+
+.register-container .form-label {
+    font-family: "Nunito";
+    font-size: 1.25rem;
+    margin-bottom: .5vw;
+}
+
+.register-container .custom-input {
+    font-family: "Nunito";
+    font-size: 1.25rem;
+    border: 1px solid #87AE73;
+    padding: .5vw;
+    border-radius: 0;
+}
+
+.is-invalid {
+    border: 2px solid red !important;
+    background-image: none !important;
+}
+
+.helper-text {
+    display: block;
+    color: #777;
+    font-size: 0.875rem;
+    margin-top: 4px;
+}
+
+.error-text {
+    display: none !important;
+    color: #c00;
+    font-size: 0.8125rem;
+    margin-top: 4px;
+}
+
+.form-group .error-text {
+    min-height: 0;
+}
+
+/* Hide browser native password reveal so only our toggle shows */
+.register-container .password-wrapper input[type="password"]::-ms-reveal,
+.register-container .password-wrapper input[type="text"]::-ms-reveal {
+    display: none !important;
+}
+
+.register-container .password-wrapper {
+    position: relative;
+    border: 1px solid #87AE73;
+}
+
+.register-container .password-wrapper .custom-input,
+.register-container .password-wrapper .password-input {
+    width: 100%;
+    padding-right: 45px;
+}
+
+.register-container .password-wrapper .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    color: #B0B0B0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+}
+
+.register-container .password-wrapper .toggle-password:hover {
+    color: #1e1e1e;
+}
+
+.register-container .form-control:focus {
+    box-shadow: none;
+    border-color: #87AE73;
+}
+
+.create-btn {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.25rem;
+    text-align: center;
+    background-color: #87AE73;
+    display: block;
+    border: none;
+    color: #FFFBE8;
+    padding: .5vw;
+    transition: 0.2s ease;
+}
+
+    .create-btn:hover {
+        background-color: #789F64;
+    }
+
+.login-desc {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.15rem;
+    text-align: center;
+    justify-content: center;
+    gap: 1vw;
+    color: #1e1e1e;
+    margin-top: 1vw;
+    padding: .75vw;
+    width: 100%;
+}
+
+.login-link {
+    text-decoration: underline;
+    color: #1e1e1e;
+}

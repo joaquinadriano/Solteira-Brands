@@ -1,0 +1,220 @@
+body, html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.login-container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    width: 100vw;
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+}
+
+.login-image {
+    flex: 1;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+    .login-image img {
+        max-width: 85%;
+        max-height: 90vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+
+.login-details {
+    flex: 1;
+    background-color: #87AE73;
+    display: flex;
+    flex-direction: column;
+    align-items: center;    
+    justify-content: center;
+    height: 100%;
+    padding: 3vw;
+}
+
+.login-form {
+    background-color: white;
+    padding: 3vw;
+    padding-bottom: 40px;
+}
+
+.login-text {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1.5vw;
+}
+
+.login-form .form-label {
+    font-family: "Nunito";
+    font-size: 1.25rem;
+    margin-bottom: .5vw;
+}
+
+.login-form .custom-input {
+    font-family: "Nunito";
+    font-size: 1.25rem;
+    border: 1px solid #87AE73;
+    padding: .5vw;
+    border-radius: 0;
+}
+
+.is-invalid {
+    border: 2px solid red !important;
+    background-image: none !important;
+}
+
+.helper-text {
+    display: block;
+    color: #777;
+    font-size: 0.875rem;
+    margin-top: 4px;
+}
+
+.error-text {
+    display: none !important;
+    color: #c00;
+    font-size: 0.8125rem;
+    margin-top: 4px;
+}
+
+.form-group .error-text {
+    min-height: 0;
+}
+
+.custom-input-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid #87AE73;
+}
+
+.custom-input-group .custom-input {
+    border: none;
+    flex: 1;
+}
+
+.custom-input-group .input-group-text {
+    font-size: 1.25rem;
+    border: none;
+    background: transparent;
+    color: #B0B0B0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0 1vw;
+}
+
+.form-control:focus {
+    box-shadow: none;
+    border-color: #87AE73;
+}
+
+.forgot-password-text {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.15rem;
+    color: #1e1e1e;
+}
+
+.login-btn {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.25rem;
+    text-align: center;
+    background-color: #87AE73;
+    display: block;
+    border: none;
+    color: #FFFBE8;
+    padding: .5vw;
+    margin-bottom: 20px;
+    transition: 0.2s ease;
+}
+
+    .login-btn:hover {
+        background-color: #789F64;
+    }
+
+/* Hide browser's native password reveal (e.g. Edge) so only our toggle shows */
+.password-wrapper input[type="password"]::-ms-reveal,
+.password-wrapper input[type="text"]::-ms-reveal {
+    display: none !important;
+}
+
+.password-wrapper {
+    position: relative;
+    border: 1px solid #87AE73;
+}
+
+.password-wrapper .custom-input,
+.password-wrapper .password-input {
+    border: none;
+    width: 100%;
+    padding-right: 45px;
+}
+
+.password-wrapper .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    color: #B0B0B0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+}
+
+.password-wrapper .toggle-password:hover {
+    color: #1e1e1e;
+}
+
+.reg-desc {
+    font-family: "Kaisei Tokumin";
+    font-size: 1.15rem;
+    text-align: center;
+    gap: 1vw;
+    color: white;
+    margin-top: 2vw;
+}
+
+.register-link {
+    text-decoration: underline;
+    color: white;
+}
+
+.my-swal-title {
+    font-family: "Kaisei Tokumin";
+    color: #1e1e1e;
+    font-weight: bold;
+}
+
+.my-swal-text {
+    font-family: "Nunito";
+    color: #1e1e1e;
+}
+
+.my-swal-button {
+    font-family: "Kaisei Tokumin";
+    background-color: #87AE73;
+    color: white;
+    padding: .5vw 1vw;
+    border: none;
+    border-radius: 0;
+    transition: 0.2s ease;
+}
+
+    .my-swal-button:hover {
+        background-color: #789F64;
+    }

@@ -1,0 +1,81 @@
+@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/css/ordering-system/AccountSettings.css" />
+
+<div class="acc-settings-page-wrapper" ng-controller="SolteiraBrandsController" ng-init="loadProfile()">
+
+    <div class="acc-settings-container">
+
+        <div class="left-as-container">
+
+            <div class="profile">
+                <img ng-src="{{profilePreviewUrl || profile.avatarUrl || defaultAvatarUrl}}" class="profile-img rounded-circle" alt="Profile" />
+            </div>
+
+            <div class="profile-name">
+                <span>{{profile.username || 'User'}}</span>
+            </div>
+
+            <label for="profileImageInput" class="select-img" style="cursor:pointer;margin:0;">
+                <span>Select Image</span>
+                <input id="profileImageInput" type="file" accept=".jpg,.jpeg,.png" style="display:none;" onchange="angular.element(this).scope().onProfileImageSelect(event)" />
+            </label>
+
+        </div>
+
+        <hr />
+
+        <div class="right-as-container">
+
+            <div class="edit-profile">
+                <h3>Edit Profile</h3>
+                <p>Manage your account.</p>
+            </div>
+
+            <div class="edit-field">
+
+                <form name="editForm" class="d-flex flex-column align-items-center" ng-submit="saveProfile()">
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text"
+                               maxlength="14" pattern="^[^\s]{1,14}$"
+                               class="form-control custom-input"
+                               ng-class="{'input-error': profileErrors.username}"
+                               id="name" name="username"
+                               ng-model="profile.username"
+                               ng-blur="onProfileUsernameBlur()"
+                               placeholder="Username" required />
+                        <small class="text-danger" ng-if="profileErrors.username">{{profileErrors.username}}</small>
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="email" class="form-label">Email (cannot be changed)</label>
+                        <input type="email" class="form-control custom-input" id="email"
+                               ng-value="profile.email" disabled />
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label class="form-label">Password</label>
+                        <a href="@Url.Action("SolteiraBrandsChangePassword", "SolteiraAndBrands")" class="change-password-link">
+                            Change Password (Optional)
+                        </a>
+                    </div>
+
+                    <button type="submit"
+                            class="save-changes"
+                            ng-disabled="profileErrors.username">
+                        SAVE CHANGES
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

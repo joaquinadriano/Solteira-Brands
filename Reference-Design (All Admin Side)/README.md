@@ -1,0 +1,32 @@
+
+<h1 align="center">Welcome to the Github Repository for Solteria-Brands💎 <br></h1>
+<h3 align="center">MANAGED BY: Joaquin Adriano and Warren Chua<br>3rd year IT Students based in University of Santo Tomas, Manila 🐯</h3>
+
+---
+## 📌 Backend Development Task Board
+---
+
+### Warren Chua — Backend Development
+
+| Feature | Description | Status |
+|----------|-------------|--------|
+| Orders Module | Handles order creation, updates, and retrieval | ✅ Completed |
+| Payment Integration | Payment processing and transaction handling | ✅ Completed |
+| Account Creation | User registration logic and validation | ✅ Completed |
+| Account Verification | Email/OTP verification system | ✅ Completed |
+| Delivery Module | Delivery status tracking and updates | ✅ Completed |
+
+---
+
+### Joaquin Adriano — Backend Development
+
+| Feature | Description | Status |
+|----------|-------------|--------|
+| Reports Module | Generates sales and operational reports | ✅ Completed |
+| Charts & Analytics | Data visualization endpoints | ✅ Completed |
+| Inventory CRUD | Create, Read, Update, Delete inventory items | ✅ Completed |
+| Archive System | Archiving inactive or old records | ✅ Completed |
+| Audit / Action Logs | Tracks system and user activity logs | ✅ Completed |
+
+---
+

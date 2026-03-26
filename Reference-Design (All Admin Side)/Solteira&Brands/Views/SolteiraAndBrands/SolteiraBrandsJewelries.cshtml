@@ -1,0 +1,197 @@
+@{
+    Layout = "~/Views/Shared/_SolteiraBrandsLayout.cshtml";
+}
+
+<link rel="stylesheet" href="~/Content/css/ordering-system/JewelriesStyle.css" />
+
+<div ng-controller="SolteiraBrandsController">
+
+    <div class="nav-jewelry" ng-show="viewMode === 'list'">
+        <div class="filter-container">
+            <div class="filter-btn">
+                <span class="btn-content">FILTER <i class="bi bi-filter fs-5"></i></span>
+            </div>
+            <div class="filter-dropdown">
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'az'}" ng-click="setJewelriesSort('az')">A-Z</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'za'}" ng-click="setJewelriesSort('za')">Z-A</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_lh'}" ng-click="setJewelriesSort('price_lh')">PRICE: L-H</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_hl'}" ng-click="setJewelriesSort('price_hl')">PRICE: H-L</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Bracelet'}" ng-click="setJewelriesCategory('Bracelet')">BRACELET</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Earring'}" ng-click="setJewelriesCategory('Earring')">EARRING</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Necklace'}" ng-click="setJewelriesCategory('Necklace')">NECKLACE</div>
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Ring'}" ng-click="setJewelriesCategory('Ring')">RING</div>
+            </div>
+        </div>
+
+        <div class="jewelry-label">
+            <span>JEWELRIES</span>
+        </div>
+
+        <div class="search-container">
+
+            <div class="search-wrapper">
+                <div class="search-btn">
+                    <span class="btn-content">
+                        SEARCH <i class="bi bi-search search-icon fs-5"></i>
+                    </span>
+                </div>
+                <input type="text" placeholder="SEARCH..." class="search-field" ng-model="jewelriesSearch" />
+                <i class="bi bi-x-lg close-search" ng-click="jewelriesSearch = ''" role="button" aria-label="Clear search"></i>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="view-stage" ng-class="transitionDir">
+
+        <div class="jewelry-grid-container" ng-show="viewMode === 'list'">
+
+            <div class="products-grid" ng-show="filteredJewelries.length > 0">
+                <div class="product-card" ng-repeat="item in filteredJewelries = (getFilteredJewelries())" ng-click="selectProduct(item, $event)">
+                    <div class="image-wrapper">
+                        <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
+                        <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
+                        <div class="cart-icon-overlay" ng-show="(item.stockQuantity || 0) > 0" ng-click="addToCart(item, 1); $event.stopPropagation();" title="Add to cart">
+                            <i class="bi bi-cart-plus-fill"></i>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <span class="product-category">{{item.category || 'Jewelry'}}</span>
+                        <div class="name-price-row">
+                            <span class="product-name">{{item.name}}</span>
+                            <span class="product-price">&#8369; {{item.price | number:2}}</span>
+                        </div>
+                        <p class="product-short-desc">{{getShortDescription(item)}}</p>
+                        <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
+                        <div class="product-stock sold-out-text" ng-if="(item.stockQuantity || 0) === 0">SOLD OUT</div>
+                    </div>
+                </div>
+            </div>
+
+            <div ng-show="filteredJewelries.length === 0" style="text-align: center; padding: 50px 20px; width: 100%;">
+                <h3>No results found.</h3>
+            </div>
+
+        </div>
+
+        <div class="product-detail-container" ng-if="viewMode === 'detail' && selectedProduct">
+            <div class="top-nav">
+                <button class="back-btn" ng-click="goBack()">
+                    <i class="bi bi-arrow-left"></i> BACK
+                </button>
+            </div>
+
+            <div class="product-card-detail">
+                <div class="main-image-container">
+                    <img ng-src="{{selectedProduct.img || defaultProductImageUrl}}" alt="{{selectedProduct.name}}">
+                </div>
+
+                <div class="product-info-column">
+                    <h1 class="detail-name">{{selectedProduct.name}}</h1>
+                    <p class="detail-price">&#8369; {{selectedProduct.price | number:2}}</p>
+                    <p class="detail-stock" ng-if="(selectedProduct.stockQuantity || 0) > 0">{{selectedProduct.stockQuantity}} in stock</p>
+                    <p class="detail-stock sold-out-text" ng-if="(selectedProduct.stockQuantity || 0) === 0">SOLD OUT</p>
+
+                    <div class="details-section">
+                        <span class="label">Product Details:</span>
+                        <ul class="specs-list">
+                            <li ng-if="!isEnumerable(selectedProduct.stones)">{{selectedProduct.stones}}</li>
+                            <li ng-repeat="stone in selectedProduct.stones" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
+
+                            <li>{{selectedProduct.material}}</li>
+                            <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>
+                        </ul>
+                    </div>
+
+                    <hr class="separator">
+
+                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) > 0">
+                        <div class="quantity-container">
+                            <span class="label">Quantity:</span>
+                            <div class="quantity-controls">
+                                <button type="button" ng-click="changeDetailQty(-1)">-</button>
+                                <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
+                                <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
+                            </div>
+                        </div>
+                        <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
+                            <i class="bi bi-cart-plus"></i>Add to Cart
+                        </button>                    
+                    </div>
+                    <div class="action-section" ng-if="(selectedProduct.stockQuantity || 0) === 0">
+                        <button class="add-to-cart-btn" disabled><i class="bi bi-cart-plus"></i>SOLD OUT</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="related-section">
+                <h2 class="related-title">RELATED PRODUCTS</h2>
+                <div class="related-grid">
+                    <div class="related-item"
+                         ng-repeat="rel in getRelatedProducts()"
+                         ng-click="selectProduct(rel)">
+                        <div class="image-wrapper">
+                            <img ng-src="{{rel.img || defaultProductImageUrl}}" alt="{{rel.name}}">
+                        </div>
+                        <span class="related-item-category">{{rel.category || 'Jewelry'}}</span>
+                        <p class="related-item-name">{{rel.name}}</p>
+                        <p class="related-item-desc">{{getShortDescription(rel)}}</p>
+                        <span class="related-item-price">&#8369; {{rel.price | number:2}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const filterContainer = document.querySelector('.filter-container');
+        const filterBtn = document.querySelector('.filter-btn');
+        const searchContainer = document.querySelector('.search-container');
+        const searchBtn = document.querySelector('.search-btn');
+        const searchField = document.querySelector('.search-field');
+        const closeBtn = document.querySelector('.close-search');
+
+        // Combined Global Click Listener
+        window.addEventListener('click', function (e) {
+            // 1. If we click a product, let Angular handle it and do nothing here
+            if (e.target.closest('.product-card')) return;
+
+            // 2. Otherwise, handle filter/search closing
+            if (filterContainer) filterContainer.classList.remove('active');
+            if (searchContainer) searchContainer.classList.remove('active');
+        });
+
+        if (filterBtn) {
+            filterBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                searchContainer.classList.remove('active');
+                filterContainer.classList.toggle('active');
+            });
+        }
+
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                filterContainer.classList.remove('active');
+                searchContainer.classList.add('active');
+                setTimeout(() => searchField.focus(), 300);
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                searchContainer.classList.remove('active');
+                if (searchField) searchField.value = '';
+            });
+        }
+
+        if (searchField) {
+            searchField.addEventListener('click', (e) => e.stopPropagation());
+        }
+    });
+</script>

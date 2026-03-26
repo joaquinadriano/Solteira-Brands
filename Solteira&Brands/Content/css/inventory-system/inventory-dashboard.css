@@ -11,7 +11,7 @@ html, body {
 .dashboard-container {
     width: 100%;
     max-width: 100%;
-    margin-top: 4.6vw;
+    margin-top: 2vw;
 }
 
 /*background-color: #FFFBE8;
@@ -24,22 +24,47 @@ color: #87AE73;*/
 .vl-right {
     border-right: 0.1vw solid;
     border-color: lightgray;
-    height: 6.9vw;
+    height: 5vw;
 }
 .vl-left {
     border-left: 0.1vw solid;
     border-color: lightgray;
-    height: 6.9vw;
+    height: 5vw;
+}
+
+/*first card (Total Sales)*/
+.dashboard-card-container-1 {
+    background-color: #87AE73;
+    border-radius: 0.8vw;
+    margin: 1vw;
+    padding: 1.5vw;
+    box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3), -3px 3px 5px rgba(36, 54, 66, 0.3);
+    color: white;
+    text-align: left;
+    font-family: 'Inter';
+}
+
+.dashboard-card-container-1 .dashboard-card-content p:first-child {
+    font-weight: 700;
+    font-size: 1.4vw;
+    margin-bottom: 0;
+}
+
+.dashboard-card-container-1 .dashboard-card-content p:nth-child(2) {
+    font-weight: 400;
+    font-size: 1.9vw;
+    margin-bottom: 0.2vw;
 }
 
 .dashboard-card-container {
-    background-color: #FFFBE8;
-    border: solid 0.1vw #87AE73;
-    border-radius: 0.3vw;
+    background-color: #EAF8E9;
+    border-radius: 0.8vw;
     margin: 1vw;
-    padding: 0.7vw;
+    padding: 1.5vw;
     box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3),
         -3px 3px 5px rgba(36, 54, 66, 0.3);
+    text-align: left;
+    font-family: 'Inter';
 }
     .dashboard-card-container:hover {
         transform: scale(1.050);
@@ -95,6 +120,19 @@ color: #87AE73;*/
 
 
 /*---------Table----------------*/
+.table-row1 {
+    display: flex;
+    gap: 1.5vw;
+    margin-top: 0.5vw;
+}
+
+.table-col-1, .table-col-2 {
+    background-color: white;
+    border-radius: 0.8vw;
+    padding: 2vw 2vw;
+    flex: 1;
+}
+
 #userTable.dataTable, #usersTable.dataTable {
     border: 0.19vw solid #87AE73;
     border-radius: 0.3vw;
@@ -120,16 +158,35 @@ color: #87AE73;*/
     }
 
 /* Dashboard tables (Inventory Stock, Top Selling) - theme stripe instead of default blue/gray */
-#dashboardInventoryTable.table-striped > tbody > tr:nth-of-type(odd) > td,
-#dashboardTopSellingTable.table-striped > tbody > tr:nth-of-type(odd) > td {
-    background-color: rgba(255, 251, 232, 0.6);
-}
-
-#dashboardInventoryTable.table-striped > tbody > tr:nth-of-type(even) > td,
-#dashboardTopSellingTable.table-striped > tbody > tr:nth-of-type(even) > td {
+#dashboardInventoryTable > tbody > tr:nth-of-type(odd) > td,
+#dashboardTopSellingTable > tbody > tr:nth-of-type(odd) > td {
     background-color: #fff;
 }
+
+#dashboardInventoryTable > tbody > tr:nth-of-type(even) > td,
+#dashboardTopSellingTable > tbody > tr:nth-of-type(even) > td {
+    background-color: rgba(235, 247, 230, 0.8);
+}
+
+#dashboardInventoryTable tbody td,
+#dashboardTopSellingTable tbody td {
+    font-family: 'Inter';
+}
 /*---------Charts----------------*/
+.charts-row {
+    display: flex;
+    gap: 1.5vw;
+    padding-top: 1vw !important;
+    padding-bottom: 1vw !important;
+}
+
+.dashboard-chart-1, .dashboard-chart-2 {
+    background-color: white;
+    border-radius: 0.8vw;
+    padding: 2vw;
+    flex: 1;
+}
+
 .chart-container {
     position: relative;
     width: 100%;

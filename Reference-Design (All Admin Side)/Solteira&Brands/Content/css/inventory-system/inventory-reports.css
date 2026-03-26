@@ -1,0 +1,36 @@
+html, body {
+    overflow-x: hidden;
+}
+
+/*#salesReportTable thead th:nth-child(1) {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: center;
+}
+
+
+#salesReportTable thead th {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: left;
+}
+
+
+#salesReportTable thead {
+    border-bottom: 1px solid black !important;
+}
+
+#salesReportTable tbody td {
+    padding: 20px 10px !important;
+    vertical-align: middle;
+    font-family: 'Inter';
+}
+
+#salesReportTable > tbody > tr:nth-of-type(odd) > td {
+    background-color: red !important;
+}
+
+#salesReportTable > tbody > tr:nth-of-type(even) > td {
+    background-color: rgba(235, 247, 230, 0.8);
+}
+*/

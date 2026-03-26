@@ -1,0 +1,512 @@
+﻿html, body {
+    overflow-x: hidden;
+}
+
+
+.inventory-title {
+    font-family: 'Inter';
+}
+
+.delivery-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 2vw;
+    font-family: 'Inter';
+}
+
+/*background-color: # ;
+color: #87AE73;*/
+
+
+/*----------Delivery Shipments------------*/
+
+#deliveryShipmentsTable.dataTable thead {
+    font-weight: bold;
+}
+
+#deliveryShipmentsTable.dataTable #shipments-trackNo {
+    color: #87ae73;
+}
+
+#deliveryShipmentsTable.dataTable #paymentProof-link {
+    color: #87AE73;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#deliveryShipmentsTable.dataTable #payment-orderID {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.btn-add-order {
+    background-color: white;
+    border: 0.14vw solid #87AE73;
+    color: #212529;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+    line-height: 0;
+    align-self: center;
+}
+
+.btn-add-order:hover {
+    background-color: rgba(135, 174, 115, 0.1); 
+    border-color: #769a63; 
+    color: #000000;
+    }
+
+.plus-icon {
+    font-size: 1.7rem;
+    margin-right: 0.1vw;
+    font-weight: 800; 
+    line-height:0;
+}
+
+/*modal*/
+.delivery-header-text {
+    text-align: center;
+    font-weight: 700;
+    color: #212529;
+}
+
+
+.delivery-form-box {
+    background-color: #FFFBE8 !important;
+    border-radius: 0.8vw !important; 
+}
+
+.delivery-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.delivery-required {
+    color: #ff0000;
+}
+
+.delivery-input-field {
+    border-radius: 0.2vw !important; 
+    border: 1px solid #444 !important;
+    background-color: #ffffff;
+    padding: 8px 12px;
+    color: black !important;
+}
+
+.delivery-icon-inside {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #333;
+    pointer-events: none;
+}
+
+.delivery-btn-cancel {
+    background-color: #ffffff;
+    color: #333;
+    border: 1px solid #87AE73;
+    padding: 8px 40px;
+    margin-right: 15px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.delivery-btn-cancel:hover {
+    background-color: #f8f9fa;
+}
+
+
+.delivery-btn-add {
+    background-color: #87AE73; 
+    color: #ffffff;
+    border: none;
+    padding: 8px 50px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.delivery-btn-add:hover {
+    background-color: #769a63;
+}
+
+.modal-content.delivery-form-box {
+    border: 1px solid #87AE73;
+    background-color: #FFFBE8;
+    border-radius: 0.8vw !important;
+}
+
+.modal-content {
+    border: none;
+    overflow: hidden;
+}
+
+.btn-close:focus {
+    box-shadow: none;
+    outline: none;
+}
+
+/*view modal*/
+.view-shipment-container {
+    background-color: #FFFBE8 !important;   
+    border-radius: 0.8vw !important;
+}
+
+.view-shipment-header {
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: #212529;
+}
+
+.view-shipment-label {
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: #000;
+}
+
+.view-shipment-data {
+    padding: 6px 0;
+    font-size: 1.05rem;
+    color: #444;
+    font-weight: 400;
+}
+
+.shipment-view-orderID {
+    color: #87ae73 !important;
+    font-weight: bold !important;
+    padding: 6px 0;
+    font-size: 1.05rem;
+    color: #444;
+    font-weight: 400;
+}
+
+
+
+
+
+/*table*/
+
+#deliveryShipmentsTable thead th:nth-child(2) {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: center;
+}
+
+
+#deliveryShipmentsTable thead th:nth-child(1) {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: center;
+}
+
+#deliveryShipmentsTable thead th {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: left;
+    font-size: 13px !important; 
+}
+
+#deliveryShipmentsTable thead {
+    border-bottom: 1px solid black !important;
+}
+
+#deliveryShipmentsTable tbody tr td:nth-child(1) {
+    text-align: center !important;
+}
+
+#deliveryShipmentsTable tbody tr td:nth-child(2) {
+    text-align: center !important;
+}
+
+
+
+
+#deliveryShipmentsTable tbody td {
+    padding: 20px 10px !important;
+    vertical-align: middle;
+    font-family: 'Inter';
+    font-size: 14px;
+}
+
+#deliveryShipmentsTable > tbody > tr:nth-of-type(odd) > td {
+    background-color: white !important;
+}
+
+#deliveryShipmentsTable > tbody > tr:nth-of-type(even) > td {
+    background-color: rgba(235, 247, 230, 0.8);
+}
+
+
+/*----------Delivery Shipments End------------*/
+
+
+
+/*----------Delivery Meetups------------*/
+#deliveryMeetupTable.dataTable thead {
+    font-weight: bold;
+}
+
+#deliveryMeetupTable.dataTable #meetupDate, #deliveryMeetupTable.dataTable #meetupTime {
+    color: #87ae73;
+    font-weight:600;
+}
+
+#deliveryMeetupTable.dataTable #delivery-orderID {
+    text-decoration: underline;
+    cursor: pointer;
+}
+#deliveryMeetupTable.dataTable #upload-col{
+    max-width:2vw;
+}
+.btn-add-order {
+    background-color: white;
+    border: 0.14vw solid #87AE73;
+    color: #212529;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+    line-height: 0;
+    align-self: center;
+}
+
+    .btn-add-order:hover {
+/*        background-color: rgba(135, 174, 115, 0.1);*/
+        background-color: #87AE73;
+        border-color: #87AE73;
+        color: white;
+    }
+
+.plus-icon {
+    font-size: 1.7rem;
+    margin-right: 0.1vw;
+    font-weight: 800;
+    line-height: 0;
+}
+
+/*modal for adding order*/
+.delivery-header-text {
+    text-align: center;
+    font-weight: 700;
+    color: #212529;
+}
+
+
+.delivery-form-box {
+    background-color: #FFFBE8;
+    border: 1px solid #87AE73;
+    border-radius: 0.6vw;
+}
+
+.delivery-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.delivery-required {
+    color: #ff0000;
+}
+
+.delivery-input-field {
+    border-radius: 0.2vw !important;
+    border: 1px solid #444 !important;
+    background-color: #ffffff;
+    padding: 8px 12px;
+    color: black !important;
+}
+
+.delivery-icon-inside {
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #333;
+    pointer-events: none;
+}
+
+.delivery-btn-cancel {
+    background-color: #ffffff;
+    color: #333;
+    border: 1px solid #87AE73;
+    padding: 8px 40px;
+    margin-right: 15px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+    .delivery-btn-cancel:hover {
+        background-color: #f8f9fa;
+    }
+
+
+.delivery-btn-add {
+    background-color: #87AE73;
+    color: #ffffff;
+    border: none;
+    padding: 8px 50px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+    .delivery-btn-add:hover {
+        background-color: #769a63;
+    }
+
+.modal-content.delivery-form-box {
+    border: 1px solid #87AE73;
+    background-color: #FFFBE8;
+    border-radius: 0.8vw !important;
+}
+
+.modal-content {
+    border: none;
+    overflow: hidden;
+}
+
+.btn-close:focus {
+    box-shadow: none;
+    outline: none;
+}
+
+.meetup-address{
+    resize: none;
+}
+
+/*modal for upload button*/
+.meetup-upload {
+    background-color: #ffffff !important;
+    border: 0.13vw solid #87AE73 !important;
+    color: black !important; 
+    border-radius: 0.4vw !important; 
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+}
+
+    .meetup-upload i {
+        font-size: 1.2rem;
+    }
+
+    .meetup-upload:hover {
+        background-color: #f8f9fa !important;
+        border-color: #87ae73 !important;
+        transform: translateY(-1px);
+    }
+/*modal for upload button end*/
+
+
+/*view modal*/
+.view-meetup-container {
+    background-color: #FFFBE8 !important; 
+    border-radius: 0.8vw !important;
+    border: 1px solid #A5C299 !important;
+}
+
+.view-meetup-header {
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: #212529;
+}
+
+.view-meetup-label {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #000;
+}
+
+.view-meetup-data {
+    padding: 6px 0;
+    font-size: 1.05rem;
+    color: #444;
+    font-weight: 400;
+}
+
+.view-meetup-id-highlight {
+    color: #87ae73 !important;
+    font-weight: 700 !important;
+    font-size: 1.05rem;
+    padding: 6px 0;
+}
+
+.view-meetup-link {
+    color: #87ae73 !important;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+    .view-meetup-link:hover {
+        text-decoration: underline;
+    }
+
+
+.view-meetup-container hr {
+    border-top: 1px solid #e0decb;
+    opacity: 1;
+}
+/*view modal end*/
+
+/*table*/
+
+#deliveryMeetupTable thead th:nth-child(2) {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: center;
+}
+
+
+#deliveryMeetupTable thead th:nth-child(1) {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: center;
+}
+
+#deliveryMeetupTable thead th {
+    letter-spacing: 0.5px;
+    padding: 20px 10px !important;
+    text-align: left;
+    font-size: 13px !important;
+}
+
+#deliveryMeetupTable thead {
+    border-bottom: 1px solid black !important;
+}
+
+#deliveryMeetupTable tbody tr td:nth-child(1) {
+    text-align: center !important;
+}
+
+#deliveryMeetupTable tbody tr td:nth-child(2) {
+    text-align: center !important;
+}
+
+
+
+
+#deliveryMeetupTable tbody td {
+    padding: 20px 10px !important;
+    vertical-align: middle;
+    font-family: 'Inter';
+    font-size: 14px;
+}
+
+#deliveryMeetupTable > tbody > tr:nth-of-type(odd) > td {
+    background-color: white !important;
+}
+
+#deliveryMeetupTable > tbody > tr:nth-of-type(even) > td {
+    background-color: rgba(235, 247, 230, 0.8);
+}
+
+/*----------Delivery Meetups End------------*/
+
+

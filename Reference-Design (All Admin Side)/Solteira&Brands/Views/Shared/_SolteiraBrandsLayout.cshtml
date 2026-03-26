@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewBag.Title</title>
+    <style type="text/css">[ng\:cloak], [ng-cloak], [data-ng-cloak], .ng-cloak { display: none !important; }</style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css" />
+    <link rel="stylesheet" href="~/Content/css/ordering-system/SolteiraBrandsLayout.css" />
+    <style type="text/css">[ng\:cloak], [ng-cloak], [data-ng-cloak], .ng-cloak { display: none !important; }</style>
+</head>
+
+<body id="sb-angular-root">
+
+    @{
+        var actionVal = ViewContext.RouteData.Values["action"];
+        var currentAction = actionVal != null ? actionVal.ToString() : null;
+        bool isLoggedIn = User != null && User.Identity != null && User.Identity.IsAuthenticated;
+        bool isBuyer = isLoggedIn && User.IsInRole("BUYER");
+        bool isInventoryRole = isLoggedIn && (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF"));
+        var displayName = isLoggedIn ? User.Identity.Name : "Guest";
+    }
+
+    <header class="navbar-wrapper">
+        <nav class="navbar header-logo p-0">
+            <div class="container-fluid justify-content-center">
+                <a href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")" class="navbar-brand">
+                    <img src="@Url.Content("~/Content/img/shared/Solteira&BrandsMainLogo.png")" class="sblogo" alt="Logo" />
+                </a>
+            </div>
+        </nav>
+
+        <nav class="navbar navbar-expand-lg bg-white border-bottom">
+            <div class="container-fluid px-4">
+                <div class="flex-grow-1 d-none d-lg-block"></div>
+
+                <ul class="navbar-nav flex-row gap-3 gap-lg-5">
+                    <li class="nav-item">
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsHome" ? "active" : "")" href="@Url.Action("SolteiraBrandsHome", "SolteiraAndBrands")">HOME</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsJewelries" ? "active" : "")" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">JEWELRIES</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsAbout" ? "active" : "")" href="@Url.Action("SolteiraBrandsAbout", "SolteiraAndBrands")">ABOUT</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-item-align @(currentAction == "SolteiraBrandsFaq" ? "active" : "")" href="@Url.Action("SolteiraBrandsFaq", "SolteiraAndBrands")">FAQs</a>
+                    </li>
+                </ul>
+
+                <div class="flex-grow-1 d-flex justify-content-end align-items-center gap-3">
+                    @if (isInventoryRole)
+                    {
+                        <a href="@Url.Action("AdminDashboardPage", "SolteiraAndBrands")" class="btn btn-outline-dark btn-sm nav-item-align" title="Inventory System">
+                            <i class="bi bi-box-seam me-1"></i>Inventory
+                        </a>
+                    }
+                    @* Cart icon: BUYER goes to cart; anonymous goes to login; backend roles see no cart *@
+                    @if (isBuyer)
+                    {
+                        <a href="@Url.Action("SolteiraBrandsCart", "SolteiraAndBrands")" class="icon-link nav-item-align position-relative sb-cart-link" title="Cart" aria-label="View cart">
+                            <i class="bi bi-cart2"></i>
+                            <span id="sbCartCountBadge" class="badge rounded-pill bg-danger sb-cart-badge" style="display: none;">0</span>
+                        </a>
+                    }
+                    else if (!isInventoryRole)
+                    {
+                        <a href="@Url.Action("SolteiraBrandsLogin", "SolteiraAndBrands")" class="icon-link nav-item-align" title="Sign in to shop" aria-label="Sign in">
+                            <i class="bi bi-cart2"></i>
+                        </a>
+                    }
+
+                    @* Profile / account area *@
+                    @if (!isLoggedIn)
+                    {
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="icon-link nav-item-align" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle fs-4"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsLogin","SolteiraAndBrands")">Login</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsRegister","SolteiraAndBrands")">Register</a></li>
+                            </ul>
+                        </div>
+                    }
+                    else if (isBuyer)
+                    {
+                        @* BUYER: full account dropdown with avatar, My Orders, Logout *@
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
+                            </a>
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
+                                    </div>
+                                </li>
+
+                                <li><hr class="dropdown-divider fw-bold"></li>
+
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("SolteiraBrandsMyOrders","SolteiraAndBrands")">My Orders</a></li>
+
+                                <li><hr class="dropdown-divider"></li>
+
+                                <li>@Html.Partial("_LogoutForm")</li>
+
+                            </ul>
+                        </div>
+                    }
+                    else if (isInventoryRole)
+                    {
+                        @* ADMIN / MANAGER / STAFF: no cart, simple account + logout *@
+                        <div class="dropdown d-flex align-items-center">
+                            <a href="#" class="d-flex align-items-center" id="profileMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img id="layoutProfileImgTrigger" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="Profile" style="width:36px;height:36px;object-fit:cover;" />
+                            </a>
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="profileMenu">
+                                <li class="px-3 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle me-2">
+                                            <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
+                                        </div>
+                                        <span class="profile-name fw-bold">@displayName</span>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider fw-bold"></li>
+                                <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li>@Html.Partial("_LogoutForm")</li>
+                            </ul>
+                        </div>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="min-vh-100">
+        @RenderBody()
+    </main>
+
+    <footer class="container-fluid border-top bg-light">
+
+        <div class="d-flex justify-content-between align-items-center px-4">
+
+            <div class="d-flex align-items-center">
+                <img src="@Url.Content("~/Content/img/shared/Solteira&BrandsFooterLogo.png")" class="footer-logo me-2" alt="Footer Logo" />
+                <span class="text-muted">&copy; 2026 Solteira & Brands</span>
+            </div>
+
+            <ul class="nav align-items-center list-unstyled d-flex mb-0">
+                <li class="ms-3"><a class="text-dark fs-4" href="https://www.instagram.com/solteira.brands/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="bi bi-instagram"></i></a></li>
+                <li class="ms-3"><a class="btn btn-outline-dark fw-bold" href="@Url.Action("SolteiraBrandsJewelries", "SolteiraAndBrands")">Shop Now</a></li>
+            </ul>
+
+        </div>
+
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-animate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Expose BUYER role flag to Angular so cart logic is buyer-only
+        window.sbIsBuyer = @(isBuyer ? "true" : "false");
+        // Cart count badge (for BUYER): update from localStorage and from Angular via event
+        (function () {
+            function updateCartBadge() {
+                var count = 0;
+                try {
+                    var s = localStorage.getItem('sb_cart');
+                    if (s) {
+                        var cart = JSON.parse(s);
+                        for (var i = 0; i < cart.length; i++) count += (cart[i].qty || 0);
+                    }
+                } catch (e) { }
+                var el = document.getElementById('sbCartCountBadge');
+                if (el) {
+                    el.textContent = count > 99 ? '99+' : count;
+                    el.style.display = count > 0 ? 'block' : 'none';
+                }
+            }
+            document.addEventListener('DOMContentLoaded', updateCartBadge);
+            window.addEventListener('sbCartUpdated', function (e) {
+                var count = (e && e.detail != null) ? e.detail : 0;
+                var el = document.getElementById('sbCartCountBadge');
+                if (el) {
+                    el.textContent = count > 99 ? '99+' : count;
+                    el.style.display = count > 0 ? 'block' : 'none';
+                }
+            });
+        })();
+    </script>
+    <script src="~/Scripts/SBScripts/Module.js"></script>
+    <script src="~/Scripts/SBScripts/Service.js"></script>
+    <script src="~/Scripts/SBScripts/Controller.js"></script>
+    <script>
+        // Bootstrap Angular after our app is loaded so Cart/Checkout work on first visit
+        (function () {
+            var root = document.getElementById('sb-angular-root');
+            if (root && window.angular && !angular.element(root).scope()) {
+                angular.bootstrap(root, ['SolteiraBrandsApplication']);
+            }
+        })();
+    </script>
+    @if (isLoggedIn)
+    {
+        <script>
+            (function () {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/Account/GetMyProfile', true);
+                xhr.withCredentials = true;
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText);
+                            if (d.success && d.avatarUrl) {
+                                var el = document.getElementById('layoutProfileImg');
+                                var trigger = document.getElementById('layoutProfileImgTrigger');
+                                if (el) el.src = d.avatarUrl;
+                                if (trigger) trigger.src = d.avatarUrl;
+                            }
+                        } catch (e) { }
+                    }
+                };
+                xhr.send();
+            })();
+        </script>
+    }
+</body>
+</html>
