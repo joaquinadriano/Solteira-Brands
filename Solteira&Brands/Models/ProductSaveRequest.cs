@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Solteira_Brands.Models
 {
     /// <summary>
@@ -6,6 +8,8 @@ namespace Solteira_Brands.Models
     public class ProductSaveRequest
     {
         public int? Id { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxNameLength)]
         public string Name { get; set; }
         public string Category { get; set; }
         public string Description { get; set; }

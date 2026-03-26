@@ -44,6 +44,22 @@ body {
         font-size: 1.25rem;
         font-weight: bold;
         margin-bottom: 10px;
+        width: 100%;
+        max-width: 18vw;
+        text-align: center;
+    }
+
+    .left-as-container .profile-name .profile-name-line {
+        width: 100%;
+        display: block;
+    }
+
+    .left-as-container .profile-name .profile-name-text {
+        display: block;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .left-as-container .select-img {

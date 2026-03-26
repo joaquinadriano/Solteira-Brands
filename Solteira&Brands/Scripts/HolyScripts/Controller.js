@@ -775,8 +775,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.meetupOrdersList && $scope.meetupOrdersList.length > 0) {
-                    // Sort meetup list by Order ID column (index 0) so latest ORD-* appears first.
-                    window.initializeStandardTable('#deliveryMeetupTable', 0);
+                    // Sort meetup list by Order ID column (index 1) so latest ORD-* appears first.
+                    window.initializeStandardTable('#deliveryMeetupTable', 1);
                 }
             }, 150);
         }, function (err) {
@@ -1184,6 +1184,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (s === 'Pending Downpayment') return 'Pending Downpayment';
         return orderStatus;
     };
+    /**
+     * Latest rejected payment reason for admin order details modal.
+     * Backend returns payments sorted by CreatedAt DESC, so first match is "latest".
+     */
+    $scope.getLatestRejectedPaymentReason = function (payments) {
+        if (!payments || !payments.length) return null;
+        for (var i = 0; i < payments.length; i++) {
+            var p = payments[i];
+            if (!p) continue;
+            var status = (p.paymentStatus || '').toString().toUpperCase();
+            if (status === 'REJECTED' && p.rejectionReason) return p.rejectionReason;
+        }
+        return null;
+    };
     $scope.verifyPaymentFromModal = function () {
         if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
         var paymentId = $scope.selectedPayment.paymentId;
@@ -1313,16 +1327,25 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         downpaymentPercentage: 30, monthsAllowed: 3,
         meetupLocationName: '', meetupAddress: ''
     };
+    function normalizeAccountNameValue(accountName) {
+        var value = (accountName || '').toString().trim();
+        var lowered = value.toLowerCase();
+        // Prevent legacy default labels from appearing as actual saved values.
+        if (lowered === 'gcash' || lowered === 'bank transfer' || lowered === 'bank / account name' || lowered === 'account name') {
+            return '';
+        }
+        return value;
+    }
     $scope.pendingQrType = null;
     $scope.openPaymentSettingsModal = function () {
         SolteiraAndBrandsService.getPaymentSettingsForAdmin().then(function (res) {
             if (res.data && res.data.success) {
                 var g = res.data.gcash, b = res.data.bankTransfer;
-                $scope.paymentSettingsForm.gcashAccountName = g ? (g.accountName || '') : '';
+                $scope.paymentSettingsForm.gcashAccountName = g ? normalizeAccountNameValue(g.accountName) : '';
                 $scope.paymentSettingsForm.gcashAccountNumber = g ? (g.accountNumber || '') : '';
                 $scope.paymentSettingsForm.gcashQrImageId = g ? g.qrImageId : null;
                 $scope.paymentSettingsForm.gcashQrImageUrl = g && g.qrImageUrl ? g.qrImageUrl : null;
-                $scope.paymentSettingsForm.bankAccountName = b ? (b.accountName || '') : '';
+                $scope.paymentSettingsForm.bankAccountName = b ? normalizeAccountNameValue(b.accountName) : '';
                 $scope.paymentSettingsForm.bankAccountNumber = b ? (b.accountNumber || '') : '';
                 $scope.paymentSettingsForm.bankQrImageId = b ? b.qrImageId : null;
                 $scope.paymentSettingsForm.bankQrImageUrl = b && b.qrImageUrl ? b.qrImageUrl : null;
@@ -1421,6 +1444,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
+    /** @type {number} Must match server ProductFieldConstraints.MaxNameLength */
+    var INVENTORY_PRODUCT_NAME_MAX_LEN = 30;
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
     $scope.inventorySearchText = '';
@@ -1488,7 +1513,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.inventoryTableVisible = true;
                 $timeout(function () {
                     if (typeof window.initializeStandardTable !== 'function') return;
-                    window.initializeStandardTable('#inventoryTable', 1);
+                    window.initializeStandardTable('#inventoryTable', 0);
                 }, 0);
             }, 0);
         }, function () {
@@ -1511,6 +1536,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.inventoryFileValidationMessage = '';
     $scope.inventoryEditFileValidationMessage = '';
+
+    /** Clears add-item photo selection (native file input keeps filename until value is reset). */
+    $scope.resetInventoryAddPhotoInput = function () {
+        $scope.inventoryPhotoFile = null;
+        $scope.inventoryFileValidationMessage = '';
+        var el = document.getElementById('inventoryAddPhotoInput');
+        if (el) el.value = '';
+    };
 
     $scope.onInventoryFileSelected = function (files) {
         $scope.inventoryFileValidationMessage = '';
@@ -1576,10 +1609,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.createInventoryProduct = function () {
         $scope.inventoryFileValidationMessage = '';
-        if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || !$scope.newProduct.stockQuantity) {
+        var stockMissing = $scope.newProduct.stockQuantity === null || $scope.newProduct.stockQuantity === undefined || String($scope.newProduct.stockQuantity).trim() === '';
+        if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || stockMissing) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        var newNameTrim = String($scope.newProduct.name).trim();
+        if (newNameTrim.length > INVENTORY_PRODUCT_NAME_MAX_LEN) {
+            Swal.fire({
+                title: 'Product name too long',
+                text: 'Product name must be at most ' + INVENTORY_PRODUCT_NAME_MAX_LEN + ' characters.',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
@@ -1590,7 +1634,12 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ title: 'Invalid price', text: 'Selling price cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
-        var stockNum = parseInt($scope.newProduct.stockQuantity, 10);
+        var stockStr = String($scope.newProduct.stockQuantity).trim();
+        if (!/^\d+$/.test(stockStr)) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity must be whole numbers only (0 or more).', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        var stockNum = parseInt(stockStr, 10);
         if (isNaN(stockNum) || stockNum < 0) {
             Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
@@ -1634,8 +1683,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 if (res.data && res.data.success) {
                     $('#inventoryAddItemModal').modal('hide');
                     $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
-                    $scope.inventoryPhotoFile = null;
-                    $scope.inventoryFileValidationMessage = '';
+                    $scope.resetInventoryAddPhotoInput();
                     Swal.fire({
                         title: 'Inventory item added!',
                         text: 'Click OK to update the inventory list.',
@@ -1706,15 +1754,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         $('#inventoryViewPhotoModal').modal('hide');
         $scope.viewPhotoItem = null;
     };
-    /** Photo column only: same-page fullscreen overlay, image only (no details modal). */
-    $scope.openInventoryPhotoOnly = function (item) {
-        if (!item) return;
-        var url = item.imageUrl;
-        if (url == null || String(url).trim() === '') {
-            url = $scope.inventoryDefaultPhotoUrl || '/Content/img/shared/default-product.svg';
-        }
-        $scope.openImagePreview(url);
-    };
     $scope.openImagePreview = function (src) {
         if (!src) return;
         var overlay = document.createElement('div');
@@ -1749,7 +1788,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var s = String(v).trim();
         if (!s) return '';
         if (/^[\u002D\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D\u00AD\s]+$/.test(s)) return '';
-        if (/^â€/.test(s)) return '';
+        // UTF-8 em dash placeholder mis-decoded (e.g. U+00C2 U+20AC U+201D shows as "Â€"")
+        if (/^[\u00E2\u00C2]\u20AC[\u201D\u0022]?$/.test(s)) return '';
         return s;
     };
     function escapeHtml(text) {
@@ -1764,22 +1804,43 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         return $sce.trustAsHtml(safe);
     };
     $scope.openEditProduct = function (item) {
-        if (!item) return;
+        if (!item || $scope.showArchivedInventory) return;
         $scope.editProduct = angular.copy(item);
         $scope.inventoryEditPhotoFile = null;
         $('#inventoryEditItemModal').modal('show');
     };
 
     $scope.updateInventoryProduct = function () {
-        if (!$scope.editProduct || !$scope.editProduct.id) return;
+        if (!$scope.editProduct || !$scope.editProduct.id || $scope.showArchivedInventory) return;
         $scope.inventoryEditFileValidationMessage = '';
-        if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || !$scope.editProduct.stockQuantity) {
+        var stockMissing = $scope.editProduct.stockQuantity === null || $scope.editProduct.stockQuantity === undefined || String($scope.editProduct.stockQuantity).trim() === '';
+        if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || stockMissing) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
+            return;
+        }
+        var editNameTrim = String($scope.editProduct.name).trim();
+        if (editNameTrim.length > INVENTORY_PRODUCT_NAME_MAX_LEN) {
+            Swal.fire({
+                title: 'Product name too long',
+                text: 'Product name must be at most ' + INVENTORY_PRODUCT_NAME_MAX_LEN + ' characters.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        var stockStr = String($scope.editProduct.stockQuantity).trim();
+        if (!/^\d+$/.test(stockStr)) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity must be whole numbers only (0 or more).', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        var stockNum = parseInt(stockStr, 10);
+        if (isNaN(stockNum) || stockNum < 0) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
         if (!$scope.editProduct.stones || !$scope.editProduct.material) {
@@ -1878,7 +1939,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $timeout(function () {
         if ($('#inventoryTable').length) {
             // If the URL includes `?archived=true`, open the inventory page in the archived tab.
-            // This is used by the system admin sidebar navigation for "Archive".
+            // This is used by the system admin sidebar navigation for Inventory (archived query).
             try {
                 var params = new URLSearchParams(window.location.search || '');
                 var archivedParam = params.get('archived');
@@ -1887,6 +1948,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 }
             } catch (e) { }
             $scope.loadInventoryProducts();
+        }
+        var addModal = document.getElementById('inventoryAddItemModal');
+        if (addModal) {
+            addModal.addEventListener('shown.bs.modal', function () {
+                $scope.$applyAsync(function () {
+                    $scope.resetInventoryAddPhotoInput();
+                });
+            });
         }
     }, 0);
 

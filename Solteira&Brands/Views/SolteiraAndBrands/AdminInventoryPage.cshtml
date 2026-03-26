@@ -67,7 +67,8 @@
                                             <label class="delivery-label">Product Name: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="Many Shape Tennis" ng-model="newProduct.name">
+                                            <input type="text" class="form-control delivery-input-field" maxlength="30" placeholder="Many Shape Tennis" ng-model="newProduct.name" />
+                                            <small class="text-muted">Max 30 characters.</small>
                                         </div>
                                     </div>
 
@@ -98,7 +99,14 @@
                                             <label class="delivery-label">Stocks: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="number" min="0" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="3" ng-model="newProduct.stockQuantity">
+                                            <input type="number"
+                                                   min="0"
+                                                   step="1"
+                                                   onkeydown="if(event.key === '-') event.preventDefault();"
+                                                   oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+                                                   class="form-control delivery-input-field"
+                                                   placeholder="3"
+                                                   ng-model="newProduct.stockQuantity">
                                         </div>
                                     </div>
 
@@ -155,7 +163,7 @@
                                             <label class="delivery-label">Photo: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="file" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryFileValidationMessage}"
+                                            <input type="file" id="inventoryAddPhotoInput" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryFileValidationMessage}"
                                                    onchange="angular.element(this).scope().onInventoryFileSelected(this.files)" />
                                             <small class="text-muted">PNG or JPG, less than 5MB.</small>
                                             <p class="text-danger small mt-1 mb-0" ng-if="inventoryFileValidationMessage">{{inventoryFileValidationMessage}}</p>
@@ -182,7 +190,6 @@
                 <table ng-if="inventoryTableVisible" class="table table-striped table-responsive text-center inventory-datatable" id="inventoryTable">
                     <thead>
                         <tr>
-                            <th class="text-center">Photo</th>
                             <th>Product ID</th>
                             <th>Category</th>
                             <th>Product Name</th>
@@ -198,28 +205,21 @@
 
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="item in inventoryProducts">
-                            <td class="text-center align-middle">
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary inventory-view-photo-btn"
-                                        ng-click="openInventoryPhotoOnly(item)">
-                                    View photo
-                                </button>
-                            </td>
                             <td>{{item.id}}</td>
                             <td>{{item.category}}</td>
                             <td>{{item.name}}</td>
                             <td class="product-description-cell">
-                                <span class="d-block">{{item.stones || '—'}}</span>
-                                <span class="d-block">{{item.material || '—'}}</span>
-                                <span class="d-block"><span ng-if="item.weight">{{item.weight}}</span><span ng-if="item.weight && item.length">, </span><span ng-if="item.length">{{item.length}}</span></span>
+                                <span class="d-block">{{displayInventoryField(item.stones)}}</span>
+                                <span class="d-block">{{displayInventoryField(item.material)}}</span>
+                                <span class="d-block"><span ng-if="displayInventoryField(item.weight)">{{displayInventoryField(item.weight)}}</span><span ng-if="displayInventoryField(item.weight) && displayInventoryField(item.length)">, </span><span ng-if="displayInventoryField(item.length)">{{displayInventoryField(item.length)}}</span></span>
                             </td>
-                            <td>&#8369; {{item.price | number:2}}</td>
+                            <td>{{formatProductPrice(item.price)}}</td>
                             <td>{{item.stockQuantity}}</td>
                             <td>{{item.sold != null ? item.sold : 0}}</td>
                             <td>{{item.createdAtString}}</td>
                             <td>{{item.updatedAtString}}</td>
                             <td class="table-col-actions">
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="d-inline-flex align-items-center flex-nowrap gap-1 justify-content-center inventory-table-actions">
                                     @if (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF"))
                                     {
                                         <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="View product details">
@@ -230,7 +230,8 @@
                                     }
                                     @if (User.IsInRole("ADMIN") || User.IsInRole("MANAGER"))
                                     {
-                                        <div data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Item">
+                                        <div ng-if="!showArchivedInventory"
+                                             data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Item">
                                             <a class="order-action-icon" ng-click="openEditProduct(item)">
                                                 <img src="@Url.Content("~/Content/img/icons/edit.svg")" alt="Edit" />
                                             </a>
@@ -243,7 +244,8 @@
                                              data-bs-placement="bottom"
                                              data-bs-title="{{showArchivedInventory ? 'Restore Item' : 'Archive Item'}}">
                                             <a class="order-action-icon" ng-click="inventoryArchiveAlert(item)" aria-label="Archive or restore item">
-                                                <img src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="" />
+                                                <img ng-if="!showArchivedInventory" src="@Url.Content("~/Content/img/icons/archive-status.svg")" alt="" />
+                                                <img ng-if="showArchivedInventory" src="@Url.Content("~/Content/img/icons/restore.svg")" alt="" />
                                             </a>
                                         </div>
                                     }
@@ -286,7 +288,7 @@
                                          class="product-view-img" />
                                 </div>
 
-                                <div ng-if="!viewPhotoItem.imageUrl" class="mt-2">
+                                <div ng-if="!viewPhotoItem.imageUrl && !showArchivedInventory" class="mt-2">
                                     <a href="javascript:void(0)" class="text-primary" ng-click="closeViewPhotoAndEdit(viewPhotoItem)">Add Photo</a>
                                 </div>
                             </div>
@@ -330,19 +332,19 @@
 
                                         <div class="d-flex justify-content-between mb-2 small">
                                             <span class="text-muted">Material</span>
-                                            <span class="fw-bold text-uppercase">{{viewPhotoItem.material || '—'}}</span>
+                                            <span class="fw-bold text-uppercase">{{displayInventoryField(viewPhotoItem.material)}}</span>
                                         </div>
                                         <div class="d-flex justify-content-between mb-2 small">
                                             <span class="text-muted">Stones</span>
-                                            <span class="fw-bold text-uppercase">{{viewPhotoItem.stones || '—'}}</span>
+                                            <span class="fw-bold text-uppercase">{{displayInventoryField(viewPhotoItem.stones)}}</span>
                                         </div>
                                         <div class="d-flex justify-content-between mb-2 small">
                                             <span class="text-muted">Weight</span>
-                                            <span class="fw-bold text-uppercase">{{viewPhotoItem.weight || '—'}}</span>
+                                            <span class="fw-bold text-uppercase">{{displayInventoryField(viewPhotoItem.weight)}}</span>
                                         </div>
                                         <div class="d-flex justify-content-between mb-0 small">
                                             <span class="text-muted">Length</span>
-                                            <span class="fw-bold text-uppercase">{{viewPhotoItem.length || '—'}}</span>
+                                            <span class="fw-bold text-uppercase">{{displayInventoryField(viewPhotoItem.length)}}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -714,7 +716,8 @@
                                     <label class="delivery-label">Product Name: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" ng-model="editProduct.name">
+                                    <input type="text" class="form-control delivery-input-field" maxlength="30" ng-model="editProduct.name" />
+                                    <small class="text-muted">Max 30 characters.</small>
                                 </div>
                             </div>
 
@@ -744,7 +747,13 @@
                                     <label class="delivery-label">Stocks: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="number" class="form-control delivery-input-field" ng-model="editProduct.stockQuantity">
+                                    <input type="number"
+                                           min="0"
+                                           step="1"
+                                           onkeydown="if(event.key === '-') event.preventDefault();"
+                                           oninput="this.value=this.value.replace(/[^0-9]/g,'');"
+                                           class="form-control delivery-input-field"
+                                           ng-model="editProduct.stockQuantity">
                                 </div>
                             </div>
 

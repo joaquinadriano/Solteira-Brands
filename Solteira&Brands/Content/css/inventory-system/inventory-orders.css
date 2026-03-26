@@ -129,3 +129,13 @@ td.table-col-actions {
 td.table-col-actions .d-flex {
     justify-content: center;
 }
+
+/* Inventory: action icons stay on one row, tight spacing */
+td.table-col-actions .inventory-table-actions {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+td.table-col-actions .inventory-table-actions > div {
+    display: inline-flex;
+    flex: 0 0 auto;
+}

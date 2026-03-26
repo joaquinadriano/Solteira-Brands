@@ -117,7 +117,7 @@
 
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="d in shipmentsList track by d.id">
-                            <td data-order="{{d.id || 0}}">{{d.id}}</td>
+                            <td data-order="{{d.id || 0}}">DLVRY-{{d.id}}</td>
                             <td>{{d.orderNumber}}</td>
                             <td>{{d.customerName}}</td>
                             <td>{{d.deliveryAddress}}</td>

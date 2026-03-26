@@ -26,10 +26,9 @@ html, body {
     color: #6d945c !important;
 }
 
-/* Photo column: outline button, distinct from Action eye icon */
-.btn.inventory-view-photo-btn {
-    font-size: 0.8rem;
-    white-space: nowrap;
+/* Top-align body cells so Product ID & Action sit on the first line with multi-line description */
+#inventoryTable.dataTable tbody td {
+    vertical-align: top !important;
 }
 
 /* View Product Modal: layout, image, typography, badges */

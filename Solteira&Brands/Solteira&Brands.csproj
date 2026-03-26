@@ -173,6 +173,7 @@
     <Compile Include="Models\Maps\tblCartsMap.cs" />
     <Compile Include="Models\Maps\tblCartItemsMap.cs" />
     <Compile Include="Models\CreateOrderRequest.cs" />
+    <Compile Include="Models\ProductFieldConstraints.cs" />
     <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\SubmitPaymentRequest.cs" />
     <Compile Include="Models\tblImagesModel.cs" />

@@ -37,7 +37,7 @@ color: #87AE73;*/
     background-color: #87AE73;
     border-radius: 0.8vw;
     margin: 1vw;
-    padding: 1.5vw;
+    padding: 1.2vw;
     box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3), -3px 3px 5px rgba(36, 54, 66, 0.3);
     color: white;
     text-align: left;
@@ -46,13 +46,13 @@ color: #87AE73;*/
 
 .dashboard-card-container-1 .dashboard-card-content p:first-child {
     font-weight: 700;
-    font-size: 1.4vw;
+    font-size: 1.2vw;
     margin-bottom: 0;
 }
 
 .dashboard-card-container-1 .dashboard-card-content p:nth-child(2) {
     font-weight: 400;
-    font-size: 1.9vw;
+    font-size: 1.6vw;
     margin-bottom: 0.2vw;
 }
 
@@ -60,7 +60,7 @@ color: #87AE73;*/
     background-color: #EAF8E9;
     border-radius: 0.8vw;
     margin: 1vw;
-    padding: 1.5vw;
+    padding: 1.2vw;
     box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3),
         -3px 3px 5px rgba(36, 54, 66, 0.3);
     text-align: left;
@@ -72,15 +72,21 @@ color: #87AE73;*/
         -3px 3px 5px rgba(36, 54, 66, 0.3); 
     }
 
+.dashboard-card-container-1:hover {
+    transform: scale(1.050);
+    box-shadow: 3px 3px 5px rgba(36, 54, 66, 0.3),
+        -3px 3px 5px rgba(36, 54, 66, 0.3);
+}
+
 .dashboard-card-content, .dashboard-card-content-2 {
-    padding: 0.9vw;
+    padding: 0.7vw;
 }
 
     .dashboard-card-content p:first-child {
         font-family: 'Inter';
         font-weight: 700;
-        font-size: 1.4vw;
-        text-align: center;
+        font-size: 1.2vw;
+        text-align: left;
         margin-bottom: 0;
 
     }
@@ -88,8 +94,8 @@ color: #87AE73;*/
     .dashboard-card-content p:nth-child(2) {
         font-family: 'Inter';
         font-weight: 400;
-        font-size: 1.9vw;
-        text-align: center;
+        font-size: 1.6vw;
+        text-align: left;
         margin-bottom: 0.2vw;
     }
 
@@ -98,13 +104,13 @@ color: #87AE73;*/
 .dashboard-card2-title {
     font-family: 'Inter' !important;
     font-weight: 700 !important;
-    font-size: 1.4vw !important;
+    font-size: 1.2vw !important;
 }
 
     .dashboard-card-content-2 p:first-child {
         font-family: 'Inter';
         font-weight: 400;
-        font-size: 1.9vw;
+        font-size: 1.6vw;
         text-align: center;
         margin-bottom: 0.2vw;
     }

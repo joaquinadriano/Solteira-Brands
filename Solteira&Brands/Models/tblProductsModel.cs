@@ -8,6 +8,7 @@ namespace Solteira_Brands.Models
         [Key]
         public int Id { get; set; }
 
+        [MaxLength(ProductFieldConstraints.MaxNameLength)]
         public string Name { get; set; }
         public string Category { get; set; }
         public string Description { get; set; }
