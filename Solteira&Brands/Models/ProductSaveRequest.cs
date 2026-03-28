@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Solteira_Brands.Models
 {
     /// <summary>
@@ -6,13 +8,23 @@ namespace Solteira_Brands.Models
     public class ProductSaveRequest
     {
         public int? Id { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxNameLength)]
         public string Name { get; set; }
         public string Category { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Material { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Stones { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Weight { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Length { get; set; }
         public int StockQuantity { get; set; }
         public int? ImageId { get; set; }

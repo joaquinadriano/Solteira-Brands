@@ -34,10 +34,10 @@
                             <td>&#8369; {{order.totalAmount | number:2}}</td>
                             <td>{{order.paymentType === 'LAYAWAY' ? 'LAYAWAY' : 'FULL'}}</td>
                             <td class="text-start">
-                                <span class="order-status-display">{{order.isOverdue ? 'Order Cancelled' : (order.orderStatus === 'Rejected' ? 'Payment Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-')))}}</span>
+                                <span class="order-status-display">{{order.isOverdue ? 'Order Cancelled' : (order.orderStatus === 'Rejected' ? 'Order Rejected' : (order.orderStatus === 'Cancelled' ? 'Order Cancelled' : (order.orderStatus || '-')))}}</span>
                                 <i class="bi bi-info-circle ms-1 small text-muted"
                                    ng-if="order.orderStatus === 'Rejected' || order.orderStatus === 'Cancelled' || order.isOverdue"
-                                   title="{{order.isOverdue ? 'Payment deadline exceeded.' : (order.orderStatus === 'Rejected' ? 'Payment not approved.' : 'Order permanently closed.')}}"
+                                   title="{{order.isOverdue ? 'Payment deadline exceeded.' : (order.orderStatus === 'Rejected' ? 'Order was rejected by admin.' : 'Order permanently closed.')}}"
                                    style="cursor:help;"></i>
                                 <span class="badge bg-danger ms-2" ng-if="order.isOverdue">Overdue</span>
                                 @if (User.IsInRole("MANAGER"))
@@ -89,9 +89,19 @@
                                 <div class="card border-0 shadow-sm rounded-4 mb-4">
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h4 class="fw-bold mb-0">Order {{selectedOrderDetails.orderNumber}}</h4>
+                                            <h4 class="fw-bold mb-0">{{selectedOrderDetails.orderNumber}}</h4>
                                             <span class="orderDetails-badgeNew"
-                                                  title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Payment not approved.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">
+                                                  ng-class="{
+                                                      'orderDetails-badgeRejected': selectedOrderDetails.orderStatus === 'Rejected',
+                                                      'orderDetails-badgeCancelled': selectedOrderDetails.orderStatus === 'Cancelled'
+                                                          || (selectedOrderDetails.paymentDeadlineExpired === true
+                                                              && (selectedOrderDetails.orderStatus === 'Approved'
+                                                                  || selectedOrderDetails.orderStatus === 'Awaiting Payment Verification'
+                                                                  || selectedOrderDetails.orderStatus === 'Layaway Active'
+                                                                  || selectedOrderDetails.orderStatus === 'Pending Payment'
+                                                                  || selectedOrderDetails.orderStatus === 'Pending Downpayment'))
+                                                  }"
+                                                  title="{{selectedOrderDetails.orderStatus === 'Rejected' ? 'Order was rejected by admin.' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order permanently closed.' : '')}}">
                                                 {{
                                                     selectedOrderDetails.paymentDeadlineExpired === true
                                                     && (selectedOrderDetails.orderStatus === 'Approved'
@@ -101,7 +111,7 @@
                                                         || selectedOrderDetails.orderStatus === 'Pending Downpayment')
                                                         ? 'Order Cancelled'
                                                         : (selectedOrderDetails.orderStatus === 'Rejected'
-                                                            ? 'Payment Rejected'
+                                                            ? 'Order Rejected'
                                                             : (selectedOrderDetails.orderStatus === 'Cancelled'
                                                                 ? 'Order Cancelled'
                                                                 : selectedOrderDetails.orderStatus))
@@ -116,6 +126,46 @@
                                             <strong>Payment deadline:</strong> {{selectedOrderDetails.paymentDeadlineFormatted}}
                                             <span class="text-warning ms-2" ng-if="selectedOrderDetails.paymentDeadlineRemainingText">{{selectedOrderDetails.paymentDeadlineRemainingText}}</span>
                                         </p>
+                                        <div class="mt-2"
+                                             ng-if="(selectedOrderDetails.orderStatus === 'Rejected' || selectedOrderDetails.orderStatus === 'Cancelled')
+                                                     && getLatestRejectedPaymentReason(selectedOrderDetails.payments)">
+                                            <span class="orderDetails-infoLabel text-danger fw-bold">Rejection reason</span>
+                                            <p class="text-danger fw-bold mb-0 fs-6">{{getLatestRejectedPaymentReason(selectedOrderDetails.payments)}}</p>
+                                        </div>
+
+                                        <div class="mt-2"
+                                             ng-if="selectedOrderDetails.orderStatus === 'Rejected'
+                                                     && !getLatestRejectedPaymentReason(selectedOrderDetails.payments)
+                                                     && selectedOrderDetails.orderRejectionReason">
+                                            <span class="orderDetails-infoLabel text-danger fw-bold">Rejection reason</span>
+                                            <p class="text-danger fw-bold mb-0 fs-6">{{selectedOrderDetails.orderRejectionReason}}</p>
+                                        </div>
+
+                                        <div class="mt-2"
+                                             ng-if="selectedOrderDetails.orderStatus === 'Cancelled'
+                                                     && !getLatestRejectedPaymentReason(selectedOrderDetails.payments)
+                                                     && (selectedOrderDetails.orderCancellationReason || selectedOrderDetails.orderRejectionReason)">
+                                            <span class="orderDetails-infoLabel text-danger fw-bold">Rejection reason</span>
+                                            <p class="text-danger fw-bold mb-0 fs-6">{{selectedOrderDetails.orderCancellationReason || selectedOrderDetails.orderRejectionReason}}</p>
+                                        </div>
+
+                                        <div class="mt-2"
+                                             ng-if="selectedOrderDetails.orderStatus === 'Cancelled'
+                                                     && !getLatestRejectedPaymentReason(selectedOrderDetails.payments)
+                                                     && !(selectedOrderDetails.orderCancellationReason || selectedOrderDetails.orderRejectionReason)
+                                                     && selectedOrderDetails.paymentDeadlineExpired === true">
+                                            <span class="orderDetails-infoLabel text-danger fw-bold">Rejection reason</span>
+                                            <p class="text-danger fw-bold mb-0 fs-6">Payment overdue/expired. This order was cancelled.</p>
+                                        </div>
+
+                                        <div class="mt-2"
+                                             ng-if="selectedOrderDetails.orderStatus === 'Cancelled'
+                                                     && !getLatestRejectedPaymentReason(selectedOrderDetails.payments)
+                                                     && !(selectedOrderDetails.orderCancellationReason || selectedOrderDetails.orderRejectionReason)
+                                                     && selectedOrderDetails.paymentDeadlineExpired !== true">
+                                            <span class="orderDetails-infoLabel">Cancellation note</span>
+                                            <p class="text-muted fw-bold mb-0">This order was cancelled.</p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -147,7 +197,7 @@
                                             Delivery Address
                                         </h5>
                                         <p class="fw-bold mb-1">{{selectedOrderDetails.customerName}}</p>
-                                        <p class="mb-1">{{selectedOrderDetails.deliveryAddress}}</p>
+                                        <p class="mb-1 text-break">{{selectedOrderDetails.deliveryAddress}}</p>
                                         <p class="mb-0 text-muted small">Contact: {{selectedOrderDetails.contactNumber}}</p>
                                     </div>
                                 </div>
@@ -237,7 +287,7 @@
                     </div>
 
                     <div class="modal-footer border-0 p-4 flex-wrap">
-                        <span class="order-status-display me-2">Order status: <strong>{{selectedOrderDetails.orderStatus}}</strong></span>
+                        <span class="order-status-display me-2">Order status: <strong>{{ selectedOrderDetails.paymentDeadlineExpired === true && (selectedOrderDetails.orderStatus === 'Approved' || selectedOrderDetails.orderStatus === 'Awaiting Payment Verification' || selectedOrderDetails.orderStatus === 'Layaway Active' || selectedOrderDetails.orderStatus === 'Pending Payment' || selectedOrderDetails.orderStatus === 'Pending Downpayment') ? 'Order Cancelled' : (selectedOrderDetails.orderStatus === 'Rejected' ? 'Order Rejected' : (selectedOrderDetails.orderStatus === 'Cancelled' ? 'Order Cancelled' : selectedOrderDetails.orderStatus)) }}</strong></span>
                         @if (User.IsInRole("MANAGER"))
                         {
                             <span ng-if="selectedOrderDetails.orderStatus === 'Pending Approval'">

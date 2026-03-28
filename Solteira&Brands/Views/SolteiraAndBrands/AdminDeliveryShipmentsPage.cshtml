@@ -31,7 +31,7 @@
                                 <div class="card border rounded p-3 mb-4" ng-if="selectedOrderForDelivery" style="background: #f8f9fa;">
                                     <strong class="small text-uppercase text-muted">Order summary</strong>
                                     <p class="mb-1 mt-2"><strong>Customer:</strong> {{selectedOrderForDelivery.customerName}}</p>
-                                    <p class="mb-1"><strong>Address:</strong> {{selectedOrderForDelivery.deliveryAddress}}</p>
+                                    <p class="mb-1 text-break"><strong>Address:</strong> {{selectedOrderForDelivery.deliveryAddress}}</p>
                                     <p class="mb-1"><strong>Order total:</strong> &#8369; {{selectedOrderForDelivery.totalAmount | number:2}}</p>
                                     <p class="mb-0"><strong>Payment type:</strong> {{selectedOrderForDelivery.paymentType || 'FULL'}}</p>
                                 </div>
@@ -73,7 +73,8 @@
                                         <input id="dispatchDateForNewInput"
                                                type="date"
                                                class="form-control delivery-input-field"
-                                               ng-model="dispatchDateForNew" />
+                                               ng-model="dispatchDateForNew"
+                                               ng-attr-min="{{ getShipmentDateInputMin() }}" />
                                     </div>
                                 </div>
                                 <div class="row mb-5 align-items-center" ng-if="selectedOrderForDelivery">
@@ -82,7 +83,8 @@
                                         <input id="etaForNewInput"
                                                type="date"
                                                class="form-control delivery-input-field"
-                                               ng-model="etaForNew" />
+                                               ng-model="etaForNew"
+                                               ng-attr-min="{{ getShipmentDateInputMin() }}" />
                                     </div>
                                 </div>
                                 <div class="text-center">
@@ -117,7 +119,7 @@
 
                     <tbody class="table-group-divider">
                         <tr class="text-start" ng-repeat="d in shipmentsList track by d.id">
-                            <td data-order="{{d.id || 0}}">{{d.id}}</td>
+                            <td data-order="{{d.id || 0}}">DLVRY-{{d.id}}</td>
                             <td>{{d.orderNumber}}</td>
                             <td>{{d.customerName}}</td>
                             <td>{{d.deliveryAddress}}</td>
@@ -204,7 +206,7 @@
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-2"><i class="bi bi-geo-alt me-2 orderDetails-icon"></i>Delivery Address</h5>
                                         <p class="fw-bold mb-1">{{deliveryDetail.orderSummary.customerName}}</p>
-                                        <p class="mb-0">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
+                                        <p class="mb-0 text-break">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
                                     </div>
                                 </div>
                             </div>
@@ -271,7 +273,6 @@
                         <div class="mb-3">
                             <label class="form-label">Delivery Status</label>
                             <select class="form-select" ng-model="editDeliveryForm.deliveryStatus">
-                                <option value="PENDING">PENDING</option>
                                 <option value="IN_TRANSIT">IN_TRANSIT</option>
                                 <option value="DELIVERED">DELIVERED</option>
                             </select>
@@ -302,11 +303,11 @@
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">Dispatch Date</label>
-                            <input type="date" class="form-control" ng-model="editDeliveryForm.dispatchDate" />
+                            <input type="date" class="form-control" ng-model="editDeliveryForm.dispatchDate" ng-attr-min="{{ getShipmentDateInputMin() }}" />
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
                             <label class="form-label">ETA</label>
-                            <input type="date" class="form-control" ng-model="editDeliveryForm.eta" />
+                            <input type="date" class="form-control" ng-model="editDeliveryForm.eta" ng-attr-min="{{ getShipmentDateInputMin() }}" />
                         </div>
                     </div>
                     <div class="modal-footer border-0">

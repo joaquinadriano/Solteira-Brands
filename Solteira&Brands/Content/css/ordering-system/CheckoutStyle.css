@@ -133,13 +133,20 @@ body {
         margin-bottom: .5vw;
     }
 
-    .checkout-form-card .form-group input {
+    .checkout-form-card .form-group input,
+    .checkout-form-card .form-group textarea {
         font-size: 1.25rem;
         width: 100%;
         padding: .75vw;
         border: none;
         outline: none;
         box-sizing: border-box;
+    }
+
+    .checkout-form-card .form-group textarea {
+        resize: vertical;
+        min-height: 4.5em;
+        font-family: inherit;
     }
 
     .checkout-form-card .form-group .validation-error {

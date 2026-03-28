@@ -118,17 +118,26 @@
                            class="text-warning mb-0">
                             <strong>Payment was rejected:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}} You can submit a new proof via Pay Now.
                         </p>
-                        <p ng-if="getOverallStatus(selectedOrderForDetails) === 'Cancelled'" class="text-muted mb-0">
-                            <span ng-if="selectedOrderForDetails.rejectionReason">
+                        <p ng-if="getOverallStatus(selectedOrderForDetails) === 'Cancelled'" class="text-danger mb-0">
+                            <span ng-if="selectedOrderForDetails.latestPaymentRejectionReason">
+                                <strong>Cancellation reason:</strong> {{selectedOrderForDetails.latestPaymentRejectionReason}}
+                            </span>
+                            <span ng-if="!selectedOrderForDetails.latestPaymentRejectionReason && selectedOrderForDetails.rejectionReason">
                                 <strong>Cancellation reason:</strong> {{selectedOrderForDetails.rejectionReason}}
                             </span>
-                            <span ng-if="!selectedOrderForDetails.rejectionReason">
+                            <span ng-if="!selectedOrderForDetails.latestPaymentRejectionReason && !selectedOrderForDetails.rejectionReason && !selectedOrderForDetails.paymentDeadlineExpired">
+                                This order was cancelled.
+                            </span>
+                            <span ng-if="!selectedOrderForDetails.latestPaymentRejectionReason && !selectedOrderForDetails.rejectionReason && selectedOrderForDetails.paymentDeadlineExpired">
                                 Payment overdue/expired. This order was cancelled.
                             </span>
                         </p>
                     </div>
                     <div class="buyer-order-layaway-info mt-3 p-3 rounded" style="background:#f8f9fa;"
-                         ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY' && selectedOrderForDetails.installmentSchedule && selectedOrderForDetails.installmentSchedule.length">
+                         ng-if="selectedOrderForDetails.paymentType === 'LAYAWAY'
+                                && getOverallStatus(selectedOrderForDetails) !== 'Paid - Waiting for Shipment'
+                                && selectedOrderForDetails.installmentSchedule
+                                && selectedOrderForDetails.installmentSchedule.length">
                         <h6 class="fw-bold mb-2">Layaway Progress</h6>
                         <p class="mb-1" ng-if="selectedOrderForDetails.downpaymentPercentage">
                             <strong>Downpayment:</strong>
@@ -153,7 +162,6 @@
                                         <th>Amount</th>
                                         <th>Status</th>
                                         <th>Proof</th>
-                                        <th>Rejection Reason</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -173,12 +181,17 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <span ng-if="row.proofImageUrl">
-                                                <a ng-href="{{row.proofImageUrl}}" target="_blank" rel="noopener">View proof</a>
+                                            <span ng-if="getOverallStatus(selectedOrderForDetails) === 'Paid - Waiting for Shipment'" class="text-muted">-</span>
+                                            <span ng-if="getOverallStatus(selectedOrderForDetails) !== 'Paid - Waiting for Shipment' && row.status === 'Paid' && row.proofImageUrl">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        ng-click="$event.preventDefault(); $event.stopPropagation(); openViewPaymentProofModalFromOrders(selectedOrderForDetails, row)">
+                                                    View proof
+                                                </button>
                                             </span>
-                                            <span class="text-muted" ng-if="!row.proofImageUrl">No data available</span>
+                                            <span ng-if="getOverallStatus(selectedOrderForDetails) !== 'Paid - Waiting for Shipment' && !(row.status === 'Paid' && row.proofImageUrl)"
+                                                  class="text-muted">No data available</span>
                                         </td>
-                                        <td>{{row.rejectionReason || '-'}}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -224,7 +237,7 @@
                 <div class="modal-footer border-0 d-flex flex-wrap gap-2 justify-content-end">
                     <button type="button"
                             class="btn btn-outline-secondary"
-                            ng-if="selectedOrderForDetails.hasSubmittedPayment && selectedOrderForDetails.latestPaymentForProof"
+                            ng-if="selectedOrderForDetails.paymentType !== 'LAYAWAY' && selectedOrderForDetails.hasSubmittedPayment && selectedOrderForDetails.latestPaymentForProof"
                             ng-click="openViewPaymentProofModalFromOrders(selectedOrderForDetails)">
                         View Payment Proof
                     </button>
@@ -261,23 +274,33 @@
     </div>
 
     @* View Payment Proof modal (Under Review) *@
-    <div class="modal fade" id="viewPaymentProofModalMyOrders" tabindex="-1" aria-hidden="true" ng-if="selectedOrderForProof && selectedOrderForProof.latestPaymentForProof">
+    <div class="modal fade" id="viewPaymentProofModalMyOrders" tabindex="-1" aria-hidden="true" ng-if="selectedPaymentForProof">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">View Payment Proof</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closeViewPaymentProofModal()"></button>
                 </div>
-                <div class="modal-body" ng-if="selectedOrderForProof.latestPaymentForProof">
-                    <p class="mb-2"><strong>Status:</strong> <span ng-class="{'text-warning': selectedOrderForProof.latestPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': selectedOrderForProof.latestPaymentForProof.paymentStatus === 'REJECTED'}">{{selectedOrderForProof.latestPaymentForProof.paymentStatus === 'SUBMITTED' ? 'Awaiting Verification' : (selectedOrderForProof.latestPaymentForProof.paymentStatus === 'REJECTED' ? 'Rejected - Please Resubmit' : (selectedOrderForProof.latestPaymentForProof.paymentStatus === 'VERIFIED' ? 'Verified' : 'Awaiting Verification'))}}</span></p>
-                    <p class="mb-2"><strong>Amount:</strong> &#8369; {{selectedOrderForProof.latestPaymentForProof.amount | number:2}}</p>
-                    <p class="mb-2"><strong>Date submitted:</strong> {{selectedOrderForProof.latestPaymentForProof.createdAt}}</p>
-                    <p class="mb-2" ng-if="selectedOrderForProof.latestPaymentForProof.referenceNumber"><strong>Reference number:</strong> {{selectedOrderForProof.latestPaymentForProof.referenceNumber}}</p>
-                    <div class="mb-2" ng-if="selectedOrderForProof.latestPaymentForProof.proofImageUrl">
+                <div class="modal-body">
+                    <p class="mb-2">
+                        <strong>Status:</strong>
+                        <span ng-class="{'text-warning': selectedPaymentForProof.paymentStatus === 'SUBMITTED', 'text-danger': selectedPaymentForProof.paymentStatus === 'REJECTED'}">
+                            {{selectedPaymentForProof.paymentStatus === 'SUBMITTED'
+                                ? 'Awaiting Verification'
+                                : (selectedPaymentForProof.paymentStatus === 'REJECTED'
+                                    ? 'Rejected - Please Resubmit'
+                                    : (selectedPaymentForProof.paymentStatus === 'VERIFIED'
+                                        ? 'Verified'
+                                        : 'Awaiting Verification'))}}
+                        </span>
+                    </p>
+                    <p class="mb-2"><strong>Amount:</strong> &#8369; {{selectedPaymentForProof.amount | number:2}}</p>
+                    <p class="mb-2"><strong>Date submitted:</strong> {{selectedPaymentForProof.createdAt}}</p>
+                    <p class="mb-2" ng-if="selectedPaymentForProof.referenceNumber"><strong>Reference number:</strong> {{selectedPaymentForProof.referenceNumber}}</p>
+                    <div class="mb-2" ng-if="selectedPaymentForProof.proofImageUrl">
                         <strong>Uploaded image</strong>
-                        <img ng-src="{{selectedOrderForProof.latestPaymentForProof.proofImageUrl}}" alt="Proof" class="img-fluid rounded border mt-1" style="max-height: 280px;" />
+                        <img ng-src="{{selectedPaymentForProof.proofImageUrl}}" alt="Proof" class="img-fluid rounded border mt-1" style="max-height: 280px;" />
                     </div>
-                    <p class="text-danger mb-0" ng-if="selectedOrderForProof.latestPaymentForProof.paymentStatus === 'REJECTED' && selectedOrderForProof.latestPaymentForProof.rejectionReason"><strong>Rejection reason:</strong> {{selectedOrderForProof.latestPaymentForProof.rejectionReason}}</p>
                 </div>
             </div>
         </div>

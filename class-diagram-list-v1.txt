@@ -1,0 +1,413 @@
+Solteira-Brands - Text-based class diagram inventory (draft)
+
+Scope v1 (matches your picture focus):
+- Authentication + Users
+- Orders + Order items
+- Payments + Payment proof (stored as an image)
+- Verification tokens (OTP)
+- Delivery + delivery status
+- Status constants + lifecycle transition rules
+
+Note:
+- This repo does not appear to contain a pre-made UML file (no `.uml`/`.puml`/Mermaid found in the codebase).
+- The “diagram concepts” are implemented as C# model/entity classes + controller/service logic + status constants.
+
+============================================================
+1) `tblUsersModel` (Solteira_Brands.Models)
+  Properties (fields):
+  - `Id`: int [Key]
+  - `RoleId`: int
+  - `Email`: string
+  - `Username`: string
+  - `PasswordHash`: string
+  - `PasswordSalt`: string
+  - `IsVerified`: bool
+  - `IsActive`: bool
+  - `CreatedAt`: DateTime
+  - `AcceptedTerms`: bool
+  - `AcceptedAt`: DateTime?
+  - `AvatarImageId`: int?
+
+  Navigation / relationships:
+  - `Role`: `tblRolesModel`
+  - `AvatarImage`: `tblImagesModel`
+
+  Model methods:
+  - (none; behavior lives in `AccountController` / services)
+
+============================================================
+2) `tblRolesModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `Name`: string
+  - `Description`: string
+  - `CreatedAt`: DateTime
+
+  Navigation:
+  - `Users`: ICollection<`tblUsersModel`>
+
+  Model methods:
+  - (none)
+
+============================================================
+3) `tblOrdersModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `UserId`: int
+  - `OrderNumber`: string
+  - `CustomerName`: string
+  - `ContactNumber`: string
+  - `DeliveryAddress`: string
+  - `PaymentMethod`: string
+  - `PaymentType`: string
+  - `TotalAmount`: decimal
+  - `RemainingBalance`: decimal
+  - `OrderStatus`: string
+  - `PaymentDeadline`: DateTime?
+  - `PaymentDeadlineReminderSentFor`: DateTime?
+  - `PaymentDeadlineReminderSentAt`: DateTime?
+  - `CancellationReason`: string
+  - `InventoryReleased`: bool
+  - `IsLayaway`: bool
+  - `DeliveryType`: string
+  - `MeetupDatetime`: DateTime?
+  - `RejectionReason`: string
+  - `CreatedAt`: DateTime
+  - `LastStatusUpdateAt`: DateTime?
+  - `IsArchived`: bool
+
+  Navigation:
+  - `User`: `tblUsersModel`
+  - `OrderItems`: ICollection<`tblOrderItemsModel`>
+  - `Payments`: ICollection<`tblPaymentsModel`>
+  - `Deliveries`: ICollection<`tblDeliveriesModel`>
+
+  Model methods:
+  - (none)
+
+============================================================
+4) `tblOrderItemsModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `OrderId`: int
+  - `ProductId`: int?
+  - `ProductName`: string
+  - `Quantity`: int
+  - `UnitPrice`: decimal
+  - `ImageUrl`: string
+
+  Navigation:
+  - `Order`: `tblOrdersModel`
+
+  Model methods:
+  - (none)
+
+============================================================
+5) `tblPaymentsModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `OrderId`: int
+  - `Amount`: decimal
+  - `PaymentStatus`: string
+  - `RejectionReason`: string
+  - `ProofImageId`: int?
+  - `ReferenceNumber`: string
+  - `MeetupDatetime`: DateTime?
+  - `PaymentChannel`: string
+  - `VerifiedByUserId`: int?
+  - `CreatedAt`: DateTime
+  - `VerifiedAt`: DateTime?
+  - `AllowResubmit`: int
+
+  Navigation:
+  - `Order`: `tblOrdersModel`
+  - `ProofImage`: `tblImagesModel`
+  - `VerifiedByUser`: `tblUsersModel`
+
+  Model methods:
+  - (none)
+
+============================================================
+6) `tblVerificationTokenModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int
+  - `UserId`: int
+  - `TokenValue`: string
+  - `TokenType`: string
+  - `ExpiresAt`: DateTime
+  - `IsUsed`: bool
+  - `CreatedAt`: DateTime
+
+  Navigation:
+  - `User`: `tblUsersModel`
+
+  Model methods:
+  - (none)
+
+============================================================
+7) `tblPaymentSettingsModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int
+  - `PaymentType`: string
+  - `AccountName`: string
+  - `AccountNumber`: string
+  - `QrImageId`: int?
+  - `IsActive`: bool
+  - `CreatedAt`: DateTime
+  - `UpdatedAt`: DateTime
+
+  Navigation:
+  - `QrImage`: `tblImagesModel`
+
+  Model methods:
+  - (none)
+
+============================================================
+8) `tblDeliveriesModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `OrderId`: int
+  - `DeliveryType`: string
+  - `Courier`: string
+  - `DispatchDate`: DateTime?
+  - `Eta`: DateTime?
+  - `TrackingNumber`: string
+  - `TrackingLink`: string
+  - `MeetupDatetime`: DateTime?
+  - `DeliveryStatus`: string
+  - `CreatedAt`: DateTime
+  - `UpdatedAt`: DateTime
+
+  Navigation:
+  - `Order`: `tblOrdersModel`
+
+  Model methods:
+  - (none)
+
+============================================================
+9) `tblImagesModel` (Solteira_Brands.Models)
+  Properties:
+  - `Id`: int [Key]
+  - `ImagePath`: string
+  - `ImageFileName`: string
+  - `CreatedAt`: DateTime
+  - `UpdatedAt`: DateTime
+
+  Model methods:
+  - (none)
+
+============================================================
+10) Status constants (static classes)
+
+10a) `Solteira_Brands.Constants.PaymentStatus`
+  Constants (string tokens stored in `tblPaymentsModel.PaymentStatus`):
+  - `Pending` = "PENDING"
+  - `AwaitingVerification` = "AWAITING_VERIFICATION"
+  - `Submitted` = "SUBMITTED"
+  - `Verified` = "VERIFIED"
+  - `Rejected` = "REJECTED"
+  - `Expired` = "EXPIRED"
+
+10b) `Solteira_Brands.Constants.OrderStatus`
+  Constants (string tokens stored in `tblOrdersModel.OrderStatus`):
+  - `Pending` = "Pending"
+  - `PendingApproval` = "Pending Approval"
+  - `PendingPayment` = "Pending Payment"
+  - `PendingDownpayment` = "Pending Downpayment"
+  - `Approved` = "Approved"
+  - `AwaitingPaymentVerification` = "Awaiting Payment Verification"
+  - `AwaitingMeetup` = "Awaiting Meetup"
+  - `LayawayActive` = "Layaway Active"
+  - `Paid` = "Paid"
+  - `InDelivery` = "In Delivery"
+  - `ReadyForMeetup` = "Ready for Meetup"
+  - `NoShow` = "No Show"
+  - `MeetupRescheduled` = "Meetup Rescheduled"
+  - `Completed` = "Completed"
+  - `Rejected` = "Rejected"
+  - `Cancelled` = "Cancelled"
+
+============================================================
+11) Lifecycle rule helpers (behavior)
+
+`Solteira_Brands.Services.OrderLifecycleRules` (static class)
+  Public methods:
+  - `CanTransitionOrder(string from, string to)`: bool
+  - `CanTransitionPayment(string from, string to)`: bool
+  - `IsPaymentPendingReview(string status)`: bool
+  - `CanTransitionDelivery(string from, string to)`: bool
+
+  Private helpers:
+  - `NormalizeOrder(string status)`: string
+  - `NormalizeUpper(string status)`: string
+
+============================================================
+12) Request DTOs (diagram “data objects”)
+
+`CreateOrderRequest`:
+  - `CustomerName`: string
+  - `ContactNumber`: string
+  - `DeliveryAddress`: string
+  - `PaymentMethod`: string
+  - `TotalAmount`: decimal
+  - `Items`: List<CreateOrderItemRequest>
+
+`CreateOrderItemRequest`:
+  - `ProductId`: int
+  - `ProductName`: string
+  - `Quantity`: int
+  - `UnitPrice`: decimal
+  - `ImageUrl`: string
+
+`SubmitPaymentRequest`:
+  - `OrderId`: int
+  - `Amount`: decimal
+  - `ProofImageId`: int?
+  - `ReferenceNumber`: string
+  - `MeetupDate`: string
+  - `MeetupTime`: string
+  - `PaymentChannel`: string
+
+============================================================
+13) Controllers (behavior methods to map to “functions” boxes)
+
+`AccountController` (auth / verification):
+  - `Login(string username, string password, bool rememberMe = false)`
+  - `Logout()`
+  - `Verify(string email)`
+  - `Settings()`
+  - `GetMyProfile()`
+  - `UpdateProfile(int? avatarImageId, string username)`
+  - `UploadProfileImage(HttpPostedFileBase file)`
+  - `Register(string email, string username, string password, string verifyPassword, bool acceptedTerms = false)`
+  - `VerifyAccount(string email, string otp)`
+  - `ForgotPassword(string email)`
+  - `ResendOtp(string email, string mode)`
+  - `ValidatePasswordResetOtp(string email, string otp)`
+  - `ResetPassword(string email, string newPassword, string confirmPassword)`
+  - `SeedTrialPasswords()`
+  - `IsEmailAvailable(string email)`
+  - `IsUsernameAvailable(string username, bool ignoreCurrent = false)`
+  - `ChangePassword(string currentPassword, string newPassword, string verifyPassword)`
+
+`SolteiraAndBrandsController` (orders/payments/delivery UI + API):
+  - `CreateOrder()`
+  - `GetOrders()`
+  - `GetOrderDetails(int id)`
+  - `GetMyOrders()`
+  - `GetOrderForPayment(int orderId)`
+  - `UploadPaymentProof(HttpPostedFileBase file)`
+  - `SubmitPayment(SubmitPaymentRequest request)`
+  - `GetPaymentSettings()`
+  - `GetMeetupSettings()`
+  - `GetLayawaySettings()`
+  - `UpdateOrderStatus(int id, string status, string rejectionReason = null, bool? restoreStock = null)`
+  - `UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null, bool? allowResubmit = null)`
+  - `RevokeApproval(int orderId)`
+  - `CreateDelivery(int orderId, string deliveryType = null, string trackingNumber = null, string courier = null, string dispatchDate = null, string eta = null)`
+  - `UpdateDeliveryStatus(int deliveryId, string status)`
+  - `MarkReadyForMeetup(int orderId)`
+  - `CompleteMeetup(int orderId)`
+  - `UpdateDelivery(int deliveryId, string courier = null, string trackingNumber = null, string dispatchDate = null, string eta = null, string deliveryStatus = null)`
+  - `UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null, string cancellationReason = null, bool? restoreStock = null)`
+  - `RescheduleMeetup(int orderId, string meetupDate, string meetupTime)`
+
+(Product/cart/inventory/reporting and admin pages exist too, but are outside v1 scope.)
+
+============================================================
+End of draft (v1)
+
+============================================================
+14) APIs we are using (frontend -> backend endpoints)
+These are application (self-hosted) HTTP endpoints; they are not third-party payment-gateway APIs.
+
+`/Account/*`
+- `POST /Account/Login`
+- `POST /Account/Register`
+- `POST /Account/VerifyAccount`
+- `POST /Account/ForgotPassword`
+- `POST /Account/ResendOtp`
+- `POST /Account/ValidatePasswordResetOtp`
+- `POST /Account/ResetPassword`
+- `GET  /Account/IsEmailAvailable`
+- `GET  /Account/IsUsernameAvailable`
+- `GET  /Account/GetMyProfile`
+- `POST /Account/UpdateProfile`
+- `POST /Account/UploadProfileImage`
+
+`/SolteiraAndBrands/*` (Buyer)
+- `POST /SolteiraAndBrands/CreateOrder`
+- `GET  /SolteiraAndBrands/GetMyOrders`
+- `GET  /SolteiraAndBrands/GetOrderForPayment`
+- `POST /SolteiraAndBrands/UploadPaymentProof`
+- `POST /SolteiraAndBrands/SubmitPayment`
+- `GET  /SolteiraAndBrands/GetPaymentSettings`
+- `GET  /SolteiraAndBrands/GetMeetupSettings`
+- `GET  /SolteiraAndBrands/GetLayawaySettings`
+
+`/SolteiraAndBrands/*` (Products / Cart / Storefront)
+- `GET  /SolteiraAndBrands/GetStorefrontProducts`
+- `GET  /SolteiraAndBrands/GetProductStock`
+- `GET  /SolteiraAndBrands/GetProductStocks`
+- `GET  /SolteiraAndBrands/GetProductImage`
+- `GET  /SolteiraAndBrands/GetMyCart`
+- `GET  /SolteiraAndBrands/GetCartCount`
+- `POST /SolteiraAndBrands/AddToCart`
+- `POST /SolteiraAndBrands/SetCartItemQuantity`
+- `POST /SolteiraAndBrands/RemoveCartItem`
+- `POST /SolteiraAndBrands/UploadProductImage`
+
+`/SolteiraAndBrands/*` (Admin: Orders, Payments, Delivery, Inventory, Reporting)
+- `GET  /SolteiraAndBrands/GetInventoryProducts`
+- `POST /SolteiraAndBrands/CreateProduct`
+- `POST /SolteiraAndBrands/UpdateProduct`
+- `POST /SolteiraAndBrands/ToggleProductArchive`
+- `POST /SolteiraAndBrands/ToggleFeatured`
+- `GET  /SolteiraAndBrands/GetOrders`
+- `GET  /SolteiraAndBrands/GetArchiveOrders`
+- `POST /SolteiraAndBrands/ArchiveOrder`
+- `POST /SolteiraAndBrands/RestoreOrder`
+- `GET  /SolteiraAndBrands/GetOrderDetails`
+- `POST /SolteiraAndBrands/UpdateOrderStatus`
+- `POST /SolteiraAndBrands/UpdatePaymentStatus`
+- `GET  /SolteiraAndBrands/GetPaymentsForAdmin`
+- `GET  /SolteiraAndBrands/GetPaymentDetailForAdmin`
+- `POST /SolteiraAndBrands/RevokeApproval`
+- `POST /SolteiraAndBrands/CreateDelivery`
+- `POST /SolteiraAndBrands/UpdateDeliveryStatus`
+- `GET  /SolteiraAndBrands/GetDeliveryDetailForAdmin`
+- `POST /SolteiraAndBrands/UpdateDelivery`
+- `GET  /SolteiraAndBrands/GetOrdersForDeliveryShipments`
+- `GET  /SolteiraAndBrands/GetDeliveryShipments`
+- `GET  /SolteiraAndBrands/GetOrdersForDeliveryMeetup`
+- `GET  /SolteiraAndBrands/GetMeetupOrderDetail`
+- `POST /SolteiraAndBrands/UploadMeetupReceipt`
+- `POST /SolteiraAndBrands/UpdateMeetupOutcome`
+- `POST /SolteiraAndBrands/RescheduleMeetup`
+- `POST /SolteiraAndBrands/MarkReadyForMeetup`
+- `POST /SolteiraAndBrands/CompleteMeetup`
+- `GET  /SolteiraAndBrands/CheckAndCancelOverdueOrders`
+- `GET  /SolteiraAndBrands/GetDashboardData`
+- `GET  /SolteiraAndBrands/GetSalesReport`
+- `GET  /SolteiraAndBrands/GetLowStockNotifications`
+- `GET  /SolteiraAndBrands/GetActivityLogs`
+- `GET  /SolteiraAndBrands/GetUsersForAdmin`
+- `GET  /SolteiraAndBrands/GetPaymentSettingsForAdmin`
+- `POST /SolteiraAndBrands/UploadQrImage`
+- `POST /SolteiraAndBrands/UpdatePaymentSetting`
+- `GET  /SolteiraAndBrands/GetMeetupSettingsForAdmin`
+- `POST /SolteiraAndBrands/UpdateMeetupSetting`
+- `GET  /SolteiraAndBrands/GetLayawaySettingsForAdmin`
+- `POST /SolteiraAndBrands/UpdateLayawaySettings`
+
+============================================================
+15) Are these APIs free?
+- These endpoints are your own application APIs (no third-party API fees for the endpoint itself).
+- Payment processing is manual (buyer uploads `ProofImageId`), so there is no external payment-gateway API integration in this code.
+
+============================================================
+16) Email service used
+- `EmailHelper` uses SMTP (`System.Net.Mail.SmtpClient`) to send emails.
+- `Web.config` is configured for Gmail SMTP: host `smtp.gmail.com`, port `587`, SSL enabled (`SmtpEnableSsl=true`).
+- Credentials and sender name come from `Web.config` appSettings keys: `SmtpUser`, `SmtpPassword`, `FromEmail`, `FromDisplayName`.
+
