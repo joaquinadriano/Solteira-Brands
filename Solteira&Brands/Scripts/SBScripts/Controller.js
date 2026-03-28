@@ -4,6 +4,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.viewMode = 'list';
     $scope.qty = 1;
+    /** Jewelries product detail: set when user types a quantity above available stock. */
+    $scope.detailQtyExceedsStockMessage = '';
 
     $scope.jewelries = [];
     $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
@@ -18,6 +20,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!product) return;
         $scope.selectedProduct = product;
         $scope.qty = 1;
+        $scope.detailQtyExceedsStockMessage = '';
         $scope.viewMode = 'detail';
         $scope.transitionDir = 'forward';
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -157,6 +160,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $timeout(() => {
                 $scope.selectedProduct = item;
                 $scope.qty = 1;
+                $scope.detailQtyExceedsStockMessage = '';
                 $scope.viewMode = 'detail';
                 $scope.transitionDir = 'forward';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -182,6 +186,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.changeDetailQty = function (delta) {
         if (!$scope.selectedProduct) return;
+        $scope.detailQtyExceedsStockMessage = '';
         var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
         var current = parseInt($scope.qty, 10) || 1;
         var next = Math.max(1, Math.min(max, current + delta));
@@ -192,8 +197,17 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.selectedProduct) return;
         var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
         var val = parseInt($scope.qty, 10);
-        if (isNaN(val) || val < 1) $scope.qty = 1;
-        else if (max > 0 && val > max) $scope.qty = max;
+        if (isNaN(val) || val < 1) {
+            $scope.qty = 1;
+            $scope.detailQtyExceedsStockMessage = '';
+            return;
+        }
+        if (max > 0 && val > max) {
+            $scope.detailQtyExceedsStockMessage = 'You entered ' + val + ', but only ' + max + ' ' + (max === 1 ? 'is' : 'are') + ' in stock. Quantity was set to ' + max + '.';
+            $scope.qty = max;
+            return;
+        }
+        $scope.detailQtyExceedsStockMessage = '';
     };
 
     $scope.excludeSelected = function (item) {
@@ -1118,6 +1132,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             return;
         }
         var requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
+        var stockCap = parseInt(product.stockQuantity, 10) || 0;
+        if (stockCap > 0 && requestedQty > stockCap) {
+            requestedQty = stockCap;
+            if ($scope.selectedProduct && product && $scope.selectedProduct.id === product.id) {
+                $scope.qty = stockCap;
+                $scope.detailQtyExceedsStockMessage = 'You tried to add more than is in stock. Only ' + stockCap + ' ' + (stockCap === 1 ? 'is' : 'are') + ' available.';
+            }
+        }
         SolteiraBrandsService.addToCart(product.id, requestedQty).then(function (r) {
             if (r && r.data && r.data.success) {
                 var added = r.data.addedQuantity || 0;
@@ -1376,11 +1398,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return !!$scope.agreeTerms;
     };
 
+    var CHECKOUT_NAME_MAX_LEN = 30;
+    var CHECKOUT_ADDRESS_MAX_LEN = 50;
+
     $scope.isCheckoutReadyToPlaceOrder = function () {
-        var nameOk = !!(($scope.customerName || '').trim());
+        var name = ($scope.customerName || '').trim();
+        var address = ($scope.deliveryAddress || '').trim();
+        var nameOk = name.length > 0 && name.length <= CHECKOUT_NAME_MAX_LEN;
         var contact = ($scope.contactNumber || '').trim();
         var contactOk = /^\d{11}$/.test(contact);
-        var addressOk = !!(($scope.deliveryAddress || '').trim());
+        var addressOk = address.length > 0 && address.length <= CHECKOUT_ADDRESS_MAX_LEN;
         var paymentOk = !!(($scope.paymentMethod || '').trim());
         var termsOk = $scope.isCheckoutTermsAccepted();
         return nameOk && contactOk && addressOk && paymentOk && termsOk;
@@ -1967,7 +1994,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                     $scope.paymentValidation.proof = '';
                     $scope.paymentValidation.file = '';
                 }, 0);
-                Swal.fire({ icon: 'success', title: 'Uploaded', text: 'Proof uploaded. Enter reference number (max 20 chars) and click PAY.', timer: 2500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Uploaded', text: 'Proof uploaded. Enter reference number (letters and numbers only, max 20) and click PAY.', timer: 2500, showConfirmButton: false });
             } else {
                 var msg = (r.data && r.data.message) || 'Upload failed.';
                 $scope.paymentError = msg;
@@ -2023,6 +2050,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return !isNaN(n) && n >= 1;
     };
 
+    var PAYMENT_REFERENCE_ALNUM_REGEX = /^[A-Za-z0-9]+$/;
+    /** True while the field contains any character outside A–Z / a–z / 0–9 (allows empty = no error). */
+    $scope.paymentReferenceFormatError = function () {
+        var s = ($scope.paymentForm && $scope.paymentForm.referenceNumber != null) ? String($scope.paymentForm.referenceNumber) : '';
+        if (!s.length) return false;
+        return !/^[A-Za-z0-9]*$/.test(s);
+    };
+    function isPaymentReferenceValidForSubmit(ref) {
+        var t = (ref || '').trim();
+        return t.length >= 1 && t.length <= 20 && PAYMENT_REFERENCE_ALNUM_REGEX.test(t);
+    }
+
     function logPaymentButtonState(reason) {
         var order = $scope.paymentOrder;
         var orderStatus = order ? (order.order_status != null ? order.order_status : order.orderStatus) : null;
@@ -2049,7 +2088,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.paymentMode || !($scope.paymentFormData && $scope.paymentFormData.channel)) return false;
         if (!$scope.hasValidProof()) return false;
         var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-        if (ref.length < 1 || ref.length > 20) return false;
+        if (!isPaymentReferenceValidForSubmit(ref)) return false;
         return true;
     };
 
@@ -2060,7 +2099,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!data || !data.meetupDate || !data.meetupTime) return false;
         if (!$scope.hasValidProof()) return false;
         var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-        if (ref.length < 1 || ref.length > 20) return false;
+        if (!isPaymentReferenceValidForSubmit(ref)) return false;
         return true;
     };
     $scope.clearProofSelection = function () {
@@ -2086,13 +2125,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (ref.length < 1) {
                 $scope.paymentValidation.reference = 'Reference number is required.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference number (max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
                 return;
             }
             if (ref.length > 20) {
                 $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
                 Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                return;
+            }
+            if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(ref)) {
+                $scope.paymentValidation.reference = 'Reference number may only contain letters and numbers.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Invalid reference number', text: 'Use only letters and numbers (no spaces or special characters).' });
                 return;
             }
         } else {
@@ -2113,13 +2158,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (refMeetup.length < 1) {
                 $scope.paymentValidation.reference = 'Reference number for 30% down payment is required.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference number (max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
                 return;
             }
             if (refMeetup.length > 20) {
                 $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
                 Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                return;
+            }
+            if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(refMeetup)) {
+                $scope.paymentValidation.reference = 'Reference number may only contain letters and numbers.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Invalid reference number', text: 'Use only letters and numbers (no spaces or special characters).' });
                 return;
             }
         }
@@ -2170,8 +2221,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var address = ($scope.deliveryAddress || '').trim();
         var payment = ($scope.paymentMethod || '').trim();
         if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your full name.' }); return; }
+        if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
         if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
         if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
+        if (address.length > CHECKOUT_ADDRESS_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Address too long', text: 'Delivery address must be ' + CHECKOUT_ADDRESS_MAX_LEN + ' characters or fewer.' }); return; }
         if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
         // Terms checkbox: rely on actual DOM state (ng-model is unreliable on this checkout view).
         if (!$scope.isCheckoutTermsAccepted()) { Swal.fire({ icon: 'warning', title: 'Terms required', text: 'Please acknowledge the payment Terms & Conditions before placing the order.' }); return; }

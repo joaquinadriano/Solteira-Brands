@@ -218,8 +218,9 @@
                     <strong>Rejection reason (please fix before resubmitting):</strong>
                     {{(paymentOrder.latestPaymentForProof || paymentOrder.LatestPaymentForProof).rejectionReason}}
                 </p>
-                <label class="section-label">Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
-                <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
+                <label class="section-label">Reference Number <span class="text-danger">*</span> <span class="text-muted">(letters and numbers only, max 20 characters)</span></label>
+                <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" autocomplete="off" ng-class="{'is-invalid': paymentValidation.reference || paymentReferenceFormatError()}" />
+                <p class="text-danger small mb-2" ng-if="paymentReferenceFormatError()">Only letters and numbers are allowed. Remove spaces and special characters.</p>
                 <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
                 <p class="text-muted small mb-2" ng-if="hasValidProof() && !(paymentForm.referenceNumber && paymentForm.referenceNumber.trim()) && !paymentValidation.reference">Enter your reference number above to enable the PAY button.</p>
                 <label class="section-label">Proof of Payment <span class="text-danger">*</span></label>
@@ -237,8 +238,9 @@
                 </div>
             </div>
             <div ng-if="paymentFormData.channel === 'Cash through Meetup'" class="mb-3">
-                <label class="section-label">30% Down Payment &#45; Reference Number <span class="text-danger">*</span> <span class="text-muted">(max 20 characters)</span></label>
-                <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" ng-class="{'is-invalid': paymentValidation.reference}" />
+                <label class="section-label">30% Down Payment &#45; Reference Number <span class="text-danger">*</span> <span class="text-muted">(letters and numbers only, max 20 characters)</span></label>
+                <input type="text" class="form-control form-control-sm mb-1" ng-model="paymentForm.referenceNumber" placeholder="Reference #" maxlength="20" autocomplete="off" ng-class="{'is-invalid': paymentValidation.reference || paymentReferenceFormatError()}" />
+                <p class="text-danger small mb-2" ng-if="paymentReferenceFormatError()">Only letters and numbers are allowed. Remove spaces and special characters.</p>
                 <p class="text-danger small mb-2" ng-if="paymentValidation.reference">{{paymentValidation.reference}}</p>
                 <label class="section-label">Proof of 30% Down Payment <span class="text-danger">*</span></label>
                 <div class="form-group">

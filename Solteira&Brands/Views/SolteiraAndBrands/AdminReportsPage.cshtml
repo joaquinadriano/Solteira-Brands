@@ -11,10 +11,10 @@
                 <p class="text-muted mb-0">View and export detailed item sales.</p>
             </div>
             <div class="col-auto d-flex gap-2">
-                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as PDF'}}">
+                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Choose both start and end dates for custom range to enable export' : 'Export as PDF'}}">
                     <i class="bi bi-file-earmark-pdf-fill me-2"></i>Export as PDF
                 </button>
-                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Set custom range and click Apply to enable export' : 'Export as CSV'}}">
+                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Choose both start and end dates for custom range to enable export' : 'Export as CSV'}}">
                     <i class="bi bi-filetype-csv me-2"></i>Export as CSV
                 </button>
             </div>
@@ -34,11 +34,30 @@
                                 <option value="custom">Custom range</option>
                             </select>
                         </div>
-                        <div ng-if="reportRange === 'custom'" class="col-md-4 d-flex align-items-end gap-2 flex-wrap">
-                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportStart" />
-                            <span class="text-muted align-self-center">to</span>
-                            <input type="date" class="form-control" style="width: auto;" ng-model="customReportEnd" />
-                            <button type="button" class="btn btn-primary btn-sm" ng-click="applyReportFilters()">Apply</button>
+                        @* Stay in DOM when not custom (ng-if broke getElementById); ng-style avoids relying on angular.css .ng-hide. *@
+                        <div class="col-md-5 d-flex align-items-end gap-2 flex-wrap" ng-style="{'display': ((reportRange || '').toLowerCase() === 'custom' ? 'flex' : 'none')}">
+                            <div>
+                                <label class="form-label small text-muted mb-0">From</label>
+                                <input id="salesReportStartDate"
+                                       type="date"
+                                       class="form-control"
+                                       style="width: auto;"
+                                       ng-model="customReportStart"
+                                       ng-model-options="{ debounce: 0 }"
+                                       ng-change="onCustomReportDatesChanged()" />
+                            </div>
+                            <span class="text-muted align-self-end pb-2">to</span>
+                            <div>
+                                <label class="form-label small text-muted mb-0">To</label>
+                                <input id="salesReportEndDate"
+                                       type="date"
+                                       class="form-control"
+                                       style="width: auto;"
+                                       ng-model="customReportEnd"
+                                       ng-model-options="{ debounce: 0 }"
+                                       ng-change="onCustomReportDatesChanged()" />
+                            </div>
+                            <span class="text-muted small align-self-end pb-2">Loads when both dates are set</span>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Category</label>

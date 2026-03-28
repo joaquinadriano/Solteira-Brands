@@ -123,10 +123,11 @@
                                 <span class="label">Quantity:</span>
                                 <div class="quantity-controls">
                                     <button type="button" ng-click="changeDetailQty(-1)">-</button>
-                                    <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
+                                    <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" ng-attr-max="{{selectedProduct.stockQuantity || 0}}" />
                                     <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
                                 </div>
                             </div>
+                            <p class="detail-qty-stock-warning" ng-if="detailQtyExceedsStockMessage" role="alert">{{detailQtyExceedsStockMessage}}</p>
                             <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
                                 <i class="bi bi-cart-plus"></i>Add to Cart
                             </button>

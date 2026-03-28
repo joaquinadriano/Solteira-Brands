@@ -508,6 +508,17 @@
         margin: 0;
     }
 
+/* Message when typed quantity exceeds stock (product detail). */
+.detail-qty-stock-warning {
+    margin: 0 0 0.25rem 0;
+    font-family: "Nunito", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #b45309;
+    line-height: 1.35;
+    max-width: 100%;
+}
+
 .add-to-cart-btn {
     font-family: "Nunito";
     background-color: #87AE73;

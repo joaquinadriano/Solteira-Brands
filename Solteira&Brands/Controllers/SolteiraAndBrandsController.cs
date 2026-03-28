@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Data.Entity;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Script.Serialization;
@@ -847,8 +849,17 @@ namespace Solteira_Brands.Controllers
                 var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
                 if (user == null) return Json(new { success = false, message = "User not found." });
 
-                if (string.IsNullOrEmpty((request.CustomerName ?? "").Trim()) || string.IsNullOrEmpty((request.ContactNumber ?? "").Trim()) || string.IsNullOrEmpty((request.DeliveryAddress ?? "").Trim()))
+                var customerNameTrim = (request.CustomerName ?? "").Trim();
+                var contactTrim = (request.ContactNumber ?? "").Trim();
+                var deliveryAddressTrim = (request.DeliveryAddress ?? "").Trim();
+                if (string.IsNullOrEmpty(customerNameTrim) || string.IsNullOrEmpty(contactTrim) || string.IsNullOrEmpty(deliveryAddressTrim))
                     return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+                const int checkoutNameMaxLen = 30;
+                const int checkoutAddressMaxLen = 50;
+                if (customerNameTrim.Length > checkoutNameMaxLen)
+                    return Json(new { success = false, message = "Customer name must be " + checkoutNameMaxLen + " characters or fewer." });
+                if (deliveryAddressTrim.Length > checkoutAddressMaxLen)
+                    return Json(new { success = false, message = "Delivery address must be " + checkoutAddressMaxLen + " characters or fewer." });
 
                 // Server-side stock validation: ensure every item has sufficient stock before creating order
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
@@ -873,9 +884,9 @@ namespace Solteira_Brands.Controllers
                 {
                     UserId = user.Id,
                     OrderNumber = "",
-                    CustomerName = (request.CustomerName ?? "").Trim(),
-                    ContactNumber = (request.ContactNumber ?? "").Trim(),
-                    DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
+                    CustomerName = customerNameTrim,
+                    ContactNumber = contactTrim,
+                    DeliveryAddress = deliveryAddressTrim,
                     PaymentMethod = paymentMethod,
                     PaymentType = paymentType,
                     TotalAmount = request.TotalAmount,
@@ -1689,6 +1700,8 @@ namespace Solteira_Brands.Controllers
             string refTrimmed = (referenceNumber ?? "").Trim();
             if (refTrimmed.Length > 20)
                 return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+            if (refTrimmed.Length > 0 && !Regex.IsMatch(refTrimmed, @"^[A-Za-z0-9]+$"))
+                return Json(new { success = false, message = "Reference number may only contain letters and numbers." });
             if (!isMeetup)
             {
                 if (!proofImageId.HasValue || proofImageId.Value <= 0)
@@ -2281,7 +2294,7 @@ namespace Solteira_Brands.Controllers
                                      where !p.IsArchived
                                      join img in db.tbl_images on p.ImageId equals img.Id into imgs
                                      from img in imgs.DefaultIfEmpty()
-                                     orderby p.Name
+                                     orderby p.StockQuantity, p.Name
                                      select new
                                      {
                                          id = p.Id,
@@ -3353,16 +3366,30 @@ namespace Solteira_Brands.Controllers
 
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
+        /// <summary>Sales report by order CreatedAt. Presets use GET; custom range should use <see cref="PostSalesReport"/> for reliable form binding.</summary>
         public JsonResult GetSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        {
+            return BuildSalesReportJson(range, startDate, endDate, category);
+        }
+
+        /// <summary>Same report as GET; POST with application/x-www-form-urlencoded so startDate/endDate always bind for custom range.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult PostSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        {
+            return BuildSalesReportJson(range, startDate, endDate, category);
+        }
+
+        private JsonResult BuildSalesReportJson(string range, string startDate, string endDate, string category)
         {
             var now = DateTime.Now;
             DateTime startOfRange;
             DateTime endOfRange;
-            var rangeLower = (range ?? "all").ToLowerInvariant();
+            var rangeLower = (range ?? "all").Trim().ToLowerInvariant();
+            var customReportInvalid = false;
 
             if (rangeLower == "all")
             {
-                // No date filter: use a very wide range to include all orders
                 startOfRange = DateTime.MinValue;
                 endOfRange = DateTime.MaxValue;
             }
@@ -3383,11 +3410,34 @@ namespace Solteira_Brands.Controllers
                         startOfRange = endOfRange.AddDays(-30);
                         break;
                     case "custom":
-                        if (!DateTime.TryParse(startDate, out startOfRange)) startOfRange = now.Date.AddMonths(-1);
-                        if (!DateTime.TryParse(endDate, out endOfRange)) endOfRange = now.Date;
-                        startOfRange = startOfRange.Date;
-                        endOfRange = endOfRange.Date.AddDays(1);
-                        if (startOfRange > endOfRange) { var t = startOfRange; startOfRange = endOfRange.AddDays(-1); endOfRange = t.AddDays(1); }
+                        // Prefer action parameters; fall back to Request[] (Form + QueryString) when binding drops values.
+                        var sTrim = (startDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(sTrim))
+                            sTrim = (Request["startDate"] ?? "").Trim();
+                        var eTrim = (endDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(eTrim))
+                            eTrim = (Request["endDate"] ?? "").Trim();
+                        if (string.IsNullOrEmpty(sTrim) || string.IsNullOrEmpty(eTrim)
+                            || !DateTime.TryParseExact(sTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startInclusive)
+                            || !DateTime.TryParseExact(eTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var endInclusive))
+                        {
+                            customReportInvalid = true;
+                            startOfRange = DateTime.MinValue;
+                            endOfRange = DateTime.MinValue;
+                        }
+                        else
+                        {
+                            var d0 = startInclusive.Date;
+                            var d1 = endInclusive.Date;
+                            if (d0 > d1)
+                            {
+                                var tmp = d0;
+                                d0 = d1;
+                                d1 = tmp;
+                            }
+                            startOfRange = d0;
+                            endOfRange = d1.AddDays(1);
+                        }
                         break;
                     default:
                         endOfRange = now.Date.AddDays(1);
@@ -3398,18 +3448,19 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                var orderIdsInRange = rangeLower == "all"
-                    ? db.tbl_orders.Select(o => o.Id).ToList()
-                    : db.tbl_orders
-                        .Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange)
-                        .Select(o => o.Id)
-                        .ToList();
+                IQueryable<tblOrdersModel> ordersInRange = db.tbl_orders;
+                if (rangeLower != "all")
+                {
+                    if (customReportInvalid)
+                        ordersInRange = ordersInRange.Where(o => false);
+                    else
+                        ordersInRange = ordersInRange.Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange);
+                }
 
                 var query = from oi in db.tbl_order_items
-                            join o in db.tbl_orders on oi.OrderId equals o.Id
+                            join o in ordersInRange on oi.OrderId equals o.Id
                             join p in db.tbl_products on oi.ProductId equals p.Id into prodJoin
                             from p in prodJoin.DefaultIfEmpty()
-                            where orderIdsInRange.Contains(oi.OrderId)
                             select new { oi, o, p };
 
                 if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))

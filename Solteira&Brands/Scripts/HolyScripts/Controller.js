@@ -502,6 +502,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var tnNumber = tnParts[0] || '';
                 var tnLink = tnParts.length > 1 ? tnParts[1] : '';
                 $scope.editTrackingNumberTouched = false;
+                var statusUp = (ov.deliveryStatus || '').toUpperCase();
+                // Edit UI cannot set PENDING; default PENDING shipments to IN_TRANSIT in the dropdown.
+                var formDeliveryStatus = statusUp === 'PENDING' ? 'IN_TRANSIT' : (statusUp === 'DELIVERED' ? 'DELIVERED' : 'IN_TRANSIT');
                 $scope.editDeliveryForm = {
                     courierChoice: courierChoice,
                     otherCourierName: '',
@@ -509,7 +512,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
                     eta: ov.etaIso || '',
-                    deliveryStatus: ov.deliveryStatus || 'IN_TRANSIT'
+                    deliveryStatus: formDeliveryStatus
                 };
                 var el = document.getElementById('deliveryEditModal');
                 if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
@@ -555,6 +558,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }
             if ($scope.editDeliveryForm.dispatchDate && $scope.editDeliveryForm.eta && $scope.editDeliveryForm.eta < $scope.editDeliveryForm.dispatchDate) {
                 Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
+                return;
+            }
+            var minDateStr = toYyyyMmDd(new Date());
+            var dispStr = toYyyyMmDd($scope.editDeliveryForm.dispatchDate) || ($scope.editDeliveryForm.dispatchDate || '').toString().trim().substring(0, 10);
+            var etaStr = toYyyyMmDd($scope.editDeliveryForm.eta) || ($scope.editDeliveryForm.eta || '').toString().trim().substring(0, 10);
+            if (dispStr && dispStr < minDateStr) {
+                Swal.fire({ icon: 'warning', title: 'Invalid dispatch date', text: 'Dispatch date must be today or a future date.' });
+                return;
+            }
+            if (etaStr && etaStr < minDateStr) {
+                Swal.fire({ icon: 'warning', title: 'Invalid ETA', text: 'ETA must be today or a future date.' });
                 return;
             }
         } else {
@@ -672,6 +686,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var s = (typeof val === 'string') ? val.trim() : String(val).trim();
         return s || null;
     }
+    $scope.getShipmentDateInputMin = function () {
+        return toYyyyMmDd(new Date());
+    };
     /** Read yyyy-MM-dd from native date input (reliable when ng-model does not sync in modals). */
     function readDateInputYyyyMmDd(elementId) {
         try {
@@ -740,6 +757,11 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
         if (dispatchDate && eta && eta < dispatchDate) {
             Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
+            return;
+        }
+        var minDateStr = toYyyyMmDd(new Date());
+        if (dispatchDate < minDateStr || eta < minDateStr) {
+            Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'Dispatch date and ETA must be today or a future date.' });
             return;
         }
 
@@ -2310,9 +2332,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     //----------Activity Logs Page----------
     $scope.activityLogsList = [];
-    $scope.logsFilterUser = '';
-    $scope.logsFilterRole = '';
-    $scope.logsFilterAction = '';
+    $scope.logsSearch = '';
     $scope.logsFilterDateFrom = '';
     $scope.logsFilterDateTo = '';
 
@@ -2328,16 +2348,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.getFilteredActivityLogs = function () {
         var list = $scope.activityLogsList || [];
-        var user = ($scope.logsFilterUser || '').toLowerCase().trim();
-        var role = ($scope.logsFilterRole || '').trim();
-        var action = ($scope.logsFilterAction || '').toLowerCase().trim();
+        var q = ($scope.logsSearch || '').toLowerCase().trim();
         var dateFrom = toDateOnlyString($scope.logsFilterDateFrom);
         var dateTo = toDateOnlyString($scope.logsFilterDateTo);
 
         return list.filter(function (log) {
-            if (user && (log.username || '').toLowerCase().indexOf(user) === -1) return false;
-            if (role && (log.roleName || '').trim() !== role) return false;
-            if (action && (log.action || '').toLowerCase().indexOf(action) === -1) return false;
+            if (q) {
+                var u = (log.username || '').toLowerCase();
+                var r = (log.roleName || '').toLowerCase();
+                var a = (log.action || '').toLowerCase();
+                if (u.indexOf(q) === -1 && r.indexOf(q) === -1 && a.indexOf(q) === -1) return false;
+            }
             if (dateFrom || dateTo) {
                 var logDate = (log.createdAtString || '').substring(0, 10);
                 if (dateFrom && logDate < dateFrom) return false;
@@ -2395,22 +2416,80 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.reportCategory = 'All Categories';
     $scope.reportFiltersApplied = false;
 
+    /** Angular date inputs often bind Date objects; API needs yyyy-MM-dd in local calendar (avoids UTC off-by-one). */
+    function salesReportDateToYyyyMmDd(val) {
+        if (val == null || val === '') return '';
+        if (angular.isDate(val) && !isNaN(val.getTime())) {
+            var d = val;
+            var y = d.getFullYear();
+            var m = d.getMonth() + 1;
+            var day = d.getDate();
+            return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+        }
+        var s = (typeof val === 'string') ? val.trim() : String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        return '';
+    }
+
     $scope.onReportsPageInit = function () {
         $scope.reportFiltersApplied = false;
         $scope.loadSalesReport();
     };
 
+    var salesReportCustomDatesTimeout = null;
+    /** Custom range: reload when both dates are set (debounced). No Apply button. */
+    $scope.onCustomReportDatesChanged = function () {
+        if (($scope.reportRange || '').toString().toLowerCase().trim() !== 'custom') return;
+        if (salesReportCustomDatesTimeout) $timeout.cancel(salesReportCustomDatesTimeout);
+        salesReportCustomDatesTimeout = $timeout(function () {
+            salesReportCustomDatesTimeout = null;
+            var s = salesReportDateToYyyyMmDd($scope.customReportStart);
+            var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
+            try {
+                var elS = document.getElementById("salesReportStartDate");
+                var elE = document.getElementById("salesReportEndDate");
+                if (!s && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) s = elS.value;
+                if (!e && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) e = elE.value;
+            } catch (err) { /* ignore */ }
+            if (!s || !e) {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
+                return;
+            }
+            if (s > e) {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
+                return;
+            }
+            $scope.customReportStart = s;
+            $scope.customReportEnd = e;
+            $scope.loadSalesReport();
+        }, 0);
+    };
+
     $scope.loadSalesReport = function () {
-        var range = $scope.reportRange || 'all';
-        var startDate = range === 'custom' ? ($scope.customReportStart || '') : null;
-        var endDate = range === 'custom' ? ($scope.customReportEnd || '') : null;
+        var range = ($scope.reportRange || 'all').toString().toLowerCase().trim();
+        var startDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportStart) : null;
+        var endDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportEnd) : null;
+        if (range === 'custom') {
+            try {
+                var elS = document.getElementById("salesReportStartDate");
+                var elE = document.getElementById("salesReportEndDate");
+                if (!startDate && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) startDate = elS.value;
+                if (!endDate && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) endDate = elE.value;
+            } catch (e) { /* ignore */ }
+        }
         var cat = $scope.reportCategory || 'All Categories';
         if (range === 'custom' && (!startDate || !endDate)) {
             $scope.salesReportRows = [];
             $scope.salesReportGrandTotal = 0;
+            $scope.reportFiltersApplied = false;
             return;
         }
         SolteiraAndBrandsService.getSalesReport(range, startDate || null, endDate || null, cat === 'All Categories' ? null : cat).then(function (res) {
+            // Step 4: replace array reference so ng-repeat always re-renders (map always builds a new array).
             if (res.data && res.data.success) {
                 var raw = res.data.rows || [];
                 $scope.salesReportRows = raw.map(function (r) {
@@ -2426,40 +2505,34 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 });
                 $scope.salesReportGrandTotal = res.data.grandTotal != null ? res.data.grandTotal : 0;
                 $scope.reportFiltersApplied = true;
+            } else {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
             }
         }, function () {
             $scope.salesReportRows = [];
             $scope.salesReportGrandTotal = 0;
+            $scope.reportFiltersApplied = false;
         });
     };
 
-    $scope.applyReportFilters = function () {
-        if ($scope.reportRange === 'custom') {
-            if (!$scope.customReportStart || !$scope.customReportEnd) {
-                Swal.fire({ icon: 'warning', title: 'Select dates', text: 'Please choose both start and end date for custom range.' });
-                return;
-            }
-            if ($scope.customReportStart > $scope.customReportEnd) {
-                Swal.fire({ icon: 'warning', title: 'Invalid range', text: 'Start date must be before or equal to end date.' });
-                return;
-            }
-        }
-        $scope.loadSalesReport();
-    };
-
     $scope.canExportSalesReport = function () {
-        if ($scope.reportRange !== 'custom') return true;
-        return !!($scope.customReportStart && $scope.customReportEnd && $scope.reportFiltersApplied);
+        if (($scope.reportRange || '').toString().toLowerCase().trim() !== 'custom') return true;
+        var s = salesReportDateToYyyyMmDd($scope.customReportStart);
+        var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
+        return !!(s && e && $scope.reportFiltersApplied);
     };
 
     $scope.onReportRangeChange = function () {
-        if ($scope.reportRange === 'custom') {
+        if (($scope.reportRange || '').toString().toLowerCase().trim() === 'custom') {
             var today = new Date();
             var lastMonth = new Date(today);
             lastMonth.setDate(lastMonth.getDate() - 30);
-            $scope.customReportEnd = today.toISOString().slice(0, 10);
-            $scope.customReportStart = lastMonth.toISOString().slice(0, 10);
+            $scope.customReportEnd = salesReportDateToYyyyMmDd(today);
+            $scope.customReportStart = salesReportDateToYyyyMmDd(lastMonth);
             $scope.reportFiltersApplied = false;
+            $timeout(function () { $scope.onCustomReportDatesChanged(); }, 50);
         } else {
             $scope.reportFiltersApplied = false;
             $scope.loadSalesReport();
@@ -2484,14 +2557,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (range === 'today') return 'Today';
         if (range === 'lastweek') return 'Last week';
         if (range === 'lastmonth') return 'Last month';
-        if (range === 'custom' && $scope.customReportStart && $scope.customReportEnd)
-            return $scope.customReportStart + ' to ' + $scope.customReportEnd;
+        if (range === 'custom') {
+            var cs = salesReportDateToYyyyMmDd($scope.customReportStart);
+            var ce = salesReportDateToYyyyMmDd($scope.customReportEnd);
+            if (cs && ce) return cs + ' to ' + ce;
+        }
         return range === 'custom' ? 'Custom range' : 'All time';
     }
 
     $scope.exportSalesReportPdf = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
             return;
         }
         if (typeof pdfMake === 'undefined') {
@@ -2727,7 +2803,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.exportSalesReportCsv = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
             return;
         }
         var rows = $scope.salesReportRows || [];
