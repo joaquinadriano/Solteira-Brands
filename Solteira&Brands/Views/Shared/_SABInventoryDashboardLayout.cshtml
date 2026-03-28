@@ -23,6 +23,17 @@
     </head>
     <body ng-app="SolteiraAndBrands" ng-controller="SolteiraAndBrandsController">
 
+        @{
+            // Inventory pages: show role label instead of username.
+            string roleLabel = "User";
+            if (User != null && User.Identity != null)
+            {
+                if (User.IsInRole("ADMIN")) { roleLabel = "System Admin"; }
+                else if (User.IsInRole("MANAGER")) { roleLabel = "Manager"; }
+                else if (User.IsInRole("STAFF")) { roleLabel = "Staff"; }
+            }
+        }
+
          @*SIDEBAR*@ 
         <div id="sbAdminSidebar" class="sidebar pt-3">
             <ul class="sidebar-ul">
@@ -166,22 +177,35 @@
 
                 <div class="dropdown me-3 ">
                     @*Profile Dropdown - default avatar; JS loads user avatar when set*@
-                    <a class="dropdown-toggle d-flex align-items-center gap-2 " data-bs-toggle="dropdown">
-                        <img id="inventoryNavProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="inventory-profile-img" alt="" />
-                        <span class="inventory-profile-name">@(User != null && User.Identity != null ? User.Identity.Name : "User")</span>
+                    <a href="#"
+                       class="d-flex align-items-center"
+                       id="inventoryProfileMenu"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        <img id="inventoryNavProfileImg"
+                             src="@Url.Content("~/Content/img/shared/default-avatar.svg")"
+                             class="rounded-circle"
+                             alt="Profile"
+                             style="width:36px;height:36px;object-fit:cover;" />
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end inventory-dropdown-menu p-0">
-                        <li class="p-2 navbar-dropdown-item ps-2">
-                            <img id="inventoryDropProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="img-fluid inventory-profile-img" alt="" />
-                            <span class="inventory-profile-name ms-2">@(User != null && User.Identity != null ? User.Identity.Name : "User")</span>
+                    <ul class="dropdown-menu dropdown-menu-end shadow custom-account-dropdown" aria-labelledby="inventoryProfileMenu">
+                        <li class="px-3 py-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-circle me-2">
+                                    <img id="inventoryDropProfileImg"
+                                         src="@Url.Content("~/Content/img/shared/default-avatar.svg")"
+                                         class="rounded-circle"
+                                         alt="" />
+                                </div>
+                                <span class="profile-name fw-bold js-layout-profile-name">@roleLabel</span>
+                            </div>
                         </li>
-                        <li class="p-2 navbar-dropdown-item border-top">
-                            <a href="@Url.Action("Settings","Account")" class="dropdown-logout text-decoration-none text-dark">Account Settings</a>
+                        <li><hr class="dropdown-divider fw-bold"></li>
+                        <li>
+                            <a href="@Url.Action("Settings","Account")" class="dropdown-item">Account Settings</a>
                         </li>
-                        <li class="p-2 navbar-dropdown-item">
-                            @{ ViewBag.LogoutButtonCss = "dropdown-logout text-decoration-none text-dark border-0 bg-transparent w-100 text-start p-0"; }
-                            @Html.Partial("_LogoutForm")
-                        </li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>@Html.Partial("_LogoutForm")</li>
                     </ul>
                 </div>
             </div>

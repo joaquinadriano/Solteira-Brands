@@ -73,8 +73,9 @@
                             <span class="product-price">&#8369; {{item.price | number:2}}</span>
                         </div>
                         <p class="product-short-desc">{{getShortDescription(item)}}</p>
-                        <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
-                        <div class="product-stock sold-out-text" ng-if="(item.stockQuantity || 0) === 0">SOLD OUT</div>
+                        <div class="product-stock-slot" ng-class="{'is-sold-out': (item.stockQuantity || 0) === 0}">
+                            <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -107,7 +108,7 @@
                         <span class="label">Product Details:</span>
                         <ul class="specs-list">
                             <li ng-if="!isEnumerable(selectedProduct.stones)">{{selectedProduct.stones}}</li>
-                            <li ng-repeat="stone in selectedProduct.stones" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
+                            <li ng-repeat="stone in selectedProduct.stones track by $index" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
 
                             <li>{{selectedProduct.material}}</li>
                             <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>
@@ -123,10 +124,11 @@
                                 <span class="label">Quantity:</span>
                                 <div class="quantity-controls">
                                     <button type="button" ng-click="changeDetailQty(-1)">-</button>
-                                    <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" />
+                                    <input type="number" min="1" ng-model="qty" ng-model-options="{ debounce: 200 }" ng-change="capDetailQtyToStock()" class="qty-input-numeric" ng-attr-max="{{selectedProduct.stockQuantity || 0}}" />
                                     <button type="button" ng-click="changeDetailQty(1)" ng-disabled="(qty || 0) >= (selectedProduct.stockQuantity || 0)">+</button>
                                 </div>
                             </div>
+                            <p class="detail-qty-stock-warning" ng-if="detailQtyExceedsStockMessage" role="alert">{{detailQtyExceedsStockMessage}}</p>
                             <button class="add-to-cart-btn" ng-click="addToCart(selectedProduct, qty)">
                                 <i class="bi bi-cart-plus"></i>Add to Cart
                             </button>

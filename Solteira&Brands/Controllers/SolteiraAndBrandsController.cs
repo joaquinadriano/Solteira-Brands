@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Data.Entity;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Script.Serialization;
@@ -367,6 +369,25 @@ namespace Solteira_Brands.Controllers
                 var nameTrim = (request.Name ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(nameTrim))
                     return Json(new { success = false, message = "Product name is required." });
+                if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
+                    return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
+
+                var stonesTrim = (request.Stones ?? string.Empty).Trim();
+                var materialTrim = (request.Material ?? string.Empty).Trim();
+                var weightTrim = (request.Weight ?? string.Empty).Trim();
+                var lengthTrim = (request.Length ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(stonesTrim))
+                    return Json(new { success = false, message = "Stones is required." });
+                if (string.IsNullOrWhiteSpace(materialTrim))
+                    return Json(new { success = false, message = "Material is required." });
+                if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Length must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
 
                 // Enforce unique product name (case-insensitive) among non-archived products.
                 var exists = db.tbl_products.Any(p =>
@@ -382,10 +403,10 @@ namespace Solteira_Brands.Controllers
                     Category = (request.Category ?? string.Empty).Trim(),
                     Description = (request.Description ?? string.Empty).Trim(),
                     Price = request.Price,
-                    Material = request.Material,
-                    Stones = request.Stones,
-                    Weight = request.Weight,
-                    Length = request.Length,
+                    Material = materialTrim,
+                    Stones = stonesTrim,
+                    Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim,
+                    Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim,
                     StockQuantity = request.StockQuantity,
                     InitialStock = request.StockQuantity,
                     ImageId = request.ImageId,
@@ -413,10 +434,31 @@ namespace Solteira_Brands.Controllers
             {
                 var product = db.tbl_products.FirstOrDefault(p => p.Id == request.Id.Value);
                 if (product == null) return Json(new { success = false, message = "Product not found." });
+                if (product.IsArchived)
+                    return Json(new { success = false, message = "Archived products cannot be edited. Restore the item first." });
 
                 var nameTrim = (request.Name ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(nameTrim))
                     return Json(new { success = false, message = "Product name is required." });
+                if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
+                    return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
+
+                var stonesTrim = (request.Stones ?? string.Empty).Trim();
+                var materialTrim = (request.Material ?? string.Empty).Trim();
+                var weightTrim = (request.Weight ?? string.Empty).Trim();
+                var lengthTrim = (request.Length ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(stonesTrim))
+                    return Json(new { success = false, message = "Stones is required." });
+                if (string.IsNullOrWhiteSpace(materialTrim))
+                    return Json(new { success = false, message = "Material is required." });
+                if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Length must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
 
                 // Enforce unique product name (case-insensitive) when editing as well.
                 var exists = db.tbl_products.Any(p =>
@@ -431,10 +473,10 @@ namespace Solteira_Brands.Controllers
                 product.Category = (request.Category ?? string.Empty).Trim();
                 product.Description = (request.Description ?? string.Empty).Trim();
                 product.Price = request.Price;
-                product.Material = request.Material;
-                product.Stones = request.Stones;
-                product.Weight = request.Weight;
-                product.Length = request.Length;
+                product.Material = materialTrim;
+                product.Stones = stonesTrim;
+                product.Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim;
+                product.Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim;
                 product.StockQuantity = request.StockQuantity;
                 if (request.ImageId.HasValue) product.ImageId = request.ImageId;
                 product.IsBestSeller = request.IsBestSeller;
@@ -847,8 +889,20 @@ namespace Solteira_Brands.Controllers
                 var user = db.tbl_users.FirstOrDefault(u => u.Username == username);
                 if (user == null) return Json(new { success = false, message = "User not found." });
 
-                if (string.IsNullOrEmpty((request.CustomerName ?? "").Trim()) || string.IsNullOrEmpty((request.ContactNumber ?? "").Trim()) || string.IsNullOrEmpty((request.DeliveryAddress ?? "").Trim()))
-                    return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+                var customerNameTrim = (request.CustomerName ?? "").Trim();
+                var contactTrim = (request.ContactNumber ?? "").Trim();
+                var deliveryAddressTrim = (request.DeliveryAddress ?? "").Trim();
+                if (string.IsNullOrEmpty(customerNameTrim) || string.IsNullOrEmpty(contactTrim) || string.IsNullOrEmpty(deliveryAddressTrim))
+                    return Json(new { success = false, message = "Contact name, contact number, and delivery address are required." });
+                const int checkoutNameMaxLen = 30;
+                const int checkoutAddressMaxLen = 100;
+                if (customerNameTrim.Length > checkoutNameMaxLen)
+                    return Json(new { success = false, message = "Contact name must be " + checkoutNameMaxLen + " characters or fewer." });
+                // Same character rules as buyer registration names (letters, spaces, apostrophe, period, hyphen); no digits.
+                if (!Regex.IsMatch(customerNameTrim, @"^[a-zA-Z\s'\.\-]{1," + checkoutNameMaxLen + "}$"))
+                    return Json(new { success = false, message = "Contact name may only include letters, spaces, apostrophes, periods, and hyphens. No numbers." });
+                if (deliveryAddressTrim.Length > checkoutAddressMaxLen)
+                    return Json(new { success = false, message = "Delivery address must be " + checkoutAddressMaxLen + " characters or fewer." });
 
                 // Server-side stock validation: ensure every item has sufficient stock before creating order
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
@@ -873,9 +927,9 @@ namespace Solteira_Brands.Controllers
                 {
                     UserId = user.Id,
                     OrderNumber = "",
-                    CustomerName = (request.CustomerName ?? "").Trim(),
-                    ContactNumber = (request.ContactNumber ?? "").Trim(),
-                    DeliveryAddress = (request.DeliveryAddress ?? "").Trim(),
+                    CustomerName = customerNameTrim,
+                    ContactNumber = contactTrim,
+                    DeliveryAddress = deliveryAddressTrim,
                     PaymentMethod = paymentMethod,
                     PaymentType = paymentType,
                     TotalAmount = request.TotalAmount,
@@ -1084,6 +1138,30 @@ namespace Solteira_Brands.Controllers
                     verifiedAt = p.VerifiedAt
                 }).ToList();
 
+                // UI normalization:
+                // If the order is stuck on "Awaiting Payment Verification" but the latest rejected payment has AllowResubmit = 0
+                // (and there is no newer SUBMITTED payment), treat it as a final "Cancelled" for admin display.
+                var effectiveOrderStatus = (order.OrderStatus ?? "");
+                var paymentsListForStatus = order.Payments ?? new List<tblPaymentsModel>();
+                if (string.Equals(effectiveOrderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase))
+                {
+                    var latestRejected = paymentsListForStatus
+                        .Where(p => string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefault();
+
+                    if (latestRejected != null && latestRejected.AllowResubmit == 0)
+                    {
+                        var hasNewerSubmitted = paymentsListForStatus.Any(p =>
+                            string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase)
+                            && p.CreatedAt > latestRejected.CreatedAt);
+
+                        if (!hasNewerSubmitted)
+                            // For admin display: treat "reject payment without resubmit" as a final cancellation.
+                            effectiveOrderStatus = OrderStatus.Cancelled;
+                    }
+                }
+
                 var meetupScheduledAt = order.MeetupDatetime ?? (order.Payments != null ? order.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
                 return Json(new
                 {
@@ -1092,7 +1170,9 @@ namespace Solteira_Brands.Controllers
                     {
                         id = order.Id,
                         orderNumber = order.OrderNumber,
-                        orderStatus = order.OrderStatus,
+                        orderStatus = effectiveOrderStatus,
+                        orderRejectionReason = order.RejectionReason,
+                        orderCancellationReason = order.CancellationReason,
                             paymentDeadline = order.PaymentDeadline,
                             paymentDeadlineFormatted = paymentDeadlineFormatted,
                             paymentDeadlineRemainingText = paymentDeadlineRemainingText,
@@ -1182,7 +1262,6 @@ namespace Solteira_Brands.Controllers
                     if (isFinalCancelled)
                     {
                         o.OrderStatus = OrderStatus.Cancelled;
-                        latestPaymentRejectionReason = null;
                     }
                     var verifiedCount = paymentsList.Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase));
                     var totalPaidVerified = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).Sum(p => p.Amount);
@@ -1268,6 +1347,11 @@ namespace Solteira_Brands.Controllers
                             status = downpaymentRowStatus,
                             isNextUnpaid = downpaymentIsNextUnpaid,
                             proofImageUrl = getProofUrl(latest0),
+                            // Proof/payment details used by the "View proof" modal.
+                            proofPaymentStatus = latest0?.PaymentStatus,
+                            proofAmount = latest0?.Amount,
+                            proofCreatedAt = latest0 != null ? latest0.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : null,
+                            proofReferenceNumber = latest0?.ReferenceNumber,
                             rejectionReason = latest0?.RejectionReason
                         });
                         for (var i = 1; i <= monthsAllowed; i++)
@@ -1289,6 +1373,11 @@ namespace Solteira_Brands.Controllers
                                 status = rowStatus,
                                 isNextUnpaid = isNextUnpaid,
                                 proofImageUrl = getProofUrl(latestI),
+                                // Proof/payment details used by the "View proof" modal.
+                                proofPaymentStatus = latestI?.PaymentStatus,
+                                proofAmount = latestI?.Amount,
+                                proofCreatedAt = latestI != null ? latestI.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : null,
+                                proofReferenceNumber = latestI?.ReferenceNumber,
                                 rejectionReason = latestI?.RejectionReason
                             });
                         }
@@ -1687,6 +1776,8 @@ namespace Solteira_Brands.Controllers
             string refTrimmed = (referenceNumber ?? "").Trim();
             if (refTrimmed.Length > 20)
                 return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+            if (refTrimmed.Length > 0 && !Regex.IsMatch(refTrimmed, @"^[A-Za-z0-9]+$"))
+                return Json(new { success = false, message = "Reference number may only contain letters and numbers." });
             if (!isMeetup)
             {
                 if (!proofImageId.HasValue || proofImageId.Value <= 0)
@@ -1852,7 +1943,8 @@ namespace Solteira_Brands.Controllers
                 }).ToList();
 
                 var paymentHistory = (order.Payments ?? new List<tblPaymentsModel>())
-                    .OrderBy(p => p.VerifiedAt ?? p.CreatedAt)
+                    // Most recent first (matches the Date column using VerifiedAt when available).
+                    .OrderByDescending(p => p.VerifiedAt ?? p.CreatedAt)
                     .Select(p => new
                     {
                         paymentId = p.Id,
@@ -2279,7 +2371,7 @@ namespace Solteira_Brands.Controllers
                                      where !p.IsArchived
                                      join img in db.tbl_images on p.ImageId equals img.Id into imgs
                                      from img in imgs.DefaultIfEmpty()
-                                     orderby p.Name
+                                     orderby p.StockQuantity, p.Name
                                      select new
                                      {
                                          id = p.Id,
@@ -2583,6 +2675,19 @@ namespace Solteira_Brands.Controllers
                             order.RemainingBalance = 0;
                             order.OrderStatus = OrderStatus.ReadyForMeetup;
                             order.LastStatusUpdateAt = now;
+                            // Create CTM-* instantly once payment is approved and meetup becomes Ready.
+                            // Prevent duplicates if verification runs multiple times for the same order.
+                            if (!db.tbl_meetup_outcomes.Any(m => m.OrderId == orderId))
+                            {
+                                db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                                {
+                                    OrderId = orderId,
+                                    Status = "READY_FOR_MEETUP",
+                                    CreatedAt = now
+                                });
+                                LogActivity(db, "Meetup Ready for Meetup", "MeetupOutcomes", orderId,
+                                    "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; CTM created.");
+                            }
                             // Payment is effectively completed for meetup orders.
                             order.PaymentDeadline = null;
                         }
@@ -2810,6 +2915,20 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid order status transition." });
                 order.OrderStatus = OrderStatus.ReadyForMeetup;
                 order.LastStatusUpdateAt = DateTime.Now;
+
+                // Create CTM-* immediately for the meetup list (stable ID based on earliest outcome row).
+                var hasReadyOutcome = db.tbl_meetup_outcomes.Any(m =>
+                    m.OrderId == orderId && string.Equals(m.Status, "READY_FOR_MEETUP", StringComparison.OrdinalIgnoreCase));
+                if (!hasReadyOutcome)
+                {
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                    {
+                        OrderId = orderId,
+                        Status = "READY_FOR_MEETUP",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+
                 db.SaveChanges();
                 LogActivity(db, "Ready for Meetup", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
                 return Json(new { success = true, message = "Order is Ready for Meetup.", orderStatus = order.OrderStatus });
@@ -2831,6 +2950,22 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid order status transition." });
                 order.OrderStatus = OrderStatus.Completed;
                 order.LastStatusUpdateAt = DateTime.Now;
+
+                // Store meetup outcome so CTM-* and modal status remain consistent.
+                var latestOutcome = db.tbl_meetup_outcomes
+                    .Where(m => m.OrderId == orderId)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
+                if (latestOutcome == null || !string.Equals(latestOutcome.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase))
+                {
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                    {
+                        OrderId = orderId,
+                        Status = "COMPLETED",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+
                 db.SaveChanges();
                 LogActivity(db, "Meetup Completed", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
                 return Json(new { success = true, message = "Order completed.", orderStatus = order.OrderStatus });
@@ -3067,10 +3202,17 @@ namespace Solteira_Brands.Controllers
                     {
                         var scheduledAt = o.MeetupDatetime
                             ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
+                        // CTM-* should be created instantly when meetup becomes Ready,
+                        // so we display the earliest meetup-outcome row id as the "Meetup ID".
+                        var firstOutcome = db.tbl_meetup_outcomes
+                            .Where(m => m.OrderId == o.Id)
+                            .OrderBy(m => m.CreatedAt)
+                            .FirstOrDefault();
                         return new
                         {
                             id = o.Id,
                             orderNumber = o.OrderNumber,
+                            meetupOutcomeId = firstOutcome != null ? (int?)firstOutcome.Id : null,
                             customerName = o.CustomerName,
                             deliveryAddress = o.DeliveryAddress,
                             contactNumber = o.ContactNumber,
@@ -3353,16 +3495,30 @@ namespace Solteira_Brands.Controllers
 
         [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
+        /// <summary>Sales report by order CreatedAt. Presets use GET; custom range should use <see cref="PostSalesReport"/> for reliable form binding.</summary>
         public JsonResult GetSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        {
+            return BuildSalesReportJson(range, startDate, endDate, category);
+        }
+
+        /// <summary>Same report as GET; POST with application/x-www-form-urlencoded so startDate/endDate always bind for custom range.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public JsonResult PostSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        {
+            return BuildSalesReportJson(range, startDate, endDate, category);
+        }
+
+        private JsonResult BuildSalesReportJson(string range, string startDate, string endDate, string category)
         {
             var now = DateTime.Now;
             DateTime startOfRange;
             DateTime endOfRange;
-            var rangeLower = (range ?? "all").ToLowerInvariant();
+            var rangeLower = (range ?? "all").Trim().ToLowerInvariant();
+            var customReportInvalid = false;
 
             if (rangeLower == "all")
             {
-                // No date filter: use a very wide range to include all orders
                 startOfRange = DateTime.MinValue;
                 endOfRange = DateTime.MaxValue;
             }
@@ -3383,11 +3539,34 @@ namespace Solteira_Brands.Controllers
                         startOfRange = endOfRange.AddDays(-30);
                         break;
                     case "custom":
-                        if (!DateTime.TryParse(startDate, out startOfRange)) startOfRange = now.Date.AddMonths(-1);
-                        if (!DateTime.TryParse(endDate, out endOfRange)) endOfRange = now.Date;
-                        startOfRange = startOfRange.Date;
-                        endOfRange = endOfRange.Date.AddDays(1);
-                        if (startOfRange > endOfRange) { var t = startOfRange; startOfRange = endOfRange.AddDays(-1); endOfRange = t.AddDays(1); }
+                        // Prefer action parameters; fall back to Request[] (Form + QueryString) when binding drops values.
+                        var sTrim = (startDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(sTrim))
+                            sTrim = (Request["startDate"] ?? "").Trim();
+                        var eTrim = (endDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(eTrim))
+                            eTrim = (Request["endDate"] ?? "").Trim();
+                        if (string.IsNullOrEmpty(sTrim) || string.IsNullOrEmpty(eTrim)
+                            || !DateTime.TryParseExact(sTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var startInclusive)
+                            || !DateTime.TryParseExact(eTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var endInclusive))
+                        {
+                            customReportInvalid = true;
+                            startOfRange = DateTime.MinValue;
+                            endOfRange = DateTime.MinValue;
+                        }
+                        else
+                        {
+                            var d0 = startInclusive.Date;
+                            var d1 = endInclusive.Date;
+                            if (d0 > d1)
+                            {
+                                var tmp = d0;
+                                d0 = d1;
+                                d1 = tmp;
+                            }
+                            startOfRange = d0;
+                            endOfRange = d1.AddDays(1);
+                        }
                         break;
                     default:
                         endOfRange = now.Date.AddDays(1);
@@ -3398,18 +3577,19 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                var orderIdsInRange = rangeLower == "all"
-                    ? db.tbl_orders.Select(o => o.Id).ToList()
-                    : db.tbl_orders
-                        .Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange)
-                        .Select(o => o.Id)
-                        .ToList();
+                IQueryable<tblOrdersModel> ordersInRange = db.tbl_orders;
+                if (rangeLower != "all")
+                {
+                    if (customReportInvalid)
+                        ordersInRange = ordersInRange.Where(o => false);
+                    else
+                        ordersInRange = ordersInRange.Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange);
+                }
 
                 var query = from oi in db.tbl_order_items
-                            join o in db.tbl_orders on oi.OrderId equals o.Id
+                            join o in ordersInRange on oi.OrderId equals o.Id
                             join p in db.tbl_products on oi.ProductId equals p.Id into prodJoin
                             from p in prodJoin.DefaultIfEmpty()
-                            where orderIdsInRange.Contains(oi.OrderId)
                             select new { oi, o, p };
 
                 if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))

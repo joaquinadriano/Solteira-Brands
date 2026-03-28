@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Security;
@@ -314,7 +315,24 @@ namespace Solteira_Brands.Controllers
                     var avatarUrl = DefaultAvatarUrl;
                     if (user.AvatarImage != null && !string.IsNullOrEmpty(user.AvatarImage.ImagePath) && !string.IsNullOrEmpty(user.AvatarImage.ImageFileName))
                         avatarUrl = user.AvatarImage.ImagePath + user.AvatarImage.ImageFileName;
-                    return Json(new { success = true, username = user.Username, email = user.Email, avatarUrl },
+                    DateTime? cooldownUntilUtc = null;
+                    long? cooldownUntilUnixMs = null;
+                    if (user.UsernameChangedAt.HasValue)
+                    {
+                        cooldownUntilUtc = user.UsernameChangedAt.Value.AddDays(30);
+                        cooldownUntilUnixMs = new DateTimeOffset(DateTime.SpecifyKind(cooldownUntilUtc.Value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
+                    }
+
+                    return Json(new
+                    {
+                        success = true,
+                        username = user.Username,
+                        firstName = user.FirstName,
+                        lastName = user.LastName,
+                        email = user.Email,
+                        avatarUrl,
+                        usernameCooldownUntilUnixMs = cooldownUntilUnixMs
+                    },
                         JsonRequestBehavior.AllowGet);
                 }
             }
@@ -329,7 +347,7 @@ namespace Solteira_Brands.Controllers
         /// </summary>
         [HttpPost]
         [Authorize]
-        public ActionResult UpdateProfile(int? avatarImageId, string username)
+        public ActionResult UpdateProfile(int? avatarImageId, string username, string firstName, string lastName)
         {
             var currentUsername = User.Identity.Name;
             if (string.IsNullOrEmpty(currentUsername))
@@ -343,6 +361,25 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "User not found." });
                     if (avatarImageId.HasValue)
                         user.AvatarImageId = avatarImageId.Value;
+
+                    // First/Last name validations (not unique; only max length + allowed characters)
+                    var trimmedFirstName = (firstName ?? string.Empty).Trim();
+                    var trimmedLastName = (lastName ?? string.Empty).Trim();
+                    var nameRegex = new Regex(@"^[a-zA-Z\s'\.-]+$");
+
+                    if (string.IsNullOrWhiteSpace(trimmedFirstName))
+                        return Json(new { success = false, message = "First name is required." });
+                    if (trimmedFirstName.Length > 50 || !nameRegex.IsMatch(trimmedFirstName))
+                    return Json(new { success = false, message = "First name must be letters only. Max 50 characters." });
+
+                    if (string.IsNullOrWhiteSpace(trimmedLastName))
+                        return Json(new { success = false, message = "Last name is required." });
+                    if (trimmedLastName.Length > 50 || !nameRegex.IsMatch(trimmedLastName))
+                    return Json(new { success = false, message = "Last name must be letters only. Max 50 characters." });
+
+                    user.FirstName = trimmedFirstName;
+                    user.LastName = trimmedLastName;
+
                     if (!string.IsNullOrWhiteSpace(username))
                     {
                         var trimmed = username.Trim();
@@ -350,9 +387,39 @@ namespace Solteira_Brands.Controllers
                             return Json(new { success = false, message = "Username must not exceed 14 characters." });
                         if (trimmed.Any(char.IsWhiteSpace))
                             return Json(new { success = false, message = "Username must not contain spaces." });
+
+                        var isChangingUsername = !string.Equals(trimmed, user.Username, StringComparison.Ordinal);
+
+                        // 30-day cooldown on username changes.
+                        if (isChangingUsername)
+                        {
+                            if (user.UsernameChangedAt.HasValue)
+                            {
+                                var cooldownUntilUtc = user.UsernameChangedAt.Value.AddDays(30);
+                                var nowUtc = DateTime.UtcNow;
+                                if (nowUtc < cooldownUntilUtc)
+                                {
+                                    var remaining = cooldownUntilUtc - nowUtc;
+                                    var remainingText = remaining.TotalDays >= 1
+                                        ? string.Format("{0} day(s)", (int)Math.Floor(remaining.TotalDays))
+                                        : string.Format("{0} hour(s)", remaining.TotalHours >= 1 ? (int)Math.Floor(remaining.TotalHours) : 0);
+
+                                    var cooldownUntilUnixMs = new DateTimeOffset(DateTime.SpecifyKind(cooldownUntilUtc, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
+                                    return Json(new
+                                    {
+                                        success = false,
+                                        message = "You can only change your username every 30 days. Try again in " + remainingText + ".",
+                                        cooldownUntilUnixMs = cooldownUntilUnixMs
+                                    });
+                                }
+                            }
+                        }
+
                         if (db.tbl_users.Any(u => u.Username == trimmed && u.Id != user.Id))
                             return Json(new { success = false, message = "Username already taken." });
                         user.Username = trimmed;
+                        if (isChangingUsername)
+                            user.UsernameChangedAt = DateTime.UtcNow;
                     }
                     db.SaveChanges();
                     IssueAuthCookie(user);
@@ -408,7 +475,7 @@ namespace Solteira_Brands.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Register(string email, string username, string password, string verifyPassword, bool acceptedTerms = false)
+        public ActionResult Register(string email, string username, string password, string verifyPassword, bool acceptedTerms = false, string firstName = null, string lastName = null)
         {
             var errors = new System.Collections.Generic.Dictionary<string, string>();
 
@@ -450,6 +517,21 @@ namespace Solteira_Brands.Controllers
                 errors["password"] = passwordError;
             }
 
+            // First/Last name validations (not unique; only max length + allowed characters)
+            var nameRegex = new Regex(@"^[a-zA-Z\s'\.-]+$");
+            var trimmedFirstName = (firstName ?? string.Empty).Trim();
+            var trimmedLastName = (lastName ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(trimmedFirstName))
+                errors["firstName"] = "First name is required.";
+            else if (trimmedFirstName.Length > 50 || !nameRegex.IsMatch(trimmedFirstName))
+                errors["firstName"] = "First name must be letters only. Max 50 characters.";
+
+            if (string.IsNullOrWhiteSpace(trimmedLastName))
+                errors["lastName"] = "Last name is required.";
+            else if (trimmedLastName.Length > 50 || !nameRegex.IsMatch(trimmedLastName))
+                errors["lastName"] = "Last name must be letters only. Max 50 characters.";
+
             bool emailSent = false;
             using (var db = new SolteiraBrandsContext())
             {
@@ -480,11 +562,15 @@ namespace Solteira_Brands.Controllers
                     RoleId = buyerRole.Id,
                     Email = email.Trim(),
                     Username = username.Trim(),
+                    FirstName = trimmedFirstName,
+                    LastName = trimmedLastName,
                     PasswordHash = hashBase64,
                     PasswordSalt = saltBase64,
                     IsVerified = false,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
+                    // Username cooldown should start only after the first successful username change attempt.
+                    UsernameChangedAt = null,
                     AcceptedTerms = acceptedTerms,
                     AcceptedAt = acceptedTerms ? (DateTime?)DateTime.UtcNow : null
                 };
@@ -825,13 +911,41 @@ namespace Solteira_Brands.Controllers
             using (var db = new SolteiraBrandsContext())
             {
                 var query = db.tbl_users.AsQueryable();
+                tblUsersModel current = null;
 
                 if (ignoreCurrent && User != null && User.Identity != null && User.Identity.IsAuthenticated)
                 {
-                    var current = db.tbl_users.FirstOrDefault(u => u.Username == User.Identity.Name);
+                    current = db.tbl_users.FirstOrDefault(u => u.Username == User.Identity.Name);
                     if (current != null)
                     {
                         query = query.Where(u => u.Id != current.Id);
+                    }
+                }
+
+                // 30-day cooldown on username changes (only relevant when the user is changing their own username).
+                if (current != null && !string.Equals(trimmed, current.Username, StringComparison.Ordinal))
+                {
+                    if (current.UsernameChangedAt.HasValue)
+                    {
+                        var cooldownUntilUtc = current.UsernameChangedAt.Value.AddDays(30);
+                        var nowUtc = DateTime.UtcNow;
+                        if (nowUtc < cooldownUntilUtc)
+                        {
+                            var remaining = cooldownUntilUtc - nowUtc;
+                            var remainingText = remaining.TotalDays >= 1
+                                ? string.Format("{0} day(s)", (int)Math.Floor(remaining.TotalDays))
+                                : string.Format("{0} hour(s)", remaining.TotalHours >= 1 ? (int)Math.Floor(remaining.TotalHours) : 0);
+
+                            var cooldownUntilUnixMs = new DateTimeOffset(DateTime.SpecifyKind(cooldownUntilUtc, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
+
+                            return Json(new
+                            {
+                                available = false,
+                                cooldownActive = true,
+                                cooldownUntilUnixMs = cooldownUntilUnixMs,
+                                message = "You can only change your username every 30 days. Try again in " + remainingText + "."
+                            }, JsonRequestBehavior.AllowGet);
+                        }
                     }
                 }
 

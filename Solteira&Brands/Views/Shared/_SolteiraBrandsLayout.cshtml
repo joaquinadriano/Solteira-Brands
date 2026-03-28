@@ -25,6 +25,7 @@
         bool isBuyer = isLoggedIn && User.IsInRole("BUYER");
         bool isInventoryRole = isLoggedIn && (User.IsInRole("ADMIN") || User.IsInRole("MANAGER") || User.IsInRole("STAFF"));
         var displayName = isLoggedIn ? User.Identity.Name : "Guest";
+        var displayNameJs = System.Web.HttpUtility.JavaScriptStringEncode(displayName ?? "User");
     }
 
     <header class="navbar-wrapper">
@@ -116,7 +117,7 @@
                                         <div class="avatar-circle me-2">
                                             <img id="sbMobileLayoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
-                                        <span class="profile-name fw-bold">@displayName</span>
+                                        <span class="profile-name fw-bold js-layout-profile-name">@displayName</span>
                                     </div>
                                 </li>
 
@@ -146,12 +147,11 @@
                                         <div class="avatar-circle me-2">
                                             <img id="sbMobileLayoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
-                                        <span class="profile-name fw-bold">@displayName</span>
+                                        <span class="profile-name fw-bold js-layout-profile-name">@displayName</span>
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider fw-bold"></li>
                                 <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
-                                <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
                                 <li><hr class="dropdown-divider" /></li>
                                 <li>@Html.Partial("_LogoutForm")</li>
                             </ul>
@@ -225,7 +225,7 @@
                                         <div class="avatar-circle me-2">
                                             <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
-                                        <span class="profile-name fw-bold">@displayName</span>
+                                        <span class="profile-name fw-bold js-layout-profile-name">@displayName</span>
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider fw-bold"></li>
@@ -241,12 +241,11 @@
                                         <div class="avatar-circle me-2">
                                             <img id="layoutProfileImg" src="@Url.Content("~/Content/img/shared/default-avatar.svg")" class="rounded-circle" alt="" />
                                         </div>
-                                        <span class="profile-name fw-bold">@displayName</span>
+                                        <span class="profile-name fw-bold js-layout-profile-name">@displayName</span>
                                     </div>
                                 </li>
                                 <li><hr class="dropdown-divider fw-bold"></li>
                                 <li><a class="dropdown-item" href="@Url.Action("Settings","Account")">Account Settings</a></li>
-                                <li><a class="dropdown-item" href="@Url.Action("AdminDashboardPage","SolteiraAndBrands")">Inventory Dashboard</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>@Html.Partial("_LogoutForm")</li>
                             }
@@ -423,6 +422,39 @@
     {
         <script>
             (function () {
+                function renderLayoutProfileNames(firstName, lastName, fallback) {
+                    var f = (firstName || '').trim();
+                    var l = (lastName || '').trim();
+                    var full = (f + (f && l ? ' ' : '') + l).trim();
+                    var defaultText = (fallback || 'User').trim() || 'User';
+
+                    var nameNodes = document.querySelectorAll('.js-layout-profile-name');
+                    if (!nameNodes || !nameNodes.length) return;
+
+                    for (var i = 0; i < nameNodes.length; i++) {
+                        var node = nameNodes[i];
+                        if (!full) {
+                            node.textContent = defaultText;
+                            continue;
+                        }
+
+                        if (full.length <= 20) {
+                            node.innerHTML = '<span class="name-line">' + full + '</span>';
+                            continue;
+                        }
+
+                        var line1 = f ? (f.length > 20 ? (f.substring(0, 20) + '...') : f) : '';
+                        var line2 = l ? (l.length > 20 ? (l.substring(0, 20) + '...') : l) : '';
+                        if (!line1 && full) line1 = full.length > 20 ? (full.substring(0, 20) + '...') : full;
+                        if (!line2 && full.length > 20) line2 = full.substring(20, 40);
+                        if (line2 && line2.length > 20) line2 = line2.substring(0, 20) + '...';
+
+                        node.innerHTML = '<span class="name-line">' + line1 + '</span>' + (line2 ? ('<span class="name-line">' + line2 + '</span>') : '');
+                    }
+                }
+
+                window.updateLayoutProfileNameDisplay = renderLayoutProfileNames;
+
                 var xhr = new XMLHttpRequest();
                 xhr.open('GET', '/Account/GetMyProfile', true);
                 xhr.withCredentials = true;
@@ -430,13 +462,16 @@
                     if (xhr.readyState === 4 && xhr.status === 200) {
                         try {
                             var d = JSON.parse(xhr.responseText);
-                            if (d.success && d.avatarUrl) {
-                                var el = document.getElementById('layoutProfileImg');
-                                var trigger = document.getElementById('layoutProfileImgTrigger');
-                                var mobileEl = document.getElementById('sbMobileLayoutProfileImg');
-                                if (el) el.src = d.avatarUrl;
-                                if (trigger) trigger.src = d.avatarUrl;
-                                if (mobileEl) mobileEl.src = d.avatarUrl;
+                            if (d.success) {
+                                if (d.avatarUrl) {
+                                    var el = document.getElementById('layoutProfileImg');
+                                    var trigger = document.getElementById('layoutProfileImgTrigger');
+                                    var mobileEl = document.getElementById('sbMobileLayoutProfileImg');
+                                    if (el) el.src = d.avatarUrl;
+                                    if (trigger) trigger.src = d.avatarUrl;
+                                    if (mobileEl) mobileEl.src = d.avatarUrl;
+                                }
+                                renderLayoutProfileNames(d.firstName, d.lastName, '@Html.Raw(displayNameJs)');
                             }
                         } catch (e) { }
                     }

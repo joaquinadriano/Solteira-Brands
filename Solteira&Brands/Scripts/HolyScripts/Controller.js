@@ -502,6 +502,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var tnNumber = tnParts[0] || '';
                 var tnLink = tnParts.length > 1 ? tnParts[1] : '';
                 $scope.editTrackingNumberTouched = false;
+                var statusUp = (ov.deliveryStatus || '').toUpperCase();
+                // Edit UI cannot set PENDING; default PENDING shipments to IN_TRANSIT in the dropdown.
+                var formDeliveryStatus = statusUp === 'PENDING' ? 'IN_TRANSIT' : (statusUp === 'DELIVERED' ? 'DELIVERED' : 'IN_TRANSIT');
                 $scope.editDeliveryForm = {
                     courierChoice: courierChoice,
                     otherCourierName: '',
@@ -509,7 +512,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     trackingLink: tnLink,
                     dispatchDate: ov.dispatchDateIso || '',
                     eta: ov.etaIso || '',
-                    deliveryStatus: ov.deliveryStatus || 'IN_TRANSIT'
+                    deliveryStatus: formDeliveryStatus
                 };
                 var el = document.getElementById('deliveryEditModal');
                 if (el && window.bootstrap) { var m = new bootstrap.Modal(el); m.show(); }
@@ -555,6 +558,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             }
             if ($scope.editDeliveryForm.dispatchDate && $scope.editDeliveryForm.eta && $scope.editDeliveryForm.eta < $scope.editDeliveryForm.dispatchDate) {
                 Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
+                return;
+            }
+            var minDateStr = toYyyyMmDd(new Date());
+            var dispStr = toYyyyMmDd($scope.editDeliveryForm.dispatchDate) || ($scope.editDeliveryForm.dispatchDate || '').toString().trim().substring(0, 10);
+            var etaStr = toYyyyMmDd($scope.editDeliveryForm.eta) || ($scope.editDeliveryForm.eta || '').toString().trim().substring(0, 10);
+            if (dispStr && dispStr < minDateStr) {
+                Swal.fire({ icon: 'warning', title: 'Invalid dispatch date', text: 'Dispatch date must be today or a future date.' });
+                return;
+            }
+            if (etaStr && etaStr < minDateStr) {
+                Swal.fire({ icon: 'warning', title: 'Invalid ETA', text: 'ETA must be today or a future date.' });
                 return;
             }
         } else {
@@ -672,6 +686,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var s = (typeof val === 'string') ? val.trim() : String(val).trim();
         return s || null;
     }
+    $scope.getShipmentDateInputMin = function () {
+        return toYyyyMmDd(new Date());
+    };
     /** Read yyyy-MM-dd from native date input (reliable when ng-model does not sync in modals). */
     function readDateInputYyyyMmDd(elementId) {
         try {
@@ -742,6 +759,11 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'ETA cannot be earlier than the dispatch date.' });
             return;
         }
+        var minDateStr = toYyyyMmDd(new Date());
+        if (dispatchDate < minDateStr || eta < minDateStr) {
+            Swal.fire({ icon: 'warning', title: 'Invalid dates', text: 'Dispatch date and ETA must be today or a future date.' });
+            return;
+        }
 
         var trackingNumber = rawNumber || null;
 
@@ -775,8 +797,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     }
                 } catch (e) { }
                 if ($scope.meetupOrdersList && $scope.meetupOrdersList.length > 0) {
-                    // Sort meetup list by Order ID column (index 0) so latest ORD-* appears first.
-                    window.initializeStandardTable('#deliveryMeetupTable', 0);
+                    // Sort meetup list by Order ID column (index 1) so latest ORD-* appears first.
+                    window.initializeStandardTable('#deliveryMeetupTable', 1);
                 }
             }, 150);
         }, function (err) {
@@ -1023,6 +1045,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.rejectPayment = function (paymentId) {
         if (!paymentId) return;
+        var orderIdFromList = null;
+        if ($scope.paymentsList && $scope.paymentsList.length) {
+            for (var k = 0; k < $scope.paymentsList.length; k++) {
+                var pr = $scope.paymentsList[k];
+                if (pr && pr.paymentId === paymentId) {
+                    orderIdFromList = pr.orderId;
+                    break;
+                }
+            }
+        }
         Swal.fire({
             title: 'Reject payment',
             input: 'textarea',
@@ -1031,7 +1063,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             inputAttributes: { 'aria-label': 'Rejection reason', rows: 4 },
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Reject',
+            confirmButtonText: 'Next',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#dc3545',
             inputValidator: function (value) {
@@ -1039,32 +1071,73 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 return null;
             }
         }).then(function (result) {
-            if (result.isConfirmed && result.value) {
-                // Quick reject from list: default to allow resubmission
-                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim(), true).then(function (res) {
-                    if (res.data && res.data.success) {
-                        // Immediate local update for rejected payment.
-                        if ($scope.paymentsList && $scope.paymentsList.length) {
-                            for (var i = 0; i < $scope.paymentsList.length; i++) {
-                                var p = $scope.paymentsList[i];
-                                if (p && p.paymentId === paymentId) {
-                                    p.paymentStatus = 'REJECTED';
-                                    p.rejectionReason = result.value.trim();
-                                    break;
-                                }
+            if (!result.isConfirmed || !result.value) return;
+            var reasonTrim = result.value.trim();
+            Swal.fire({
+                title: 'Allow buyer to resubmit?',
+                text: 'If you choose No, you will be asked whether to return items to stock when the order is cancelled (same as on the Orders page).',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, allow resubmit',
+                cancelButtonText: 'No, final rejection'
+            }).then(function (resubmitChoice) {
+                if (!resubmitChoice.isConfirmed && resubmitChoice.dismiss !== 'cancel') return;
+                var allowResubmitQuick = !!resubmitChoice.isConfirmed;
+                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reasonTrim, allowResubmitQuick).then(function (res) {
+                    if (!(res.data && res.data.success)) {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                        return;
+                    }
+                    if ($scope.paymentsList && $scope.paymentsList.length) {
+                        for (var i = 0; i < $scope.paymentsList.length; i++) {
+                            var p = $scope.paymentsList[i];
+                            if (p && p.paymentId === paymentId) {
+                                p.paymentStatus = 'REJECTED';
+                                p.rejectionReason = reasonTrim;
+                                break;
                             }
                         }
-                        $scope.refreshSelectedOrderDetails();
-                        if ($scope.loadPayments) $scope.loadPayments();
-                        $scope.closePaymentProofModal();
-                        Swal.fire({ title: 'Payment rejected', icon: 'success', confirmButtonText: 'OK' });
+                    }
+                    $scope.refreshSelectedOrderDetails();
+                    if ($scope.loadPayments) $scope.loadPayments();
+                    $scope.closePaymentProofModal();
+                    var msgQuick = allowResubmitQuick ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
+                    if (!allowResubmitQuick && orderIdFromList) {
+                        Swal.fire({
+                            title: 'Return items to stock?',
+                            text: 'The order will be cancelled. Do you want to return these items to active inventory?',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, return to stock',
+                            cancelButtonText: 'No, keep stock as is'
+                        }).then(function (choice) {
+                            if (choice.isConfirmed) {
+                                SolteiraAndBrandsService.updateOrderStatus(orderIdFromList, 'Cancelled', reasonTrim, true).then(function (ores) {
+                                    if (ores.data && ores.data.success) {
+                                        Swal.fire({ title: 'Payment rejected', text: 'The order was cancelled and items were returned to stock.', icon: 'success', confirmButtonText: 'OK' });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Could not cancel order', text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled.' });
+                                    }
+                                });
+                            } else if (choice.dismiss === 'cancel') {
+                                SolteiraAndBrandsService.updateOrderStatus(orderIdFromList, 'Cancelled', reasonTrim, false).then(function (ores) {
+                                    if (ores.data && ores.data.success) {
+                                        Swal.fire({ title: 'Payment rejected', text: 'The order was cancelled. Stock levels were not changed.', icon: 'success', confirmButtonText: 'OK' });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Could not cancel order', text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled.' });
+                                    }
+                                });
+                            } else {
+                                Swal.fire({ title: 'Payment rejected', text: 'The order was not cancelled. Cancel it from the Orders page if you still need to close it.', icon: 'info', confirmButtonText: 'OK' });
+                            }
+                        });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                        Swal.fire({ title: 'Payment rejected', text: msgQuick, icon: 'success', confirmButtonText: 'OK' });
                     }
                 }, function (err) {
                     Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
                 });
-            }
+            });
         });
     };
 
@@ -1184,6 +1257,20 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (s === 'Pending Downpayment') return 'Pending Downpayment';
         return orderStatus;
     };
+    /**
+     * Latest rejected payment reason for admin order details modal.
+     * Backend returns payments sorted by CreatedAt DESC, so first match is "latest".
+     */
+    $scope.getLatestRejectedPaymentReason = function (payments) {
+        if (!payments || !payments.length) return null;
+        for (var i = 0; i < payments.length; i++) {
+            var p = payments[i];
+            if (!p) continue;
+            var status = (p.paymentStatus || '').toString().toUpperCase();
+            if (status === 'REJECTED' && p.rejectionReason) return p.rejectionReason;
+        }
+        return null;
+    };
     $scope.verifyPaymentFromModal = function () {
         if (!$scope.selectedPayment || !$scope.selectedPayment.paymentId) return;
         var paymentId = $scope.selectedPayment.paymentId;
@@ -1243,6 +1330,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
         var allowResubmit = !!($scope.paymentModalForm && $scope.paymentModalForm.allowResubmit);
         var paymentId = $scope.selectedPayment.paymentId;
+        var orderIdForCancel = ($scope.paymentDetail && $scope.paymentDetail.orderSummary && $scope.paymentDetail.orderSummary.id)
+            ? $scope.paymentDetail.orderSummary.id
+            : null;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason, allowResubmit).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.paymentModalForm.rejectionReason = '';
@@ -1263,41 +1353,82 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.closePaymentProofModal();
                 var msg = allowResubmit ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
 
-                // For final rejections (no resubmit), also ask whether to return items to stock.
-                if (!allowResubmit && $scope.paymentDetail && $scope.paymentDetail.orderSummary && $scope.paymentDetail.orderSummary.id) {
-                    var orderId = $scope.paymentDetail.orderSummary.id;
+                function finishPaymentRejectFlow(title, text, icon) {
+                    Swal.fire({
+                        title: title || 'Payment rejected',
+                        text: text || msg,
+                        icon: icon || 'success',
+                        confirmButtonText: 'OK'
+                    }).then(function () {
+                        $scope.paymentSuccessSwalPending = false;
+                        window.location.reload();
+                    });
+                }
+
+                // Final rejection (no resubmit): cancel the order and match Orders admin — optional return to stock.
+                if (!allowResubmit && orderIdForCancel) {
                     Swal.fire({
                         title: 'Return items to stock?',
-                        text: 'Order will be rejected. Do you want to return these items to active inventory?',
+                        text: 'The order will be cancelled. Do you want to return these items to active inventory?',
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Yes, return to stock',
                         cancelButtonText: 'No, keep stock as is'
                     }).then(function (choice) {
                         if (choice.isConfirmed) {
-                            // Yes → cancel and restore stock.
-                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, true);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                                $scope.paymentSuccessSwalPending = false;
-                                window.location.reload();
+                            SolteiraAndBrandsService.updateOrderStatus(orderIdForCancel, 'Cancelled', reason, true).then(function (ores) {
+                                if (ores.data && ores.data.success) {
+                                    finishPaymentRejectFlow('Payment rejected', 'The order was cancelled and items were returned to stock.', 'success');
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Could not cancel order',
+                                        text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled. Cancel it from the Orders page.'
+                                    }).then(function () {
+                                        $scope.paymentSuccessSwalPending = false;
+                                        window.location.reload();
+                                    });
+                                }
+                            }, function (err) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Could not cancel order',
+                                    text: (err.data && err.data.message) || 'Payment was rejected, but the order could not be cancelled.'
+                                }).then(function () {
+                                    $scope.paymentSuccessSwalPending = false;
+                                    window.location.reload();
+                                });
                             });
                         } else if (choice.dismiss === 'cancel') {
-                            // "No, keep stock as is" → cancel order but do not touch stock.
-                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, false);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                                $scope.paymentSuccessSwalPending = false;
-                                window.location.reload();
+                            SolteiraAndBrandsService.updateOrderStatus(orderIdForCancel, 'Cancelled', reason, false).then(function (ores) {
+                                if (ores.data && ores.data.success) {
+                                    finishPaymentRejectFlow('Payment rejected', 'The order was cancelled. Stock levels were not changed.', 'success');
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Could not cancel order',
+                                        text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled. Cancel it from the Orders page.'
+                                    }).then(function () {
+                                        $scope.paymentSuccessSwalPending = false;
+                                        window.location.reload();
+                                    });
+                                }
+                            }, function (err) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Could not cancel order',
+                                    text: (err.data && err.data.message) || 'Payment was rejected, but the order could not be cancelled.'
+                                }).then(function () {
+                                    $scope.paymentSuccessSwalPending = false;
+                                    window.location.reload();
+                                });
                             });
                         } else {
-                            // X / backdrop / Esc → abort without cancelling the order.
-                            return;
+                            finishPaymentRejectFlow('Payment rejected', 'The order was not cancelled. Cancel it from the Orders page if you still need to close it.', 'info');
                         }
                     });
                 } else {
-                    Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                        $scope.paymentSuccessSwalPending = false;
-                        window.location.reload();
-                    });
+                    finishPaymentRejectFlow('Payment rejected', msg, 'success');
                 }
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -1313,16 +1444,25 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         downpaymentPercentage: 30, monthsAllowed: 3,
         meetupLocationName: '', meetupAddress: ''
     };
+    function normalizeAccountNameValue(accountName) {
+        var value = (accountName || '').toString().trim();
+        var lowered = value.toLowerCase();
+        // Prevent legacy default labels from appearing as actual saved values.
+        if (lowered === 'gcash' || lowered === 'bank transfer' || lowered === 'bank / account name' || lowered === 'account name') {
+            return '';
+        }
+        return value;
+    }
     $scope.pendingQrType = null;
     $scope.openPaymentSettingsModal = function () {
         SolteiraAndBrandsService.getPaymentSettingsForAdmin().then(function (res) {
             if (res.data && res.data.success) {
                 var g = res.data.gcash, b = res.data.bankTransfer;
-                $scope.paymentSettingsForm.gcashAccountName = g ? (g.accountName || '') : '';
+                $scope.paymentSettingsForm.gcashAccountName = g ? normalizeAccountNameValue(g.accountName) : '';
                 $scope.paymentSettingsForm.gcashAccountNumber = g ? (g.accountNumber || '') : '';
                 $scope.paymentSettingsForm.gcashQrImageId = g ? g.qrImageId : null;
                 $scope.paymentSettingsForm.gcashQrImageUrl = g && g.qrImageUrl ? g.qrImageUrl : null;
-                $scope.paymentSettingsForm.bankAccountName = b ? (b.accountName || '') : '';
+                $scope.paymentSettingsForm.bankAccountName = b ? normalizeAccountNameValue(b.accountName) : '';
                 $scope.paymentSettingsForm.bankAccountNumber = b ? (b.accountNumber || '') : '';
                 $scope.paymentSettingsForm.bankQrImageId = b ? b.qrImageId : null;
                 $scope.paymentSettingsForm.bankQrImageUrl = b && b.qrImageUrl ? b.qrImageUrl : null;
@@ -1421,6 +1561,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
+    /** @type {number} Must match server ProductFieldConstraints.MaxNameLength */
+    var INVENTORY_PRODUCT_NAME_MAX_LEN = 30;
+    /** @type {number} Must match server ProductFieldConstraints.MaxSpecFieldLength */
+    var INVENTORY_SPEC_FIELD_MAX_LEN = 50;
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
     $scope.inventorySearchText = '';
@@ -1488,7 +1632,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.inventoryTableVisible = true;
                 $timeout(function () {
                     if (typeof window.initializeStandardTable !== 'function') return;
-                    window.initializeStandardTable('#inventoryTable', 1);
+                    window.initializeStandardTable('#inventoryTable', 0);
                 }, 0);
             }, 0);
         }, function () {
@@ -1511,6 +1655,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.inventoryFileValidationMessage = '';
     $scope.inventoryEditFileValidationMessage = '';
+
+    /** Clears add-item photo selection (native file input keeps filename until value is reset). */
+    $scope.resetInventoryAddPhotoInput = function () {
+        $scope.inventoryPhotoFile = null;
+        $scope.inventoryFileValidationMessage = '';
+        var el = document.getElementById('inventoryAddPhotoInput');
+        if (el) el.value = '';
+    };
 
     $scope.onInventoryFileSelected = function (files) {
         $scope.inventoryFileValidationMessage = '';
@@ -1576,10 +1728,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.createInventoryProduct = function () {
         $scope.inventoryFileValidationMessage = '';
-        if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || !$scope.newProduct.stockQuantity) {
+        var stockMissing = $scope.newProduct.stockQuantity === null || $scope.newProduct.stockQuantity === undefined || String($scope.newProduct.stockQuantity).trim() === '';
+        if (!$scope.newProduct.name || !$scope.newProduct.category || !$scope.newProduct.price || stockMissing) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        var newNameTrim = String($scope.newProduct.name).trim();
+        if (newNameTrim.length > INVENTORY_PRODUCT_NAME_MAX_LEN) {
+            Swal.fire({
+                title: 'Product name too long',
+                text: 'Product name must be at most ' + INVENTORY_PRODUCT_NAME_MAX_LEN + ' characters.',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
@@ -1590,7 +1753,12 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ title: 'Invalid price', text: 'Selling price cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
-        var stockNum = parseInt($scope.newProduct.stockQuantity, 10);
+        var stockStr = String($scope.newProduct.stockQuantity).trim();
+        if (!/^\d+$/.test(stockStr)) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity must be whole numbers only (0 or more).', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        var stockNum = parseInt(stockStr, 10);
         if (isNaN(stockNum) || stockNum < 0) {
             Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
@@ -1602,6 +1770,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
+            return;
+        }
+        var stonesAddTrim = String($scope.newProduct.stones).trim();
+        var materialAddTrim = String($scope.newProduct.material).trim();
+        var weightAddTrim = String($scope.newProduct.weight || '').trim();
+        var lengthAddTrim = String($scope.newProduct.length || '').trim();
+        if (stonesAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Stones too long', text: 'Stones must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (materialAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Material too long', text: 'Material must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (weightAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Weight too long', text: 'Weight must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (lengthAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Length too long', text: 'Length must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
         if (!$scope.inventoryPhotoFile) {
@@ -1634,8 +1822,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 if (res.data && res.data.success) {
                     $('#inventoryAddItemModal').modal('hide');
                     $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
-                    $scope.inventoryPhotoFile = null;
-                    $scope.inventoryFileValidationMessage = '';
+                    $scope.resetInventoryAddPhotoInput();
                     Swal.fire({
                         title: 'Inventory item added!',
                         text: 'Click OK to update the inventory list.',
@@ -1706,15 +1893,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         $('#inventoryViewPhotoModal').modal('hide');
         $scope.viewPhotoItem = null;
     };
-    /** Photo column only: same-page fullscreen overlay, image only (no details modal). */
-    $scope.openInventoryPhotoOnly = function (item) {
-        if (!item) return;
-        var url = item.imageUrl;
-        if (url == null || String(url).trim() === '') {
-            url = $scope.inventoryDefaultPhotoUrl || '/Content/img/shared/default-product.svg';
-        }
-        $scope.openImagePreview(url);
-    };
     $scope.openImagePreview = function (src) {
         if (!src) return;
         var overlay = document.createElement('div');
@@ -1749,7 +1927,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var s = String(v).trim();
         if (!s) return '';
         if (/^[\u002D\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D\u00AD\s]+$/.test(s)) return '';
-        if (/^â€/.test(s)) return '';
+        // UTF-8 em dash placeholder mis-decoded (e.g. U+00C2 U+20AC U+201D shows as "Â€"")
+        if (/^[\u00E2\u00C2]\u20AC[\u201D\u0022]?$/.test(s)) return '';
         return s;
     };
     function escapeHtml(text) {
@@ -1764,22 +1943,43 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         return $sce.trustAsHtml(safe);
     };
     $scope.openEditProduct = function (item) {
-        if (!item) return;
+        if (!item || $scope.showArchivedInventory) return;
         $scope.editProduct = angular.copy(item);
         $scope.inventoryEditPhotoFile = null;
         $('#inventoryEditItemModal').modal('show');
     };
 
     $scope.updateInventoryProduct = function () {
-        if (!$scope.editProduct || !$scope.editProduct.id) return;
+        if (!$scope.editProduct || !$scope.editProduct.id || $scope.showArchivedInventory) return;
         $scope.inventoryEditFileValidationMessage = '';
-        if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || !$scope.editProduct.stockQuantity) {
+        var stockMissing = $scope.editProduct.stockQuantity === null || $scope.editProduct.stockQuantity === undefined || String($scope.editProduct.stockQuantity).trim() === '';
+        if (!$scope.editProduct.name || !$scope.editProduct.category || !$scope.editProduct.price || stockMissing) {
             Swal.fire({
                 title: 'Missing required fields',
                 text: 'Please fill in necessary fields *',
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
+            return;
+        }
+        var editNameTrim = String($scope.editProduct.name).trim();
+        if (editNameTrim.length > INVENTORY_PRODUCT_NAME_MAX_LEN) {
+            Swal.fire({
+                title: 'Product name too long',
+                text: 'Product name must be at most ' + INVENTORY_PRODUCT_NAME_MAX_LEN + ' characters.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        var stockStr = String($scope.editProduct.stockQuantity).trim();
+        if (!/^\d+$/.test(stockStr)) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity must be whole numbers only (0 or more).', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        var stockNum = parseInt(stockStr, 10);
+        if (isNaN(stockNum) || stockNum < 0) {
+            Swal.fire({ title: 'Invalid stock', text: 'Stock quantity cannot be negative.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
         if (!$scope.editProduct.stones || !$scope.editProduct.material) {
@@ -1789,6 +1989,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
+            return;
+        }
+        var stonesEditTrim = String($scope.editProduct.stones).trim();
+        var materialEditTrim = String($scope.editProduct.material).trim();
+        var weightEditTrim = String($scope.editProduct.weight || '').trim();
+        var lengthEditTrim = String($scope.editProduct.length || '').trim();
+        if (stonesEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Stones too long', text: 'Stones must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (materialEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Material too long', text: 'Material must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (weightEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Weight too long', text: 'Weight must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (lengthEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Length too long', text: 'Length must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
 
@@ -1878,7 +2098,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $timeout(function () {
         if ($('#inventoryTable').length) {
             // If the URL includes `?archived=true`, open the inventory page in the archived tab.
-            // This is used by the system admin sidebar navigation for "Archive".
+            // This is used by the system admin sidebar navigation for Inventory (archived query).
             try {
                 var params = new URLSearchParams(window.location.search || '');
                 var archivedParam = params.get('archived');
@@ -1887,6 +2107,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 }
             } catch (e) { }
             $scope.loadInventoryProducts();
+        }
+        var addModal = document.getElementById('inventoryAddItemModal');
+        if (addModal) {
+            addModal.addEventListener('shown.bs.modal', function () {
+                $scope.$applyAsync(function () {
+                    $scope.resetInventoryAddPhotoInput();
+                });
+            });
         }
     }, 0);
 
@@ -2342,9 +2570,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     //----------Activity Logs Page----------
     $scope.activityLogsList = [];
-    $scope.logsFilterUser = '';
-    $scope.logsFilterRole = '';
-    $scope.logsFilterAction = '';
+    $scope.logsSearch = '';
     $scope.logsFilterDateFrom = '';
     $scope.logsFilterDateTo = '';
 
@@ -2360,16 +2586,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.getFilteredActivityLogs = function () {
         var list = $scope.activityLogsList || [];
-        var user = ($scope.logsFilterUser || '').toLowerCase().trim();
-        var role = ($scope.logsFilterRole || '').trim();
-        var action = ($scope.logsFilterAction || '').toLowerCase().trim();
+        var q = ($scope.logsSearch || '').toLowerCase().trim();
         var dateFrom = toDateOnlyString($scope.logsFilterDateFrom);
         var dateTo = toDateOnlyString($scope.logsFilterDateTo);
 
         return list.filter(function (log) {
-            if (user && (log.username || '').toLowerCase().indexOf(user) === -1) return false;
-            if (role && (log.roleName || '').trim() !== role) return false;
-            if (action && (log.action || '').toLowerCase().indexOf(action) === -1) return false;
+            if (q) {
+                var u = (log.username || '').toLowerCase();
+                var r = (log.roleName || '').toLowerCase();
+                var a = (log.action || '').toLowerCase();
+                if (u.indexOf(q) === -1 && r.indexOf(q) === -1 && a.indexOf(q) === -1) return false;
+            }
             if (dateFrom || dateTo) {
                 var logDate = (log.createdAtString || '').substring(0, 10);
                 if (dateFrom && logDate < dateFrom) return false;
@@ -2427,22 +2654,80 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.reportCategory = 'All Categories';
     $scope.reportFiltersApplied = false;
 
+    /** Angular date inputs often bind Date objects; API needs yyyy-MM-dd in local calendar (avoids UTC off-by-one). */
+    function salesReportDateToYyyyMmDd(val) {
+        if (val == null || val === '') return '';
+        if (angular.isDate(val) && !isNaN(val.getTime())) {
+            var d = val;
+            var y = d.getFullYear();
+            var m = d.getMonth() + 1;
+            var day = d.getDate();
+            return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+        }
+        var s = (typeof val === 'string') ? val.trim() : String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        return '';
+    }
+
     $scope.onReportsPageInit = function () {
         $scope.reportFiltersApplied = false;
         $scope.loadSalesReport();
     };
 
+    var salesReportCustomDatesTimeout = null;
+    /** Custom range: reload when both dates are set (debounced). No Apply button. */
+    $scope.onCustomReportDatesChanged = function () {
+        if (($scope.reportRange || '').toString().toLowerCase().trim() !== 'custom') return;
+        if (salesReportCustomDatesTimeout) $timeout.cancel(salesReportCustomDatesTimeout);
+        salesReportCustomDatesTimeout = $timeout(function () {
+            salesReportCustomDatesTimeout = null;
+            var s = salesReportDateToYyyyMmDd($scope.customReportStart);
+            var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
+            try {
+                var elS = document.getElementById("salesReportStartDate");
+                var elE = document.getElementById("salesReportEndDate");
+                if (!s && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) s = elS.value;
+                if (!e && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) e = elE.value;
+            } catch (err) { /* ignore */ }
+            if (!s || !e) {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
+                return;
+            }
+            if (s > e) {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
+                return;
+            }
+            $scope.customReportStart = s;
+            $scope.customReportEnd = e;
+            $scope.loadSalesReport();
+        }, 0);
+    };
+
     $scope.loadSalesReport = function () {
-        var range = $scope.reportRange || 'all';
-        var startDate = range === 'custom' ? ($scope.customReportStart || '') : null;
-        var endDate = range === 'custom' ? ($scope.customReportEnd || '') : null;
+        var range = ($scope.reportRange || 'all').toString().toLowerCase().trim();
+        var startDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportStart) : null;
+        var endDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportEnd) : null;
+        if (range === 'custom') {
+            try {
+                var elS = document.getElementById("salesReportStartDate");
+                var elE = document.getElementById("salesReportEndDate");
+                if (!startDate && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) startDate = elS.value;
+                if (!endDate && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) endDate = elE.value;
+            } catch (e) { /* ignore */ }
+        }
         var cat = $scope.reportCategory || 'All Categories';
         if (range === 'custom' && (!startDate || !endDate)) {
             $scope.salesReportRows = [];
             $scope.salesReportGrandTotal = 0;
+            $scope.reportFiltersApplied = false;
             return;
         }
         SolteiraAndBrandsService.getSalesReport(range, startDate || null, endDate || null, cat === 'All Categories' ? null : cat).then(function (res) {
+            // Step 4: replace array reference so ng-repeat always re-renders (map always builds a new array).
             if (res.data && res.data.success) {
                 var raw = res.data.rows || [];
                 $scope.salesReportRows = raw.map(function (r) {
@@ -2458,40 +2743,34 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 });
                 $scope.salesReportGrandTotal = res.data.grandTotal != null ? res.data.grandTotal : 0;
                 $scope.reportFiltersApplied = true;
+            } else {
+                $scope.salesReportRows = [];
+                $scope.salesReportGrandTotal = 0;
+                $scope.reportFiltersApplied = false;
             }
         }, function () {
             $scope.salesReportRows = [];
             $scope.salesReportGrandTotal = 0;
+            $scope.reportFiltersApplied = false;
         });
     };
 
-    $scope.applyReportFilters = function () {
-        if ($scope.reportRange === 'custom') {
-            if (!$scope.customReportStart || !$scope.customReportEnd) {
-                Swal.fire({ icon: 'warning', title: 'Select dates', text: 'Please choose both start and end date for custom range.' });
-                return;
-            }
-            if ($scope.customReportStart > $scope.customReportEnd) {
-                Swal.fire({ icon: 'warning', title: 'Invalid range', text: 'Start date must be before or equal to end date.' });
-                return;
-            }
-        }
-        $scope.loadSalesReport();
-    };
-
     $scope.canExportSalesReport = function () {
-        if ($scope.reportRange !== 'custom') return true;
-        return !!($scope.customReportStart && $scope.customReportEnd && $scope.reportFiltersApplied);
+        if (($scope.reportRange || '').toString().toLowerCase().trim() !== 'custom') return true;
+        var s = salesReportDateToYyyyMmDd($scope.customReportStart);
+        var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
+        return !!(s && e && $scope.reportFiltersApplied);
     };
 
     $scope.onReportRangeChange = function () {
-        if ($scope.reportRange === 'custom') {
+        if (($scope.reportRange || '').toString().toLowerCase().trim() === 'custom') {
             var today = new Date();
             var lastMonth = new Date(today);
             lastMonth.setDate(lastMonth.getDate() - 30);
-            $scope.customReportEnd = today.toISOString().slice(0, 10);
-            $scope.customReportStart = lastMonth.toISOString().slice(0, 10);
+            $scope.customReportEnd = salesReportDateToYyyyMmDd(today);
+            $scope.customReportStart = salesReportDateToYyyyMmDd(lastMonth);
             $scope.reportFiltersApplied = false;
+            $timeout(function () { $scope.onCustomReportDatesChanged(); }, 50);
         } else {
             $scope.reportFiltersApplied = false;
             $scope.loadSalesReport();
@@ -2516,14 +2795,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         if (range === 'today') return 'Today';
         if (range === 'lastweek') return 'Last week';
         if (range === 'lastmonth') return 'Last month';
-        if (range === 'custom' && $scope.customReportStart && $scope.customReportEnd)
-            return $scope.customReportStart + ' to ' + $scope.customReportEnd;
+        if (range === 'custom') {
+            var cs = salesReportDateToYyyyMmDd($scope.customReportStart);
+            var ce = salesReportDateToYyyyMmDd($scope.customReportEnd);
+            if (cs && ce) return cs + ' to ' + ce;
+        }
         return range === 'custom' ? 'Custom range' : 'All time';
     }
 
     $scope.exportSalesReportPdf = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
             return;
         }
         if (typeof pdfMake === 'undefined') {
@@ -2759,7 +3041,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.exportSalesReportCsv = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Apply filters first', text: 'For custom range, set both dates and click Apply before exporting.' });
+            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
             return;
         }
         var rows = $scope.salesReportRows || [];

@@ -4,6 +4,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.viewMode = 'list';
     $scope.qty = 1;
+    /** Jewelries product detail: set when user types a quantity above available stock. */
+    $scope.detailQtyExceedsStockMessage = '';
 
     $scope.jewelries = [];
     $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
@@ -18,6 +20,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!product) return;
         $scope.selectedProduct = product;
         $scope.qty = 1;
+        $scope.detailQtyExceedsStockMessage = '';
         $scope.viewMode = 'detail';
         $scope.transitionDir = 'forward';
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -55,7 +58,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.featuredCarouselSlides = [];
     $scope.currentFeaturedSlide = 0;
     $scope.featuredCarouselInterval = null;
-    var FEATURED_SLIDE_INTERVAL_MS = 10000;
+    var FEATURED_SLIDE_INTERVAL_MS = 5000;
     var FEATURED_MAX = 12;
 
     /** Up to 4 featured products per slide; next slide shows the remainder (e.g. 5 items → slide of 4, then slide of 1). */
@@ -157,6 +160,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $timeout(() => {
                 $scope.selectedProduct = item;
                 $scope.qty = 1;
+                $scope.detailQtyExceedsStockMessage = '';
                 $scope.viewMode = 'detail';
                 $scope.transitionDir = 'forward';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -182,6 +186,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.changeDetailQty = function (delta) {
         if (!$scope.selectedProduct) return;
+        $scope.detailQtyExceedsStockMessage = '';
         var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
         var current = parseInt($scope.qty, 10) || 1;
         var next = Math.max(1, Math.min(max, current + delta));
@@ -192,8 +197,17 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.selectedProduct) return;
         var max = parseInt($scope.selectedProduct.stockQuantity, 10) || 0;
         var val = parseInt($scope.qty, 10);
-        if (isNaN(val) || val < 1) $scope.qty = 1;
-        else if (max > 0 && val > max) $scope.qty = max;
+        if (isNaN(val) || val < 1) {
+            $scope.qty = 1;
+            $scope.detailQtyExceedsStockMessage = '';
+            return;
+        }
+        if (max > 0 && val > max) {
+            $scope.detailQtyExceedsStockMessage = 'You entered ' + val + ', but only ' + max + ' ' + (max === 1 ? 'is' : 'are') + ' in stock. Quantity was set to ' + max + '.';
+            $scope.qty = max;
+            return;
+        }
+        $scope.detailQtyExceedsStockMessage = '';
     };
 
     $scope.excludeSelected = function (item) {
@@ -385,12 +399,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.registerData = {
         email: '',
         username: '',
+        firstName: '',
+        lastName: '',
         password: '',
         verifyPassword: '',
         acceptedTerms: false
     };
 
-    $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '', acceptedTerms: '' };
+    $scope.registerErrors = { email: '', username: '', firstName: '', lastName: '', password: '', verifyPassword: '', acceptedTerms: '' };
 
     function validateEmailFormat(email) {
         if (!email) return "Email is required.";
@@ -401,8 +417,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     function validateUsernameFormat(u) {
         if (!u) return "Username is required.";
-        if (u.length < 5 || u.length > 14) return "Username must be 5-14 characters.";
-        if (!/^[A-Za-z0-9_]+$/.test(u)) return "Use letters, numbers, and underscore only.";
+        var t = (u || '').trim();
+        if (!t) return "Username is required.";
+        if (t.length > 14) return "Max 14 characters. No spaces. Must be unique.";
+        if (t.split('').some(function (c) { return c === ' ' || c === '\t' || c === '\n' || c === '\r'; })) return "Max 14 characters. No spaces. Must be unique.";
+        if (!/^[A-Za-z0-9_]+$/.test(t)) return "Max 14 characters. No spaces. Must be unique.";
+        return "";
+    }
+
+    function validateNameFormat(n, fieldLabel) {
+        var label = fieldLabel || "Name";
+        var t = (n || '').trim();
+        if (!t) return label + " is required.";
+        if (t.length > 50) return label + " must be letters only. Max 50 characters.";
+        if (!/^[a-zA-Z\s'\.-]{1,50}$/.test(t)) return label + " must be letters only. Max 50 characters.";
         return "";
     }
 
@@ -446,8 +474,28 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         });
     };
 
+    $scope.onFirstNameInput = function () {
+        var v = $scope.registerData.firstName;
+        $scope.registerErrors.firstName = validateNameFormat(v, "First name");
+    };
+
+    $scope.onFirstNameBlur = function () {
+        var v = $scope.registerData.firstName;
+        $scope.registerErrors.firstName = validateNameFormat(v, "First name");
+    };
+
+    $scope.onLastNameInput = function () {
+        var v = $scope.registerData.lastName;
+        $scope.registerErrors.lastName = validateNameFormat(v, "Last name");
+    };
+
+    $scope.onLastNameBlur = function () {
+        var v = $scope.registerData.lastName;
+        $scope.registerErrors.lastName = validateNameFormat(v, "Last name");
+    };
+
     function clearRegisterErrors() {
-        $scope.registerErrors = { email: '', username: '', password: '', verifyPassword: '' };
+        $scope.registerErrors = { email: '', username: '', firstName: '', lastName: '', password: '', verifyPassword: '', acceptedTerms: '' };
     }
 
     $scope.onPasswordInput = function () {
@@ -497,16 +545,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         var eErr = validateEmailFormat($scope.registerData.email);
         var uErr = validateUsernameFormat($scope.registerData.username);
+        var fErr = validateNameFormat($scope.registerData.firstName, "First name");
+        var lErr = validateNameFormat($scope.registerData.lastName, "Last name");
         var p = $scope.registerData.password;
         var v = $scope.registerData.verifyPassword;
         var pErr = validatePassword(p);
 
-        if (eErr || uErr || pErr || p !== v) {
+        if (eErr || uErr || fErr || lErr || pErr || p !== v) {
             $scope.registerErrors.email = eErr;
             $scope.registerErrors.username = uErr;
+            $scope.registerErrors.firstName = fErr;
+            $scope.registerErrors.lastName = lErr;
             if (pErr) $scope.registerErrors.password = pErr;
             if (p !== v) $scope.registerErrors.verifyPassword = 'Passwords do not match.';
-            var primaryMsg = eErr || uErr || pErr || (p !== v ? 'Passwords do not match.' : '');
+            var primaryMsg = eErr || uErr || fErr || lErr || pErr || (p !== v ? 'Passwords do not match.' : '');
             if (primaryMsg) {
                 Swal.fire({
                     icon: 'error',
@@ -556,7 +608,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     // Account Settings: async username validation on blur
-    $scope.profileErrors = { username: '' };
+    $scope.profileErrors = { username: '', firstName: '', lastName: '' };
 
     $scope.onLoginFieldChange = function (field) {
         if (field === 'username') {
@@ -1118,6 +1170,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             return;
         }
         var requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
+        var stockCap = parseInt(product.stockQuantity, 10) || 0;
+        if (stockCap > 0 && requestedQty > stockCap) {
+            requestedQty = stockCap;
+            if ($scope.selectedProduct && product && $scope.selectedProduct.id === product.id) {
+                $scope.qty = stockCap;
+                $scope.detailQtyExceedsStockMessage = 'You tried to add more than is in stock. Only ' + stockCap + ' ' + (stockCap === 1 ? 'is' : 'are') + ' available.';
+            }
+        }
         SolteiraBrandsService.addToCart(product.id, requestedQty).then(function (r) {
             if (r && r.data && r.data.success) {
                 var added = r.data.addedQuantity || 0;
@@ -1218,17 +1278,98 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }, 0);
     };
 
-    $scope.profile = { username: '', email: '', avatarUrl: '' };
+    $scope.profile = { username: '', firstName: '', lastName: '', email: '', avatarUrl: '' };
+    // Display-only name/values shown under the avatar.
+    // Inputs edit `profile.*`, but the preview uses `savedProfile.*` so it updates only after Save succeeds.
+    $scope.savedProfile = { username: '', firstName: '', lastName: '', avatarUrl: '' };
     $scope.defaultAvatarUrl = SolteiraBrandsService.defaultAvatarUrl;
     $scope.pendingProfileImageFile = null;
     $scope.profilePreviewUrl = null;
+
+    $scope.usernameCooldownRemainingText = '';
+    $scope.usernameCooldownUntilUnixMs = null;
+    var usernameCooldownIntervalPromise = null;
+    $scope.showUsernameValidation = false;
+
+    function stopUsernameCooldownCountdown() {
+        if (usernameCooldownIntervalPromise) {
+            $interval.cancel(usernameCooldownIntervalPromise);
+            usernameCooldownIntervalPromise = null;
+        }
+    }
+
+    function startUsernameCooldownCountdown(cooldownUntilUnixMs) {
+        $scope.usernameCooldownUntilUnixMs = cooldownUntilUnixMs;
+        stopUsernameCooldownCountdown();
+        if (!cooldownUntilUnixMs) {
+            $scope.usernameCooldownRemainingText = '';
+            return;
+        }
+
+        function update() {
+            var nowMs = Date.now();
+            var remainingMs = cooldownUntilUnixMs - nowMs;
+            if (remainingMs <= 0) {
+                $scope.usernameCooldownRemainingText = '';
+                stopUsernameCooldownCountdown();
+                return;
+            }
+            var remaining = remainingMs / 1000;
+            var days = Math.floor(remaining / (24 * 3600));
+            var hours = Math.floor((remaining - days * 24 * 3600) / 3600);
+            if (days >= 1) {
+                $scope.usernameCooldownRemainingText = 'You can only change your username every 30 days. Try again in ' + days + ' day(s).';
+            } else {
+                $scope.usernameCooldownRemainingText = 'You can only change your username every 30 days. Try again in ' + hours + ' hour(s).';
+            }
+        }
+
+        update();
+        usernameCooldownIntervalPromise = $interval(update, 1000);
+    }
+
+    function withCacheBuster(url) {
+        if (!url) return url;
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        return url + sep + 'v=' + Date.now();
+    }
+
+    function updateLayoutAvatarPreview(url) {
+        if (!url) return;
+        var nextUrl = withCacheBuster(url);
+        var nodes = document.querySelectorAll('#layoutProfileImg, #layoutProfileImgTrigger, #sbMobileLayoutProfileImg');
+        if (!nodes || !nodes.length) return;
+        for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i]) nodes[i].src = nextUrl;
+        }
+    }
+
+    function updateLayoutNamePreview(firstName, lastName) {
+        if (typeof window.updateLayoutProfileNameDisplay === 'function') {
+            window.updateLayoutProfileNameDisplay(firstName || '', lastName || '');
+        }
+    }
 
     $scope.loadProfile = function () {
         SolteiraBrandsService.getMyProfile().then(function (r) {
             if (r.data && r.data.success) {
                 $scope.profile.username = r.data.username || '';
+                $scope.originalUsername = $scope.profile.username;
+                $scope.profile.firstName = r.data.firstName || '';
+                $scope.profile.lastName = r.data.lastName || '';
                 $scope.profile.email = r.data.email || '';
                 $scope.profile.avatarUrl = r.data.avatarUrl || $scope.defaultAvatarUrl;
+
+                // Keep the displayed name in sync only with server-confirmed values.
+                $scope.savedProfile.username = $scope.profile.username;
+                $scope.savedProfile.firstName = $scope.profile.firstName;
+                $scope.savedProfile.lastName = $scope.profile.lastName;
+                $scope.savedProfile.avatarUrl = $scope.profile.avatarUrl;
+
+                $scope.showUsernameValidation = false;
+                stopUsernameCooldownCountdown();
+                $scope.usernameCooldownRemainingText = '';
+                $scope.usernameCooldownUntilUnixMs = r.data.usernameCooldownUntilUnixMs || null;
             }
         });
     };
@@ -1255,7 +1396,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }, 0);
     };
 
+    $scope.onProfileFirstNameBlur = function () {
+        $scope.profileErrors.firstName = validateNameFormat($scope.profile.firstName, "First name");
+    };
+
+    $scope.onProfileLastNameBlur = function () {
+        $scope.profileErrors.lastName = validateNameFormat($scope.profile.lastName, "Last name");
+    };
+
     $scope.onProfileUsernameBlur = function () {
+        if (!$scope.showUsernameValidation) {
+            // Do not show username validation until user tries to save changes.
+            $scope.profileErrors.username = '';
+            return;
+        }
         $scope.profileErrors.username = '';
         var u = ($scope.profile && $scope.profile.username) ? $scope.profile.username.trim() : '';
         var err = validateUsernameFormat(u);
@@ -1265,23 +1419,44 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
         SolteiraBrandsService.isUsernameAvailable(u, true).then(function (r) {
             if (r.data && r.data.available === false) {
-                $scope.profileErrors.username = "Username already taken.";
+                $scope.profileErrors.username = (r.data && r.data.message) || "Username is not available.";
+                if (r.data && r.data.cooldownUntilUnixMs) {
+                    startUsernameCooldownCountdown(r.data.cooldownUntilUnixMs);
+                }
+            } else {
+                // Username check passes; clear cooldown message if any.
+                stopUsernameCooldownCountdown();
+                $scope.usernameCooldownRemainingText = '';
             }
         });
     };
 
     $scope.saveProfile = function () {
-        if ($scope.profileErrors.username) {
-            Swal.fire({ icon: 'warning', title: 'Fix errors', text: $scope.profileErrors.username });
-            return;
-        }
+        // Username validation should only show after user clicks save AND actually changed username.
+        var firstName = ($scope.profile && $scope.profile.firstName) ? $scope.profile.firstName.trim() : '';
+        var lastName = ($scope.profile && $scope.profile.lastName) ? $scope.profile.lastName.trim() : '';
+        $scope.profileErrors.firstName = validateNameFormat(firstName, "First name");
+        $scope.profileErrors.lastName = validateNameFormat(lastName, "Last name");
         var username = ($scope.profile && $scope.profile.username) ? $scope.profile.username.trim() : '';
-        if (!username) {
-            Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter a name (username).' });
+        var changedUsername = (username || '') !== ($scope.originalUsername || '');
+        $scope.showUsernameValidation = changedUsername;
+        $scope.profileErrors.username = changedUsername ? validateUsernameFormat(username) : '';
+
+        if ($scope.profileErrors.username || $scope.profileErrors.firstName || $scope.profileErrors.lastName) {
+            var msg =
+                $scope.profileErrors.username ||
+                $scope.profileErrors.firstName ||
+                $scope.profileErrors.lastName;
+            Swal.fire({ icon: 'warning', title: 'Fix errors', text: msg });
             return;
         }
+
+        // Keep normalized values in sync with what we send to the server.
+        $scope.profile.firstName = firstName;
+        $scope.profile.lastName = lastName;
+
         var doUpdate = function (avatarImageId) {
-            SolteiraBrandsService.updateProfile(avatarImageId, username).then(function (r) {
+            SolteiraBrandsService.updateProfile(avatarImageId, username, firstName, lastName).then(function (r) {
                 if (r.data && r.data.success) {
                     if ($scope.profilePreviewUrl) {
                         URL.revokeObjectURL($scope.profilePreviewUrl);
@@ -1291,15 +1466,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                     var inputEl = document.getElementById('profileImageInput');
                     if (inputEl) inputEl.value = '';
                     var avatarUrl = $scope.profile.avatarUrl;
-                    if (avatarUrl) {
-                        var el = document.getElementById('layoutProfileImg');
-                        var trigger = document.getElementById('layoutProfileImgTrigger');
-                        if (el) el.src = avatarUrl;
-                        if (trigger) trigger.src = avatarUrl;
-                    }
-                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Your changes have been saved.', timer: 1500, showConfirmButton: false });
+                    updateLayoutAvatarPreview(avatarUrl);
+                    updateLayoutNamePreview(firstName, lastName);
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Your changes have been saved.', timer: 1500, showConfirmButton: false }).then(function () {
+                        $scope.profileErrors.username = '';
+                        $scope.profileErrors.firstName = '';
+                        $scope.profileErrors.lastName = '';
+                        $scope.showUsernameValidation = false;
+                        $scope.loadProfile();
+                    });
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Failed', text: (r.data && r.data.message) || 'Try again.' });
+                    var msg = (r.data && r.data.message) || 'Try again.';
+                    if (r.data && r.data.cooldownUntilUnixMs) {
+                        startUsernameCooldownCountdown(r.data.cooldownUntilUnixMs);
+                    }
+                    if ((msg || '').toLowerCase().indexOf('username') >= 0) {
+                        $scope.profileErrors.username = msg;
+                    }
+                    Swal.fire({ icon: 'error', title: 'Failed', text: msg });
                 }
             }, function (err) {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Try again.' });
@@ -1376,11 +1560,24 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return !!$scope.agreeTerms;
     };
 
+    var CHECKOUT_NAME_MAX_LEN = 30;
+    var CHECKOUT_ADDRESS_MAX_LEN = 100;
+    // Same allowed characters as registration name validation (validateNameFormat), fixed 30-char limit for checkout.
+    $scope.checkoutContactNamePattern = /^[a-zA-Z\s'.\-]{1,30}$/;
+
+    function isValidCheckoutContactName(value) {
+        var t = (value || '').trim();
+        if (!t || t.length > CHECKOUT_NAME_MAX_LEN) return false;
+        return $scope.checkoutContactNamePattern.test(t);
+    }
+
     $scope.isCheckoutReadyToPlaceOrder = function () {
-        var nameOk = !!(($scope.customerName || '').trim());
+        var name = ($scope.customerName || '').trim();
+        var address = ($scope.deliveryAddress || '').trim();
+        var nameOk = isValidCheckoutContactName(name);
         var contact = ($scope.contactNumber || '').trim();
         var contactOk = /^\d{11}$/.test(contact);
-        var addressOk = !!(($scope.deliveryAddress || '').trim());
+        var addressOk = address.length > 0 && address.length <= CHECKOUT_ADDRESS_MAX_LEN;
         var paymentOk = !!(($scope.paymentMethod || '').trim());
         var termsOk = $scope.isCheckoutTermsAccepted();
         return nameOk && contactOk && addressOk && paymentOk && termsOk;
@@ -1529,7 +1726,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (statusLower === 'pending approval') return 'Pending Approval';
         if (statusLower === 'awaiting payment verification') {
             // If there is a rejection reason but no SUBMITTED payment, resubmission is needed.
-            if (order.latestPaymentRejectionReason && !order.hasSubmittedPayment) return 'Resubmit Payment Required';
+            if (order.latestPaymentRejectionReason && !order.hasSubmittedPayment) {
+                // If admin cancelled/rejected with allowResubmit = false, do not show resubmission prompt.
+                if (order.latestPaymentForProof && order.latestPaymentForProof.allowResubmit === false) return 'Order Rejected';
+                return 'Resubmit Payment Required';
+            }
             // Once a new payment has been submitted, show it as awaiting verification again.
             return 'Awaiting Payment Verification';
         }
@@ -1590,7 +1791,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var raw = (trackingNumberRaw || '').toString().trim();
         var courier = (courierRaw || '').toString().trim();
         var courierLower = courier.toLowerCase();
-        var defaultTrackingUrl = (courierLower.indexOf('fedex') !== -1) ? 'https://www.fedex.com/en-us/tracking.html' : 'https://www.lbcexpress.com/track/';
+        var defaultTrackingUrl = (courierLower.indexOf('fedex') !== -1) ? 'https://www.fedex.com/en-us/tracking.html' : 'https://www.lbcexpress.com/';
         if (!raw) {
             if (trackingLinkExplicit && /^https?:\/\//i.test(trackingLinkExplicit)) {
                 window.open(trackingLinkExplicit, '_blank');
@@ -1652,14 +1853,33 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.selectedOrderForProof = null;
-    $scope.openViewPaymentProofModalFromOrders = function (order) {
-        if (!order || !order.latestPaymentForProof) { $scope.openOrderDetailsModal(order); return; }
-        $scope.selectedOrderForProof = order;
-        var el = document.getElementById('viewPaymentProofModalMyOrders');
-        if (el && window.bootstrap) {
-            var m = new bootstrap.Modal(el);
-            m.show();
+    $scope.selectedPaymentForProof = null;
+    $scope.openViewPaymentProofModalFromOrders = function (order, proofRow) {
+        // If a specific installment row is provided, use its proof/payment details.
+        if (proofRow && proofRow.proofImageUrl) {
+            $scope.selectedOrderForProof = order || null;
+            $scope.selectedPaymentForProof = {
+                proofImageUrl: proofRow.proofImageUrl,
+                paymentStatus: proofRow.proofPaymentStatus,
+                amount: proofRow.proofAmount,
+                createdAt: proofRow.proofCreatedAt,
+                referenceNumber: proofRow.proofReferenceNumber
+            };
+        } else {
+            // Otherwise fall back to the order-level latest payment proof (non-layaway / footer button).
+            if (!order || !order.latestPaymentForProof) { $scope.openOrderDetailsModal(order); return; }
+            $scope.selectedOrderForProof = order;
+            $scope.selectedPaymentForProof = order.latestPaymentForProof;
         }
+
+        // Defer to ensure Angular has time to update bindings / modal DOM state.
+        $timeout(function () {
+            var el = document.getElementById('viewPaymentProofModalMyOrders');
+            if (el && window.bootstrap) {
+                var m = new bootstrap.Modal(el);
+                m.show();
+            }
+        }, 0);
     };
     $scope.closeViewPaymentProofModal = function () {
         var el = document.getElementById('viewPaymentProofModalMyOrders');
@@ -1668,6 +1888,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (m) m.hide();
         }
         $scope.selectedOrderForProof = null;
+        $scope.selectedPaymentForProof = null;
     };
     $scope.handleOrderAction = function (order) {
         if (!order) return;
@@ -1967,7 +2188,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                     $scope.paymentValidation.proof = '';
                     $scope.paymentValidation.file = '';
                 }, 0);
-                Swal.fire({ icon: 'success', title: 'Uploaded', text: 'Proof uploaded. Enter reference number (max 20 chars) and click PAY.', timer: 2500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Uploaded', text: 'Proof uploaded. Enter reference number (letters and numbers only, max 20) and click PAY.', timer: 2500, showConfirmButton: false });
             } else {
                 var msg = (r.data && r.data.message) || 'Upload failed.';
                 $scope.paymentError = msg;
@@ -2023,6 +2244,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return !isNaN(n) && n >= 1;
     };
 
+    var PAYMENT_REFERENCE_ALNUM_REGEX = /^[A-Za-z0-9]+$/;
+    /** True while the field contains any character outside A–Z / a–z / 0–9 (allows empty = no error). */
+    $scope.paymentReferenceFormatError = function () {
+        var s = ($scope.paymentForm && $scope.paymentForm.referenceNumber != null) ? String($scope.paymentForm.referenceNumber) : '';
+        if (!s.length) return false;
+        return !/^[A-Za-z0-9]*$/.test(s);
+    };
+    function isPaymentReferenceValidForSubmit(ref) {
+        var t = (ref || '').trim();
+        return t.length >= 1 && t.length <= 20 && PAYMENT_REFERENCE_ALNUM_REGEX.test(t);
+    }
+
     function logPaymentButtonState(reason) {
         var order = $scope.paymentOrder;
         var orderStatus = order ? (order.order_status != null ? order.order_status : order.orderStatus) : null;
@@ -2049,7 +2282,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!$scope.paymentMode || !($scope.paymentFormData && $scope.paymentFormData.channel)) return false;
         if (!$scope.hasValidProof()) return false;
         var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-        if (ref.length < 1 || ref.length > 20) return false;
+        if (!isPaymentReferenceValidForSubmit(ref)) return false;
         return true;
     };
 
@@ -2060,7 +2293,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!data || !data.meetupDate || !data.meetupTime) return false;
         if (!$scope.hasValidProof()) return false;
         var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-        if (ref.length < 1 || ref.length > 20) return false;
+        if (!isPaymentReferenceValidForSubmit(ref)) return false;
         return true;
     };
     $scope.clearProofSelection = function () {
@@ -2086,13 +2319,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (ref.length < 1) {
                 $scope.paymentValidation.reference = 'Reference number is required.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference number (max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
                 return;
             }
             if (ref.length > 20) {
                 $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
                 Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                return;
+            }
+            if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(ref)) {
+                $scope.paymentValidation.reference = 'Reference number may only contain letters and numbers.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Invalid reference number', text: 'Use only letters and numbers (no spaces or special characters).' });
                 return;
             }
         } else {
@@ -2113,13 +2352,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (refMeetup.length < 1) {
                 $scope.paymentValidation.reference = 'Reference number for 30% down payment is required.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference number (max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
                 return;
             }
             if (refMeetup.length > 20) {
                 $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
                 Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                return;
+            }
+            if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(refMeetup)) {
+                $scope.paymentValidation.reference = 'Reference number may only contain letters and numbers.';
+                $scope.paymentError = $scope.paymentValidation.reference;
+                Swal.fire({ icon: 'warning', title: 'Invalid reference number', text: 'Use only letters and numbers (no spaces or special characters).' });
                 return;
             }
         }
@@ -2169,9 +2414,19 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var contact = ($scope.contactNumber || '').trim();
         var address = ($scope.deliveryAddress || '').trim();
         var payment = ($scope.paymentMethod || '').trim();
-        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your full name.' }); return; }
+        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact name.' }); return; }
+        if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Contact name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
+        if (!isValidCheckoutContactName(name)) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Invalid contact name',
+                text: 'Use letters only, with spaces or apostrophes, periods, or hyphens as needed. No numbers. Max ' + CHECKOUT_NAME_MAX_LEN + ' characters.'
+            });
+            return;
+        }
         if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
         if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
+        if (address.length > CHECKOUT_ADDRESS_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Address too long', text: 'Delivery address must be ' + CHECKOUT_ADDRESS_MAX_LEN + ' characters or fewer.' }); return; }
         if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
         // Terms checkbox: rely on actual DOM state (ng-model is unreliable on this checkout view).
         if (!$scope.isCheckoutTermsAccepted()) { Swal.fire({ icon: 'warning', title: 'Terms required', text: 'Please acknowledge the payment Terms & Conditions before placing the order.' }); return; }

@@ -39,7 +39,7 @@
     align-items: center;
     gap: 1vw;
     font-family: "Nunito";
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: bold;
 }
 
@@ -72,12 +72,13 @@
     background-color: white;
     border: 2px solid #1E1E1E;
     border-top: none;
-    padding: .5vw;
+    padding: .35vw;
     font-family: "Nunito";
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s ease;
+    line-height: 1.2;
 }
 
     .filter-item:hover {
@@ -308,16 +309,29 @@
 }
 
 .name-price-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    /* Keep the price anchored to the right even when names wrap/clamp */
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    column-gap: 12px;
 }
 
 .product-stock {
     font-family: "Nunito", sans-serif;
     font-size: 0.9rem;
     color: #555;
+    margin-top: 0; /* spacing handled by .product-stock-slot */
+}
+
+.product-stock-slot {
+    /* Reserve vertical space so the card doesn't jump when sold out */
     margin-top: 4px;
+    min-height: 1.25rem;
+}
+
+.product-stock-slot.is-sold-out {
+    /* Keep placeholder space but hide any content */
+    visibility: hidden;
 }
 
 .product-stock.sold-out-text {
@@ -328,9 +342,14 @@
 .jewelry-grid-container .product-name {
     font-family: "Kaisei Tokumin";
     font-weight: 500;
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: #1e1e1e;
-    max-width: 70%;
+    max-width: 100%;
+    min-width: 0;
+    /* Allow long names to wrap naturally; price stays fixed via .name-price-row grid */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.25;
 }
 
 .jewelry-grid-container .product-price {
@@ -338,6 +357,9 @@
     font-weight: bold;
     font-size: 1.1rem;
     color: #1e1e1e;
+    /* Prevent `₱` and amount from breaking onto separate lines */
+    white-space: nowrap;
+    justify-self: end;
 }
 
 .product-detail-container {
@@ -507,6 +529,17 @@
         -webkit-appearance: none;
         margin: 0;
     }
+
+/* Message when typed quantity exceeds stock (product detail). */
+.detail-qty-stock-warning {
+    margin: 0 0 0.25rem 0;
+    font-family: "Nunito", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #b45309;
+    line-height: 1.35;
+    max-width: 100%;
+}
 
 .add-to-cart-btn {
     font-family: "Nunito";

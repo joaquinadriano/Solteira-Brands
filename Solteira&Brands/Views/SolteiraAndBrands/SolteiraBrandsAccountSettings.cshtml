@@ -15,7 +15,31 @@
             </div>
 
             <div class="profile-name">
-                <span>{{profile.username || 'User'}}</span>
+                <div class="profile-name-line"
+                     ng-if="(((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim().length > 0) && (((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim().length <= 20)">
+                    <span class="profile-name-text">
+                        {{ ((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim() }}
+                    </span>
+                </div>
+
+                <div class="profile-name-line"
+                     ng-if="(((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim().length > 20)">
+                    <span class="profile-name-text">
+                        {{ (savedProfile.firstName || '') | limitTo:20 }}<span ng-if="(savedProfile.firstName || '').length > 20">...</span>
+                    </span>
+                </div>
+
+                <div class="profile-name-line"
+                     ng-if="(((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim().length > 20)">
+                    <span class="profile-name-text">
+                        {{ (savedProfile.lastName || '') | limitTo:20 }}<span ng-if="(savedProfile.lastName || '').length > 20">...</span>
+                    </span>
+                </div>
+
+                <div class="profile-name-line"
+                     ng-if="(((savedProfile.firstName || '') + ((savedProfile.firstName && savedProfile.lastName) ? ' ' : '') + (savedProfile.lastName || '')).trim().length === 0)">
+                    <span class="profile-name-text">User</span>
+                </div>
             </div>
 
             <label for="profileImageInput" class="select-img" style="cursor:pointer;margin:0;">
@@ -37,18 +61,50 @@
             <div class="edit-field">
 
                 <form name="editForm" class="d-flex flex-column align-items-center" ng-submit="saveProfile()">
+                    
+                    <div class="text-start mb-4 w-100">
+                        <label for="firstName" class="form-label">First Name</label>
+                        <input type="text"
+                               maxlength="50"
+                               class="form-control custom-input"
+                               ng-class="{'input-error': profileErrors.firstName}"
+                               id="firstName" name="firstName"
+                               ng-model="profile.firstName"
+                               ng-blur="onProfileFirstNameBlur()"
+                               placeholder="First name" required />
+                        <small class="text-danger" ng-if="profileErrors.firstName">{{profileErrors.firstName}}</small>
+                        <small class="text-muted" ng-if="!profileErrors.firstName">Letters only. Max 50 characters.</small>
+                    </div>
 
                     <div class="text-start mb-4 w-100">
-                        <label for="name" class="form-label">Name</label>
+                        <label for="lastName" class="form-label">Last Name</label>
+                        <input type="text"
+                               maxlength="50"
+                               class="form-control custom-input"
+                               ng-class="{'input-error': profileErrors.lastName}"
+                               id="lastName" name="lastName"
+                               ng-model="profile.lastName"
+                               ng-blur="onProfileLastNameBlur()"
+                               placeholder="Last name" required />
+                        <small class="text-danger" ng-if="profileErrors.lastName">{{profileErrors.lastName}}</small>
+                        <small class="text-muted" ng-if="!profileErrors.lastName">Letters only. Max 50 characters.</small>
+                    </div>
+
+                    <div class="text-start mb-4 w-100">
+                        <label for="username" class="form-label">Username</label>
                         <input type="text"
                                maxlength="14" pattern="^[^\s]{1,14}$"
                                class="form-control custom-input"
                                ng-class="{'input-error': profileErrors.username}"
-                               id="name" name="username"
+                               id="username" name="username"
                                ng-model="profile.username"
                                ng-blur="onProfileUsernameBlur()"
                                placeholder="Username" required />
-                        <small class="text-danger" ng-if="profileErrors.username">{{profileErrors.username}}</small>
+                        <small class="text-danger" ng-if="showUsernameValidation && profileErrors.username">{{profileErrors.username}}</small>
+                        <small class="text-danger" ng-if="showUsernameValidation && usernameCooldownRemainingText && !profileErrors.username">{{usernameCooldownRemainingText}}</small>
+                        <small class="text-muted" ng-if="!showUsernameValidation">
+                            Max 14 characters. No spaces. Must be unique.
+                        </small>
                     </div>
 
                     <div class="text-start mb-4 w-100">
@@ -66,7 +122,7 @@
 
                     <button type="submit"
                             class="save-changes"
-                            ng-disabled="profileErrors.username">
+                            ng-disabled="profileErrors.username || profileErrors.firstName || profileErrors.lastName">
                         SAVE CHANGES
                     </button>
 

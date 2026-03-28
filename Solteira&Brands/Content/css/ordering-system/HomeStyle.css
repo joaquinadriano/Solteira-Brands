@@ -133,6 +133,7 @@
     aspect-ratio: 1;
     overflow: hidden;
     background: #f6f6f6;
+    position: relative; /* Needed for sold-out badge absolute positioning */
 }
 
 .featured-card-image img {
@@ -177,8 +178,50 @@
     font-size: 1rem;
     font-weight: bold;
     color: #1e1e1e;
-    padding: 0.5rem 0.75rem 1rem 0.75rem;
-    margin-top: auto;
+    padding: 0.5rem 0.75rem 0.25rem 0.75rem;
+}
+
+.featured-card-footer {
+    margin-top: auto; /* keep price + stock pinned to bottom */
+    padding-bottom: 0.75rem;
+}
+
+/* Sold-out UI (mirrors Jewelries page behavior) */
+.sold-out-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-family: "Nunito", sans-serif;
+    font-weight: bold;
+    font-size: 1.1rem;
+    padding: 8px 14px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.featured-stock {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.9rem;
+    color: #555;
+    padding: 0 0.75rem 0 0.75rem;
+}
+
+.featured-stock-slot {
+    /* Reserve vertical space so cards don't jump when sold out */
+    min-height: 1.25rem;
+}
+
+.featured-stock-slot.is-sold-out {
+    /* Keep placeholder space, but hide any accidental content */
+    visibility: hidden;
+}
+
+.featured-stock.sold-out-text {
+    color: #c00;
+    font-weight: bold;
 }
 
 /* Featured carousel: full-width track + black dot indicators below */

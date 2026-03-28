@@ -197,11 +197,36 @@ app.service("SolteiraAndBrandsService", function ($http) {
     };
 
     this.getSalesReport = function (range, startDate, endDate, category) {
-        var params = { range: range || "all" };
-        if (range === "custom" && startDate) params.startDate = startDate;
-        if (range === "custom" && endDate) params.endDate = endDate;
-        if (category) params.category = category;
-        return $http({ method: "GET", url: "/SolteiraAndBrands/GetSalesReport", params: params });
+        var r = String(range == null ? "all" : range).toLowerCase().trim();
+        // Custom range: POST form body so MVC always binds startDate/endDate (GET query binding was unreliable in some environments).
+        if (r === "custom") {
+            var payload = {
+                range: r,
+                startDate: String(startDate != null && startDate !== "" ? startDate : ""),
+                endDate: String(endDate != null && endDate !== "" ? endDate : "")
+            };
+            if (category)
+                payload.category = String(category);
+            return $http({
+                method: "POST",
+                url: "/SolteiraAndBrands/PostSalesReport",
+                headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+                transformRequest: [
+                    function (data) {
+                        var parts = [];
+                        angular.forEach(data, function (v, k) {
+                            parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(v == null ? "" : v));
+                        });
+                        return parts.join("&");
+                    }
+                ],
+                data: payload
+            });
+        }
+        var parts = ["range=" + encodeURIComponent(r)];
+        if (category)
+            parts.push("category=" + encodeURIComponent(String(category)));
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetSalesReport?" + parts.join("&") });
     };
 
     this.getLowStockNotifications = function () {
