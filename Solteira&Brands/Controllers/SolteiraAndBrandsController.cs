@@ -372,6 +372,23 @@ namespace Solteira_Brands.Controllers
                 if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
                     return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
 
+                var stonesTrim = (request.Stones ?? string.Empty).Trim();
+                var materialTrim = (request.Material ?? string.Empty).Trim();
+                var weightTrim = (request.Weight ?? string.Empty).Trim();
+                var lengthTrim = (request.Length ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(stonesTrim))
+                    return Json(new { success = false, message = "Stones is required." });
+                if (string.IsNullOrWhiteSpace(materialTrim))
+                    return Json(new { success = false, message = "Material is required." });
+                if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Length must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+
                 // Enforce unique product name (case-insensitive) among non-archived products.
                 var exists = db.tbl_products.Any(p =>
                     !p.IsArchived &&
@@ -386,10 +403,10 @@ namespace Solteira_Brands.Controllers
                     Category = (request.Category ?? string.Empty).Trim(),
                     Description = (request.Description ?? string.Empty).Trim(),
                     Price = request.Price,
-                    Material = request.Material,
-                    Stones = request.Stones,
-                    Weight = request.Weight,
-                    Length = request.Length,
+                    Material = materialTrim,
+                    Stones = stonesTrim,
+                    Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim,
+                    Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim,
                     StockQuantity = request.StockQuantity,
                     InitialStock = request.StockQuantity,
                     ImageId = request.ImageId,
@@ -426,6 +443,23 @@ namespace Solteira_Brands.Controllers
                 if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
                     return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
 
+                var stonesTrim = (request.Stones ?? string.Empty).Trim();
+                var materialTrim = (request.Material ?? string.Empty).Trim();
+                var weightTrim = (request.Weight ?? string.Empty).Trim();
+                var lengthTrim = (request.Length ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(stonesTrim))
+                    return Json(new { success = false, message = "Stones is required." });
+                if (string.IsNullOrWhiteSpace(materialTrim))
+                    return Json(new { success = false, message = "Material is required." });
+                if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
+                    return Json(new { success = false, message = "Length must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+
                 // Enforce unique product name (case-insensitive) when editing as well.
                 var exists = db.tbl_products.Any(p =>
                     p.Id != product.Id &&
@@ -439,10 +473,10 @@ namespace Solteira_Brands.Controllers
                 product.Category = (request.Category ?? string.Empty).Trim();
                 product.Description = (request.Description ?? string.Empty).Trim();
                 product.Price = request.Price;
-                product.Material = request.Material;
-                product.Stones = request.Stones;
-                product.Weight = request.Weight;
-                product.Length = request.Length;
+                product.Material = materialTrim;
+                product.Stones = stonesTrim;
+                product.Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim;
+                product.Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim;
                 product.StockQuantity = request.StockQuantity;
                 if (request.ImageId.HasValue) product.ImageId = request.ImageId;
                 product.IsBestSeller = request.IsBestSeller;
@@ -859,11 +893,14 @@ namespace Solteira_Brands.Controllers
                 var contactTrim = (request.ContactNumber ?? "").Trim();
                 var deliveryAddressTrim = (request.DeliveryAddress ?? "").Trim();
                 if (string.IsNullOrEmpty(customerNameTrim) || string.IsNullOrEmpty(contactTrim) || string.IsNullOrEmpty(deliveryAddressTrim))
-                    return Json(new { success = false, message = "Customer name, contact number, and delivery address are required." });
+                    return Json(new { success = false, message = "Contact name, contact number, and delivery address are required." });
                 const int checkoutNameMaxLen = 30;
-                const int checkoutAddressMaxLen = 50;
+                const int checkoutAddressMaxLen = 100;
                 if (customerNameTrim.Length > checkoutNameMaxLen)
-                    return Json(new { success = false, message = "Customer name must be " + checkoutNameMaxLen + " characters or fewer." });
+                    return Json(new { success = false, message = "Contact name must be " + checkoutNameMaxLen + " characters or fewer." });
+                // Same character rules as buyer registration names (letters, spaces, apostrophe, period, hyphen); no digits.
+                if (!Regex.IsMatch(customerNameTrim, @"^[a-zA-Z\s'\.\-]{1," + checkoutNameMaxLen + "}$"))
+                    return Json(new { success = false, message = "Contact name may only include letters, spaces, apostrophes, periods, and hyphens. No numbers." });
                 if (deliveryAddressTrim.Length > checkoutAddressMaxLen)
                     return Json(new { success = false, message = "Delivery address must be " + checkoutAddressMaxLen + " characters or fewer." });
 

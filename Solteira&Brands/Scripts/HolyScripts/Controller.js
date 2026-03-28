@@ -1045,6 +1045,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.rejectPayment = function (paymentId) {
         if (!paymentId) return;
+        var orderIdFromList = null;
+        if ($scope.paymentsList && $scope.paymentsList.length) {
+            for (var k = 0; k < $scope.paymentsList.length; k++) {
+                var pr = $scope.paymentsList[k];
+                if (pr && pr.paymentId === paymentId) {
+                    orderIdFromList = pr.orderId;
+                    break;
+                }
+            }
+        }
         Swal.fire({
             title: 'Reject payment',
             input: 'textarea',
@@ -1053,7 +1063,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             inputAttributes: { 'aria-label': 'Rejection reason', rows: 4 },
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Reject',
+            confirmButtonText: 'Next',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#dc3545',
             inputValidator: function (value) {
@@ -1061,32 +1071,73 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 return null;
             }
         }).then(function (result) {
-            if (result.isConfirmed && result.value) {
-                // Quick reject from list: default to allow resubmission
-                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', result.value.trim(), true).then(function (res) {
-                    if (res.data && res.data.success) {
-                        // Immediate local update for rejected payment.
-                        if ($scope.paymentsList && $scope.paymentsList.length) {
-                            for (var i = 0; i < $scope.paymentsList.length; i++) {
-                                var p = $scope.paymentsList[i];
-                                if (p && p.paymentId === paymentId) {
-                                    p.paymentStatus = 'REJECTED';
-                                    p.rejectionReason = result.value.trim();
-                                    break;
-                                }
+            if (!result.isConfirmed || !result.value) return;
+            var reasonTrim = result.value.trim();
+            Swal.fire({
+                title: 'Allow buyer to resubmit?',
+                text: 'If you choose No, you will be asked whether to return items to stock when the order is cancelled (same as on the Orders page).',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, allow resubmit',
+                cancelButtonText: 'No, final rejection'
+            }).then(function (resubmitChoice) {
+                if (!resubmitChoice.isConfirmed && resubmitChoice.dismiss !== 'cancel') return;
+                var allowResubmitQuick = !!resubmitChoice.isConfirmed;
+                SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reasonTrim, allowResubmitQuick).then(function (res) {
+                    if (!(res.data && res.data.success)) {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                        return;
+                    }
+                    if ($scope.paymentsList && $scope.paymentsList.length) {
+                        for (var i = 0; i < $scope.paymentsList.length; i++) {
+                            var p = $scope.paymentsList[i];
+                            if (p && p.paymentId === paymentId) {
+                                p.paymentStatus = 'REJECTED';
+                                p.rejectionReason = reasonTrim;
+                                break;
                             }
                         }
-                        $scope.refreshSelectedOrderDetails();
-                        if ($scope.loadPayments) $scope.loadPayments();
-                        $scope.closePaymentProofModal();
-                        Swal.fire({ title: 'Payment rejected', icon: 'success', confirmButtonText: 'OK' });
+                    }
+                    $scope.refreshSelectedOrderDetails();
+                    if ($scope.loadPayments) $scope.loadPayments();
+                    $scope.closePaymentProofModal();
+                    var msgQuick = allowResubmitQuick ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
+                    if (!allowResubmitQuick && orderIdFromList) {
+                        Swal.fire({
+                            title: 'Return items to stock?',
+                            text: 'The order will be cancelled. Do you want to return these items to active inventory?',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Yes, return to stock',
+                            cancelButtonText: 'No, keep stock as is'
+                        }).then(function (choice) {
+                            if (choice.isConfirmed) {
+                                SolteiraAndBrandsService.updateOrderStatus(orderIdFromList, 'Cancelled', reasonTrim, true).then(function (ores) {
+                                    if (ores.data && ores.data.success) {
+                                        Swal.fire({ title: 'Payment rejected', text: 'The order was cancelled and items were returned to stock.', icon: 'success', confirmButtonText: 'OK' });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Could not cancel order', text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled.' });
+                                    }
+                                });
+                            } else if (choice.dismiss === 'cancel') {
+                                SolteiraAndBrandsService.updateOrderStatus(orderIdFromList, 'Cancelled', reasonTrim, false).then(function (ores) {
+                                    if (ores.data && ores.data.success) {
+                                        Swal.fire({ title: 'Payment rejected', text: 'The order was cancelled. Stock levels were not changed.', icon: 'success', confirmButtonText: 'OK' });
+                                    } else {
+                                        Swal.fire({ icon: 'error', title: 'Could not cancel order', text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled.' });
+                                    }
+                                });
+                            } else {
+                                Swal.fire({ title: 'Payment rejected', text: 'The order was not cancelled. Cancel it from the Orders page if you still need to close it.', icon: 'info', confirmButtonText: 'OK' });
+                            }
+                        });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
+                        Swal.fire({ title: 'Payment rejected', text: msgQuick, icon: 'success', confirmButtonText: 'OK' });
                     }
                 }, function (err) {
                     Swal.fire({ icon: 'error', title: 'Failed', text: (err.data && err.data.message) || 'Please try again.' });
                 });
-            }
+            });
         });
     };
 
@@ -1279,6 +1330,9 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
         var allowResubmit = !!($scope.paymentModalForm && $scope.paymentModalForm.allowResubmit);
         var paymentId = $scope.selectedPayment.paymentId;
+        var orderIdForCancel = ($scope.paymentDetail && $scope.paymentDetail.orderSummary && $scope.paymentDetail.orderSummary.id)
+            ? $scope.paymentDetail.orderSummary.id
+            : null;
         SolteiraAndBrandsService.updatePaymentStatus(paymentId, 'REJECTED', reason, allowResubmit).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.paymentModalForm.rejectionReason = '';
@@ -1299,41 +1353,82 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.closePaymentProofModal();
                 var msg = allowResubmit ? 'The buyer will be able to resubmit payment.' : 'The buyer cannot resubmit; they will see the rejection reason only.';
 
-                // For final rejections (no resubmit), also ask whether to return items to stock.
-                if (!allowResubmit && $scope.paymentDetail && $scope.paymentDetail.orderSummary && $scope.paymentDetail.orderSummary.id) {
-                    var orderId = $scope.paymentDetail.orderSummary.id;
+                function finishPaymentRejectFlow(title, text, icon) {
+                    Swal.fire({
+                        title: title || 'Payment rejected',
+                        text: text || msg,
+                        icon: icon || 'success',
+                        confirmButtonText: 'OK'
+                    }).then(function () {
+                        $scope.paymentSuccessSwalPending = false;
+                        window.location.reload();
+                    });
+                }
+
+                // Final rejection (no resubmit): cancel the order and match Orders admin — optional return to stock.
+                if (!allowResubmit && orderIdForCancel) {
                     Swal.fire({
                         title: 'Return items to stock?',
-                        text: 'Order will be rejected. Do you want to return these items to active inventory?',
+                        text: 'The order will be cancelled. Do you want to return these items to active inventory?',
                         icon: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Yes, return to stock',
                         cancelButtonText: 'No, keep stock as is'
                     }).then(function (choice) {
                         if (choice.isConfirmed) {
-                            // Yes → cancel and restore stock.
-                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, true);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                                $scope.paymentSuccessSwalPending = false;
-                                window.location.reload();
+                            SolteiraAndBrandsService.updateOrderStatus(orderIdForCancel, 'Cancelled', reason, true).then(function (ores) {
+                                if (ores.data && ores.data.success) {
+                                    finishPaymentRejectFlow('Payment rejected', 'The order was cancelled and items were returned to stock.', 'success');
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Could not cancel order',
+                                        text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled. Cancel it from the Orders page.'
+                                    }).then(function () {
+                                        $scope.paymentSuccessSwalPending = false;
+                                        window.location.reload();
+                                    });
+                                }
+                            }, function (err) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Could not cancel order',
+                                    text: (err.data && err.data.message) || 'Payment was rejected, but the order could not be cancelled.'
+                                }).then(function () {
+                                    $scope.paymentSuccessSwalPending = false;
+                                    window.location.reload();
+                                });
                             });
                         } else if (choice.dismiss === 'cancel') {
-                            // "No, keep stock as is" → cancel order but do not touch stock.
-                            $scope.updateOrderStatusFor(orderId, 'Cancelled', reason, false);
-                            Swal.fire({ title: 'Payment rejected & order cancelled', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                                $scope.paymentSuccessSwalPending = false;
-                                window.location.reload();
+                            SolteiraAndBrandsService.updateOrderStatus(orderIdForCancel, 'Cancelled', reason, false).then(function (ores) {
+                                if (ores.data && ores.data.success) {
+                                    finishPaymentRejectFlow('Payment rejected', 'The order was cancelled. Stock levels were not changed.', 'success');
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Could not cancel order',
+                                        text: (ores.data && ores.data.message) || 'Payment was rejected, but the order could not be cancelled. Cancel it from the Orders page.'
+                                    }).then(function () {
+                                        $scope.paymentSuccessSwalPending = false;
+                                        window.location.reload();
+                                    });
+                                }
+                            }, function (err) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Could not cancel order',
+                                    text: (err.data && err.data.message) || 'Payment was rejected, but the order could not be cancelled.'
+                                }).then(function () {
+                                    $scope.paymentSuccessSwalPending = false;
+                                    window.location.reload();
+                                });
                             });
                         } else {
-                            // X / backdrop / Esc → abort without cancelling the order.
-                            return;
+                            finishPaymentRejectFlow('Payment rejected', 'The order was not cancelled. Cancel it from the Orders page if you still need to close it.', 'info');
                         }
                     });
                 } else {
-                    Swal.fire({ title: 'Payment rejected', text: msg, icon: 'success', confirmButtonText: 'OK' }).then(function () {
-                        $scope.paymentSuccessSwalPending = false;
-                        window.location.reload();
-                    });
+                    finishPaymentRejectFlow('Payment rejected', msg, 'success');
                 }
             } else {
                 Swal.fire({ icon: 'error', title: 'Failed', text: (res.data && res.data.message) || 'Please try again.' });
@@ -1468,6 +1563,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     // ----- Inventory: products from tbl_products (shared with buyer storefront) -----
     /** @type {number} Must match server ProductFieldConstraints.MaxNameLength */
     var INVENTORY_PRODUCT_NAME_MAX_LEN = 30;
+    /** @type {number} Must match server ProductFieldConstraints.MaxSpecFieldLength */
+    var INVENTORY_SPEC_FIELD_MAX_LEN = 50;
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
     $scope.inventorySearchText = '';
@@ -1675,6 +1772,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             });
             return;
         }
+        var stonesAddTrim = String($scope.newProduct.stones).trim();
+        var materialAddTrim = String($scope.newProduct.material).trim();
+        var weightAddTrim = String($scope.newProduct.weight || '').trim();
+        var lengthAddTrim = String($scope.newProduct.length || '').trim();
+        if (stonesAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Stones too long', text: 'Stones must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (materialAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Material too long', text: 'Material must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (weightAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Weight too long', text: 'Weight must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (lengthAddTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Length too long', text: 'Length must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
         if (!$scope.inventoryPhotoFile) {
             Swal.fire({
                 title: 'Photo required',
@@ -1872,6 +1989,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 icon: 'warning',
                 confirmButtonText: 'OK'
             });
+            return;
+        }
+        var stonesEditTrim = String($scope.editProduct.stones).trim();
+        var materialEditTrim = String($scope.editProduct.material).trim();
+        var weightEditTrim = String($scope.editProduct.weight || '').trim();
+        var lengthEditTrim = String($scope.editProduct.length || '').trim();
+        if (stonesEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Stones too long', text: 'Stones must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (materialEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Material too long', text: 'Material must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (weightEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Weight too long', text: 'Weight must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
+            return;
+        }
+        if (lengthEditTrim.length > INVENTORY_SPEC_FIELD_MAX_LEN) {
+            Swal.fire({ title: 'Length too long', text: 'Length must be at most ' + INVENTORY_SPEC_FIELD_MAX_LEN + ' characters.', icon: 'warning', confirmButtonText: 'OK' });
             return;
         }
 

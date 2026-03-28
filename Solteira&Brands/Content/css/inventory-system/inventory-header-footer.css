@@ -549,7 +549,6 @@ table.dataTable thead th {
 #inventoryTable.dataTable tbody td:nth-child(1),
 
 #adminOrdersTable.dataTable thead th:nth-child(1),
-#adminOrdersTable.dataTable tbody td:nth-child(1),
 
 #orderArchiveTable.dataTable thead th:nth-child(1),
 #orderArchiveTable.dataTable tbody td:nth-child(1),
@@ -557,20 +556,12 @@ table.dataTable thead th {
 #paymentTable.dataTable thead th:nth-child(1),
 #paymentTable.dataTable tbody td:nth-child(1),
 
+/* Delivery tables: center ID column headers only; tbody top-align is set in inventory-delivery.css */
 #deliveryShipmentsTable.dataTable thead th:nth-child(1),
-#deliveryShipmentsTable.dataTable tbody td:nth-child(1),
-
 #deliveryShipmentsTable.dataTable thead th:nth-child(2),
-#deliveryShipmentsTable.dataTable tbody td:nth-child(2),
 
 #deliveryMeetupTable.dataTable thead th:nth-child(1),
-#deliveryMeetupTable.dataTable tbody td:nth-child(1) {
-    text-align: center !important;
-    vertical-align: middle;
-}
-
-#deliveryMeetupTable.dataTable thead th:nth-child(2),
-#deliveryMeetupTable.dataTable tbody td:nth-child(2) {
+#deliveryMeetupTable.dataTable thead th:nth-child(2) {
     text-align: center !important;
     vertical-align: middle;
 }

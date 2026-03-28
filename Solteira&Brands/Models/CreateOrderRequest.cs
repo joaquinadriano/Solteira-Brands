@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Solteira_Brands.Models
 {
@@ -9,6 +10,8 @@ namespace Solteira_Brands.Models
     {
         public string CustomerName { get; set; }
         public string ContactNumber { get; set; }
+
+        [StringLength(100)]
         public string DeliveryAddress { get; set; }
         public string PaymentMethod { get; set; }
         public decimal TotalAmount { get; set; }

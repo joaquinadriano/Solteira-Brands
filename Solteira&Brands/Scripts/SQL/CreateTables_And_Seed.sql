@@ -1,11 +1,12 @@
 -- ============================================================================
 -- Solteira & Brands — SINGLE SQL SCRIPT (update this file as schema changes)
 -- Database: SolteiraBrands (MySQL / MariaDB)
+-- Fresh empty DB (full CREATEs only, no ALTER migration block): Scripts/SQL/FinalSqlQuery.sql
 -- Run in HeidiSQL: open this file in Query tab, then Execute (F9) or Run (Ctrl+F9).
 -- Idempotent: safe to run multiple times.
 --
 -- Current schema:
---   tbl_roles, tbl_users (no first_name/last_name; auth_provider),
+--   tbl_roles, tbl_users (first/last name, auth_provider, avatar, terms),
 --   tbl_verification_tokens, tbl_images
 -- Trial accounts: SystemAdmin, Manager, Staff, Buyer (password: Password123@)
 -- After first run: visit /Account/SeedTrialPasswords to set real password hashes.
@@ -88,8 +89,8 @@ CREATE TABLE IF NOT EXISTS tbl_products (
     category        VARCHAR(100)    NOT NULL,
     description     VARCHAR(255)    NULL,
     price           DECIMAL(10,2)   NOT NULL,
-    material        VARCHAR(150)    NULL,
-    stones          VARCHAR(255)    NULL,
+    material        VARCHAR(50)     NULL,
+    stones          VARCHAR(50)     NULL,
     weight          VARCHAR(50)     NULL,
     length          VARCHAR(50)     NULL,
     stock_quantity  INT             NOT NULL DEFAULT 0,
@@ -172,7 +173,7 @@ CREATE TABLE IF NOT EXISTS tbl_orders (
     order_number            VARCHAR(50)     NOT NULL,
     customer_name           VARCHAR(150)    NOT NULL,
     contact_number          VARCHAR(50)     NOT NULL,
-    delivery_address        VARCHAR(500)    NOT NULL,
+    delivery_address        VARCHAR(100)    NOT NULL,
     payment_method          VARCHAR(100)    NOT NULL,
     payment_type            VARCHAR(50)     NULL,
     total_amount            DECIMAL(12,2)   NOT NULL,
@@ -775,14 +776,23 @@ SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
 
 -- ----------------------------------------------------------------------------
--- Migration: product name max length 30 (existing DBs: shorten any name > 30 chars first, then run)
+-- Migration: product name max 30; spec fields max 50 (shorten oversized values first, then run)
 -- ----------------------------------------------------------------------------
--- ALTER TABLE tbl_products MODIFY COLUMN name VARCHAR(30) NOT NULL;
+-- ALTER TABLE tbl_products MODIFY COLUMN name VARCHAR(30) NOT NULL,
+--     MODIFY COLUMN material VARCHAR(50) NULL,
+--     MODIFY COLUMN stones VARCHAR(50) NULL,
+--     MODIFY COLUMN weight VARCHAR(50) NULL,
+--     MODIFY COLUMN length VARCHAR(50) NULL;
 
 -- ----------------------------------------------------------------------------
 -- Migration: add is_featured to existing tbl_products (run if column missing)
 -- ----------------------------------------------------------------------------
 -- ALTER TABLE tbl_products ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER is_best_seller;
+
+-- ----------------------------------------------------------------------------
+-- Migration: delivery_address length 100 (checkout limit; shorten any row > 100 first if needed)
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE tbl_orders MODIFY COLUMN delivery_address VARCHAR(100) NOT NULL;
 
 -- ----------------------------------------------------------------------------
 -- Migration: add meetup_datetime to tbl_orders (run once if table already existed)

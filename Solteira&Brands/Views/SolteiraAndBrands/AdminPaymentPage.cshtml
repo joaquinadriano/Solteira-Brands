@@ -311,6 +311,7 @@
                                         <input type="checkbox" class="form-check-input" id="allowResubmitCheckbox" ng-model="paymentModalForm.allowResubmit" />
                                         <label class="form-check-label small" for="allowResubmitCheckbox">Allow buyer to resubmit payment</label>
                                     </div>
+                                    <p class="small text-muted mb-0 mt-1" ng-if="!paymentModalForm.allowResubmit">If resubmit is off, after rejecting you will be asked whether to return items to stock when the order is cancelled (same as rejecting an order on the Orders page).</p>
                                     <button type="button" class="btn btn-danger btn-payment-reject" ng-click="rejectPaymentFromModal()" ng-disabled="!(paymentModalForm.rejectionReason && paymentModalForm.rejectionReason.trim().length >= 5)">Reject</button>
                                 </div>
                             </div>

@@ -1,4 +1,4 @@
-﻿html, body {
+html, body {
     overflow-x: hidden;
 }
 
@@ -37,6 +37,28 @@ color: #87AE73;*/
 #deliveryShipmentsTable.dataTable #payment-orderID {
     text-decoration: underline;
     cursor: pointer;
+}
+
+/* DataTables (Shipments): top-align cells; wrap Address (column 4) */
+#deliveryShipmentsTable.dataTable tbody td {
+    vertical-align: top;
+}
+
+#deliveryShipmentsTable.dataTable thead th:nth-child(4),
+#deliveryShipmentsTable.dataTable tbody td:nth-child(4) {
+    max-width: 14rem;
+    min-width: 0;
+    white-space: normal;
+    vertical-align: top;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    hyphens: manual;
+}
+
+#deliveryShipmentsTable.dataTable tbody td:nth-child(1),
+#deliveryShipmentsTable.dataTable tbody td:nth-child(2) {
+    text-align: center !important;
 }
 
 .btn-add-order {
@@ -205,6 +227,29 @@ color: #87AE73;*/
 #deliveryMeetupTable.dataTable #upload-col{
     max-width:2vw;
 }
+
+/* DataTables (Meetup): top-align cells; wrap Address (column 4) */
+#deliveryMeetupTable.dataTable tbody td {
+    vertical-align: top;
+}
+
+#deliveryMeetupTable.dataTable thead th:nth-child(4),
+#deliveryMeetupTable.dataTable tbody td:nth-child(4) {
+    max-width: 14rem;
+    min-width: 0;
+    white-space: normal;
+    vertical-align: top;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    hyphens: manual;
+}
+
+#deliveryMeetupTable.dataTable tbody td:nth-child(1),
+#deliveryMeetupTable.dataTable tbody td:nth-child(2) {
+    text-align: center !important;
+}
+
 .btn-add-order {
     background-color: white;
     border: 0.14vw solid #87AE73;

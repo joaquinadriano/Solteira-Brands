@@ -4,5 +4,8 @@ namespace Solteira_Brands.Models
     public static class ProductFieldConstraints
     {
         public const int MaxNameLength = 30;
+
+        /// <summary>Stones, material, weight, length on admin inventory forms.</summary>
+        public const int MaxSpecFieldLength = 50;
     }
 }

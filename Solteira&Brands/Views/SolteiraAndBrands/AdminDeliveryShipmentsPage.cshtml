@@ -31,7 +31,7 @@
                                 <div class="card border rounded p-3 mb-4" ng-if="selectedOrderForDelivery" style="background: #f8f9fa;">
                                     <strong class="small text-uppercase text-muted">Order summary</strong>
                                     <p class="mb-1 mt-2"><strong>Customer:</strong> {{selectedOrderForDelivery.customerName}}</p>
-                                    <p class="mb-1"><strong>Address:</strong> {{selectedOrderForDelivery.deliveryAddress}}</p>
+                                    <p class="mb-1 text-break"><strong>Address:</strong> {{selectedOrderForDelivery.deliveryAddress}}</p>
                                     <p class="mb-1"><strong>Order total:</strong> &#8369; {{selectedOrderForDelivery.totalAmount | number:2}}</p>
                                     <p class="mb-0"><strong>Payment type:</strong> {{selectedOrderForDelivery.paymentType || 'FULL'}}</p>
                                 </div>
@@ -206,7 +206,7 @@
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-2"><i class="bi bi-geo-alt me-2 orderDetails-icon"></i>Delivery Address</h5>
                                         <p class="fw-bold mb-1">{{deliveryDetail.orderSummary.customerName}}</p>
-                                        <p class="mb-0">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
+                                        <p class="mb-0 text-break">{{deliveryDetail.orderSummary.deliveryAddress}}</p>
                                     </div>
                                 </div>
                             </div>

@@ -139,3 +139,26 @@ td.table-col-actions .inventory-table-actions > div {
     display: inline-flex;
     flex: 0 0 auto;
 }
+
+/* Admin Orders (DataTables): top-align row cells so Order ID / totals line up with first line when Address wraps */
+#adminOrdersTable.dataTable tbody td {
+    vertical-align: top;
+}
+
+/* Admin Orders (DataTables): wrap delivery addresses so long strings do not stretch the table */
+#adminOrdersTable.dataTable thead th:nth-child(4),
+#adminOrdersTable.dataTable tbody td:nth-child(4) {
+    max-width: 14rem;
+    min-width: 0;
+    white-space: normal;
+    vertical-align: top;
+    text-align: left;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    hyphens: manual;
+}
+
+/* Order ID column: keep centered text, top-aligned with wrapped Address (tbody rule excluded from shared header-footer block) */
+#adminOrdersTable.dataTable tbody td:nth-child(1) {
+    text-align: center !important;
+}

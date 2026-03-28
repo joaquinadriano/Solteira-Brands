@@ -1561,12 +1561,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     var CHECKOUT_NAME_MAX_LEN = 30;
-    var CHECKOUT_ADDRESS_MAX_LEN = 50;
+    var CHECKOUT_ADDRESS_MAX_LEN = 100;
+    // Same allowed characters as registration name validation (validateNameFormat), fixed 30-char limit for checkout.
+    $scope.checkoutContactNamePattern = /^[a-zA-Z\s'.\-]{1,30}$/;
+
+    function isValidCheckoutContactName(value) {
+        var t = (value || '').trim();
+        if (!t || t.length > CHECKOUT_NAME_MAX_LEN) return false;
+        return $scope.checkoutContactNamePattern.test(t);
+    }
 
     $scope.isCheckoutReadyToPlaceOrder = function () {
         var name = ($scope.customerName || '').trim();
         var address = ($scope.deliveryAddress || '').trim();
-        var nameOk = name.length > 0 && name.length <= CHECKOUT_NAME_MAX_LEN;
+        var nameOk = isValidCheckoutContactName(name);
         var contact = ($scope.contactNumber || '').trim();
         var contactOk = /^\d{11}$/.test(contact);
         var addressOk = address.length > 0 && address.length <= CHECKOUT_ADDRESS_MAX_LEN;
@@ -2406,8 +2414,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var contact = ($scope.contactNumber || '').trim();
         var address = ($scope.deliveryAddress || '').trim();
         var payment = ($scope.paymentMethod || '').trim();
-        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your full name.' }); return; }
-        if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
+        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact name.' }); return; }
+        if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Contact name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
+        if (!isValidCheckoutContactName(name)) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Invalid contact name',
+                text: 'Use letters only, with spaces or apostrophes, periods, or hyphens as needed. No numbers. Max ' + CHECKOUT_NAME_MAX_LEN + ' characters.'
+            });
+            return;
+        }
         if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
         if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
         if (address.length > CHECKOUT_ADDRESS_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Address too long', text: 'Delivery address must be ' + CHECKOUT_ADDRESS_MAX_LEN + ' characters or fewer.' }); return; }

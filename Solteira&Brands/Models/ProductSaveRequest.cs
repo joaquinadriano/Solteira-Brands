@@ -14,9 +14,17 @@ namespace Solteira_Brands.Models
         public string Category { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Material { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Stones { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Weight { get; set; }
+
+        [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Length { get; set; }
         public int StockQuantity { get; set; }
         public int? ImageId { get; set; }

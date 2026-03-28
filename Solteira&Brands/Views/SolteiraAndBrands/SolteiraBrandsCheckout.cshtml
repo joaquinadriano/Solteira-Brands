@@ -54,11 +54,13 @@
 
             <form name="checkoutForm" novalidate>
             <div class="form-group">
-                <label>Name <span class="text-danger">*</span></label>
-                <input type="text" name="customerName" placeholder="Enter your full name"
-                       ng-model="customerName" required ng-maxlength="30" maxlength="30" autocomplete="name" />
+                <label>Contact Name <span class="text-danger">*</span></label>
+                <input type="text" name="customerName" placeholder="e.g. Juan dela Cruz"
+                       ng-model="customerName" required ng-maxlength="30" maxlength="30" autocomplete="name"
+                       ng-pattern="checkoutContactNamePattern" />
                 <span class="validation-error" ng-show="checkoutForm.customerName.$error.required && (checkoutForm.customerName.$dirty || checkoutForm.customerName.$touched)">This field is required.</span>
                 <span class="validation-error" ng-show="checkoutForm.customerName.$error.maxlength">Maximum 30 characters.</span>
+                <span class="validation-error" ng-show="checkoutForm.customerName.$error.pattern && (checkoutForm.customerName.$dirty || checkoutForm.customerName.$touched)">Use letters only, with spaces or apostrophes, periods, or hyphens as needed. No numbers.</span>
             </div>
 
             <div class="form-group">
@@ -71,10 +73,11 @@
 
             <div class="form-group">
                 <label>Delivery Address <span class="text-danger">*</span></label>
-                <input type="text" name="deliveryAddress" placeholder="Enter complete address"
-                       ng-model="deliveryAddress" required ng-maxlength="50" maxlength="50" autocomplete="street-address" />
+                <textarea name="deliveryAddress" rows="2"
+                          placeholder="House/Unit No., Street, Barangay, City, Province, ZIP Code (include landmarks if needed)"
+                          ng-model="deliveryAddress" required ng-maxlength="100" maxlength="100" autocomplete="street-address"></textarea>
                 <span class="validation-error" ng-show="checkoutForm.deliveryAddress.$error.required && (checkoutForm.deliveryAddress.$dirty || checkoutForm.deliveryAddress.$touched)">This field is required.</span>
-                <span class="validation-error" ng-show="checkoutForm.deliveryAddress.$error.maxlength">Maximum 50 characters.</span>
+                <span class="validation-error" ng-show="checkoutForm.deliveryAddress.$error.maxlength">Maximum 100 characters.</span>
             </div>
 
             <div class="payment-options">
@@ -99,6 +102,11 @@
                             <li>
                                 Customers are required to settle the full order amount within two (2) to three (3)
                                 business days following the receipt of the official order confirmation email.
+                            </li>
+                            <li>
+                                For Cash through meetup, a 30% down payment is required. Enter N/A for the delivery address. 
+                                The meetup location is set by the seller, and date/time must be selected. 
+                                Final details will be shown after order approval.
                             </li>
                         </ol>
                     </div>

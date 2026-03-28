@@ -115,7 +115,8 @@
                                             <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="e.g., 5 Total Carat Diamond" ng-model="newProduct.stones">
+                                            <input type="text" class="form-control delivery-input-field" maxlength="50" placeholder="e.g., 5 Total Carat Diamond" ng-model="newProduct.stones">
+                                            <small class="text-muted">Max 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -124,7 +125,8 @@
                                             <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" placeholder="e.g., 18K White Gold" ng-model="newProduct.material">
+                                            <input type="text" class="form-control delivery-input-field" maxlength="50" placeholder="e.g., 18K White Gold" ng-model="newProduct.material">
+                                            <small class="text-muted">Max 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -133,7 +135,8 @@
                                             <label class="delivery-label">Weight:</label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 9.6 grams" ng-model="newProduct.weight">
+                                            <input type="text" maxlength="50" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 9.6 grams" ng-model="newProduct.weight">
+                                            <small class="text-muted">Max 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -142,7 +145,8 @@
                                             <label class="delivery-label">Length:</label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 18cm" ng-model="newProduct.length">
+                                            <input type="text" maxlength="50" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 18cm" ng-model="newProduct.length">
+                                            <small class="text-muted">Max 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -762,7 +766,8 @@
                                     <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" ng-model="editProduct.stones">
+                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.stones">
+                                    <small class="text-muted">Max 50 characters.</small>
                                 </div>
                             </div>
 
@@ -771,7 +776,8 @@
                                     <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" ng-model="editProduct.material">
+                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.material">
+                                    <small class="text-muted">Max 50 characters.</small>
                                 </div>
                             </div>
 
@@ -780,7 +786,8 @@
                                     <label class="delivery-label">Weight:</label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" ng-model="editProduct.weight">
+                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.weight">
+                                    <small class="text-muted">Max 50 characters.</small>
                                 </div>
                             </div>
 
@@ -789,7 +796,8 @@
                                     <label class="delivery-label">Length:</label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" ng-model="editProduct.length">
+                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.length">
+                                    <small class="text-muted">Max 50 characters.</small>
                                 </div>
                             </div>
 
