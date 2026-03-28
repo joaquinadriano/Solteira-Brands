@@ -7,10 +7,12 @@ app.service("SolteiraBrandsService", function ($http) {
         return $http({ method: "GET", url: "/Account/GetMyProfile" });
     };
 
-    this.updateProfile = function (avatarImageId, username) {
+    this.updateProfile = function (avatarImageId, username, firstName, lastName) {
         var params = new URLSearchParams();
         if (avatarImageId != null) params.append("avatarImageId", avatarImageId);
         if (username != null) params.append("username", username);
+        if (firstName != null) params.append("firstName", firstName);
+        if (lastName != null) params.append("lastName", lastName);
         return $http({
             method: "POST",
             url: "/Account/UpdateProfile",
@@ -136,6 +138,8 @@ app.service("SolteiraBrandsService", function ($http) {
         var params = new URLSearchParams();
         params.append("email", data.email || "");
         params.append("username", data.username || "");
+        params.append("firstName", data.firstName || "");
+        params.append("lastName", data.lastName || "");
         params.append("password", data.password || "");
         params.append("verifyPassword", data.verifyPassword || "");
         params.append("acceptedTerms", data.acceptedTerms ? "true" : "false");

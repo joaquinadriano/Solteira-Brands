@@ -84,13 +84,13 @@ namespace Solteira_Brands.Services
 
         private static void SendPaymentDeadlineReminders(SolteiraBrandsContext db, DateTime nowUtc)
         {
-            // Send reminders only once per exact payment_deadline value.
-            // FULL: 1 day before
-            // LAYAWAY: 2 days before
-            var leadDaysFull = 1;
-            var leadDaysLayaway = 2;
+            // Send reminders only once per exact payment_deadline value (see tbl_orders.payment_deadline_reminder_sent_for).
+            // Non-layaway: email when ~ReminderLeadDaysFullPayment day(s) of time remain (not "calendar date").
+            // Layaway: email when ~ReminderLeadDaysLayaway day(s) remain.
+            var leadDaysFull = PaymentDeadlineSettings.ReminderLeadDaysFullPayment;
+            var leadDaysLayaway = PaymentDeadlineSettings.ReminderLeadDaysLayaway;
 
-            // Remind close to exactly 1 day / 2 days before, with a small tolerance window.
+            // Remind close to the target "remaining time" with a small tolerance window (job runs every 5 minutes).
             // (Using "date" boundaries can cause earlier-than-24h reminders depending on job runtime.)
             var reminderTolerance = TimeSpan.FromMinutes(30);
             var fullTargetCenter = nowUtc.AddDays(leadDaysFull);
@@ -163,7 +163,9 @@ namespace Solteira_Brands.Services
 
                 if (amountDue <= 0) continue;
 
-                var deadlineDate = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy") : null;
+                var deadlineDate = order.PaymentDeadline.HasValue
+                    ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy")
+                    : null;
                 var username = order.User.Username ?? "User";
                 var orderNumber = order.OrderNumber ?? order.Id.ToString();
                 var subject = username + ", payment due soon for order #" + orderNumber;
@@ -211,7 +213,9 @@ namespace Solteira_Brands.Services
 
                 if (amountDue <= 0) continue;
 
-                var deadlineDate = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy") : null;
+                var deadlineDate = order.PaymentDeadline.HasValue
+                    ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy")
+                    : null;
                 var username = order.User.Username ?? "User";
                 var orderNumber = order.OrderNumber ?? order.Id.ToString();
                 var subject = username + ", your layaway installment is due soon for order #" + orderNumber;

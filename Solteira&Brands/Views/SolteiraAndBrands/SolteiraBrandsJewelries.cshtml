@@ -73,8 +73,9 @@
                             <span class="product-price">&#8369; {{item.price | number:2}}</span>
                         </div>
                         <p class="product-short-desc">{{getShortDescription(item)}}</p>
-                        <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
-                        <div class="product-stock sold-out-text" ng-if="(item.stockQuantity || 0) === 0">SOLD OUT</div>
+                        <div class="product-stock-slot" ng-class="{'is-sold-out': (item.stockQuantity || 0) === 0}">
+                            <div class="product-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -107,7 +108,7 @@
                         <span class="label">Product Details:</span>
                         <ul class="specs-list">
                             <li ng-if="!isEnumerable(selectedProduct.stones)">{{selectedProduct.stones}}</li>
-                            <li ng-repeat="stone in selectedProduct.stones" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
+                            <li ng-repeat="stone in selectedProduct.stones track by $index" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
 
                             <li>{{selectedProduct.material}}</li>
                             <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>

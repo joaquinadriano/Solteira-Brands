@@ -91,13 +91,23 @@ color: #87AE73;*/
 
 /*---------Icon---------*/
 .order-action-icon {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none;
     cursor: pointer;
     border-radius: 0.5vw;
     background-color: #FFFBE8;
     padding: 0.3vw;
     border: solid black 2px;
+    box-sizing: border-box;
+}
+.order-action-icon img {
+    display: block;
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 .order-action-icon:hover {
     text-decoration: none;
@@ -109,3 +119,23 @@ color: #87AE73;*/
     border: solid #87AE73 2px;
 }
 /*---------Icon end---------*/
+
+/* Centered action column: Inventory, Orders, Delivery, Payment, etc. */
+th.table-col-actions,
+td.table-col-actions {
+    text-align: center !important;
+    vertical-align: middle;
+}
+td.table-col-actions .d-flex {
+    justify-content: center;
+}
+
+/* Inventory: action icons stay on one row, tight spacing */
+td.table-col-actions .inventory-table-actions {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+td.table-col-actions .inventory-table-actions > div {
+    display: inline-flex;
+    flex: 0 0 auto;
+}

@@ -92,6 +92,21 @@ body {
     width: 3vw;
 }
 
+.js-layout-profile-name {
+    display: inline-block;
+    max-width: 170px;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.js-layout-profile-name .name-line {
+    display: block;
+    max-width: 170px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .dropdown-item {
     font-weight: bold;
     padding: .5vw 1vw;

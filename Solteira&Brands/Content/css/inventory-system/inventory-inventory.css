@@ -8,11 +8,27 @@ html, body {
     object-fit: cover;
 }
 
+.view-prod {
+    background-color: white !important;
+    border-radius: 0.8vw !important;
+}
+
 .inventory-view-link {
     font-size: 0.9rem;
-    color: #87AE73;
+    color: #87AE73 !important;
     text-decoration: underline;
     cursor: pointer;
+    background: none;
+    vertical-align: baseline;
+}
+.inventory-view-link:hover,
+.inventory-view-link:focus-visible {
+    color: #6d945c !important;
+}
+
+/* Top-align body cells so Product ID & Action sit on the first line with multi-line description */
+#inventoryTable.dataTable tbody td {
+    vertical-align: top !important;
 }
 
 /* View Product Modal: layout, image, typography, badges */
@@ -143,5 +159,61 @@ html, body {
     cursor: pointer;
     width: 1.1rem;
     height: 1.1rem;
+}
+
+/* Button styles for showing active vs archived inventory */
+#btn-showactive {
+    border-color: #87AE73;
+    color: black;
+    font-family: 'Nunito', sans-serif;
+}
+
+    #btn-showactive:hover,
+    #btn-showactive.active {
+        background-color: #87AE73 !important;
+        border-color: #87AE73 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+#btn-showarchive {
+    border-color: #95a5a6;
+    color: #95a5a6;
+    font-family: 'Nunito', sans-serif;
+}
+
+    #btn-showarchive:hover,
+    #btn-showarchive.active {
+        background-color: #95a5a6 !important;
+        border-color: #95a5a6 !important;
+        color: #fff !important;
+        font-weight: bold;
+    }
+
+/* Full product view modal: square image (1:1), crop with object-fit */
+.inventory-product-fullview-modal .product-view-grid .product-image-section {
+    display: flex;
+    justify-content: center;
+}
+.inventory-product-fullview-modal .product-view-grid .product-image-section .product-view-img {
+    width: min(100%, 420px);
+    max-width: min(100%, 420px);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
+    object-position: center;
+}
+.inventory-product-fullview-modal .product-view-grid .product-image-section .product-view-img--no-photo {
+    object-fit: contain;
+    background: #f8f9fa;
+    padding: 1.25rem;
+    box-sizing: border-box;
+}
+.inventory-product-fullview-modal .product-view-description-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 0;
 }
 

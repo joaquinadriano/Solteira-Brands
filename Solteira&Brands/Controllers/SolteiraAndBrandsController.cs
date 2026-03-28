@@ -73,7 +73,7 @@ namespace Solteira_Brands.Controllers
             // New deadline system: if PaymentDeadline exists, enforce STRICT cancellation based on it.
             if (order.PaymentDeadline.HasValue)
             {
-                if (order.PaymentDeadline.Value <= DateTime.UtcNow)
+                if (PaymentDeadlineTime.IsExpiredUtc(order.PaymentDeadline.Value, DateTime.UtcNow))
                 {
                             OrderDeadlineService.CancelOrder(order.Id, null);
 
@@ -201,14 +201,14 @@ namespace Solteira_Brands.Controllers
         }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminOrderDetailsPage() { return RedirectToAction("AdminOrdersPage"); }
-        [Authorize(Roles = "MANAGER,STAFF")]
+        [Authorize(Roles = "MANAGER")]
         public ActionResult AdminPaymentPage() { return View(); }
         [Authorize(Roles = "MANAGER,STAFF")]
         public ActionResult AdminDeliveryShipmentsPage() { return View(); }
         [Authorize(Roles = "MANAGER,STAFF")]
         public ActionResult AdminDeliveryMeetupPage() { return View(); }
 
-        // ----- Shared: ADMIN, MANAGER, STAFF (Dashboard, Inventory, Reports) -----
+        // ----- Shared: ADMIN, MANAGER, STAFF (Dashboard, Inventory; Reports = ADMIN/MANAGER only) -----
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminHomePage() { return View(); }
         /// <summary>Redirect to shared login.</summary>
@@ -219,7 +219,7 @@ namespace Solteira_Brands.Controllers
         public ActionResult AdminDashboardPage() { return View(); }
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         public ActionResult AdminInventoryPage() { return View(); }
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         public ActionResult AdminReportsPage() { return View(); }
 
         // ----- E-COMMERCE PAGES -----
@@ -358,7 +358,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult CreateProduct(ProductSaveRequest request)
         {
@@ -369,6 +369,8 @@ namespace Solteira_Brands.Controllers
                 var nameTrim = (request.Name ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(nameTrim))
                     return Json(new { success = false, message = "Product name is required." });
+                if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
+                    return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
 
                 // Enforce unique product name (case-insensitive) among non-archived products.
                 var exists = db.tbl_products.Any(p =>
@@ -404,7 +406,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdateProduct(ProductSaveRequest request)
         {
@@ -415,10 +417,14 @@ namespace Solteira_Brands.Controllers
             {
                 var product = db.tbl_products.FirstOrDefault(p => p.Id == request.Id.Value);
                 if (product == null) return Json(new { success = false, message = "Product not found." });
+                if (product.IsArchived)
+                    return Json(new { success = false, message = "Archived products cannot be edited. Restore the item first." });
 
                 var nameTrim = (request.Name ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(nameTrim))
                     return Json(new { success = false, message = "Product name is required." });
+                if (nameTrim.Length > ProductFieldConstraints.MaxNameLength)
+                    return Json(new { success = false, message = "Product name must be at most " + ProductFieldConstraints.MaxNameLength + " characters." });
 
                 // Enforce unique product name (case-insensitive) when editing as well.
                 var exists = db.tbl_products.Any(p =>
@@ -988,12 +994,10 @@ namespace Solteira_Brands.Controllers
                     }
 
                     var paymentDeadlineFormatted = o.PaymentDeadline.HasValue
-                        ? o.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                        ? PaymentDeadlineTime.FormatDeadlineLocal(o.PaymentDeadline.Value, "MM/dd/yyyy hh:mm tt")
                         : (string)null;
                     var paymentDeadlineRemainingText = o.PaymentDeadline.HasValue
-                        ? ((o.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
-                            ? "Expired"
-                            : (o.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                        ? PaymentDeadlineTime.RemainingDurationText(o.PaymentDeadline.Value, nowUtc)
                         : (string)null;
                     var deadlineRelevant =
                         string.Equals(status, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
@@ -1003,7 +1007,7 @@ namespace Solteira_Brands.Controllers
                         || string.Equals(status, OrderStatus.LayawayActive, StringComparison.OrdinalIgnoreCase);
 
                     var isOverdue = o.PaymentDeadline.HasValue
-                        && o.PaymentDeadline.Value <= nowUtc
+                        && PaymentDeadlineTime.IsExpiredUtc(o.PaymentDeadline.Value, nowUtc)
                         && deadlineRelevant;
 
                     return new
@@ -1054,15 +1058,15 @@ namespace Solteira_Brands.Controllers
                 var hasPayments = order.Payments != null && order.Payments.Any();
                 var nowUtc = DateTime.UtcNow;
                 var paymentDeadlineFormatted = order.PaymentDeadline.HasValue
-                    ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                    ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy hh:mm tt")
                     : (string)null;
                 var paymentDeadlineRemainingText = order.PaymentDeadline.HasValue
-                    ? ((order.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
-                        ? "Expired"
-                        : (order.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                    ? PaymentDeadlineTime.RemainingDurationText(order.PaymentDeadline.Value, nowUtc)
                     : (string)null;
-                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("o") : (string)null;
-                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && order.PaymentDeadline.Value <= nowUtc;
+                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue
+                    ? PaymentDeadlineTime.ToRoundTripIsoUtc(order.PaymentDeadline.Value)
+                    : (string)null;
+                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && PaymentDeadlineTime.IsExpiredUtc(order.PaymentDeadline.Value, nowUtc);
 
                 var items = order.OrderItems.Select(i => new
                 {
@@ -1097,6 +1101,30 @@ namespace Solteira_Brands.Controllers
                     verifiedAt = p.VerifiedAt
                 }).ToList();
 
+                // UI normalization:
+                // If the order is stuck on "Awaiting Payment Verification" but the latest rejected payment has AllowResubmit = 0
+                // (and there is no newer SUBMITTED payment), treat it as a final "Cancelled" for admin display.
+                var effectiveOrderStatus = (order.OrderStatus ?? "");
+                var paymentsListForStatus = order.Payments ?? new List<tblPaymentsModel>();
+                if (string.Equals(effectiveOrderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase))
+                {
+                    var latestRejected = paymentsListForStatus
+                        .Where(p => string.Equals(p.PaymentStatus, "REJECTED", StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefault();
+
+                    if (latestRejected != null && latestRejected.AllowResubmit == 0)
+                    {
+                        var hasNewerSubmitted = paymentsListForStatus.Any(p =>
+                            string.Equals(p.PaymentStatus, "SUBMITTED", StringComparison.OrdinalIgnoreCase)
+                            && p.CreatedAt > latestRejected.CreatedAt);
+
+                        if (!hasNewerSubmitted)
+                            // For admin display: treat "reject payment without resubmit" as a final cancellation.
+                            effectiveOrderStatus = OrderStatus.Cancelled;
+                    }
+                }
+
                 var meetupScheduledAt = order.MeetupDatetime ?? (order.Payments != null ? order.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
                 return Json(new
                 {
@@ -1105,7 +1133,9 @@ namespace Solteira_Brands.Controllers
                     {
                         id = order.Id,
                         orderNumber = order.OrderNumber,
-                        orderStatus = order.OrderStatus,
+                        orderStatus = effectiveOrderStatus,
+                        orderRejectionReason = order.RejectionReason,
+                        orderCancellationReason = order.CancellationReason,
                             paymentDeadline = order.PaymentDeadline,
                             paymentDeadlineFormatted = paymentDeadlineFormatted,
                             paymentDeadlineRemainingText = paymentDeadlineRemainingText,
@@ -1195,7 +1225,6 @@ namespace Solteira_Brands.Controllers
                     if (isFinalCancelled)
                     {
                         o.OrderStatus = OrderStatus.Cancelled;
-                        latestPaymentRejectionReason = null;
                     }
                     var verifiedCount = paymentsList.Count(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase));
                     var totalPaidVerified = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).Sum(p => p.Amount);
@@ -1281,6 +1310,11 @@ namespace Solteira_Brands.Controllers
                             status = downpaymentRowStatus,
                             isNextUnpaid = downpaymentIsNextUnpaid,
                             proofImageUrl = getProofUrl(latest0),
+                            // Proof/payment details used by the "View proof" modal.
+                            proofPaymentStatus = latest0?.PaymentStatus,
+                            proofAmount = latest0?.Amount,
+                            proofCreatedAt = latest0 != null ? latest0.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : null,
+                            proofReferenceNumber = latest0?.ReferenceNumber,
                             rejectionReason = latest0?.RejectionReason
                         });
                         for (var i = 1; i <= monthsAllowed; i++)
@@ -1302,6 +1336,11 @@ namespace Solteira_Brands.Controllers
                                 status = rowStatus,
                                 isNextUnpaid = isNextUnpaid,
                                 proofImageUrl = getProofUrl(latestI),
+                                // Proof/payment details used by the "View proof" modal.
+                                proofPaymentStatus = latestI?.PaymentStatus,
+                                proofAmount = latestI?.Amount,
+                                proofCreatedAt = latestI != null ? latestI.CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : null,
+                                proofReferenceNumber = latestI?.ReferenceNumber,
                                 rejectionReason = latestI?.RejectionReason
                             });
                         }
@@ -1340,15 +1379,15 @@ namespace Solteira_Brands.Controllers
 
                     var nowUtc = DateTime.UtcNow;
                     var paymentDeadlineFormatted = o.PaymentDeadline.HasValue
-                        ? o.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                        ? PaymentDeadlineTime.FormatDeadlineLocal(o.PaymentDeadline.Value, "MM/dd/yyyy hh:mm tt")
                         : (string)null;
-                    var paymentDeadlineUtcIso = o.PaymentDeadline.HasValue ? o.PaymentDeadline.Value.ToString("o") : (string)null;
+                    var paymentDeadlineUtcIso = o.PaymentDeadline.HasValue
+                        ? PaymentDeadlineTime.ToRoundTripIsoUtc(o.PaymentDeadline.Value)
+                        : (string)null;
                     var paymentDeadlineRemainingText = o.PaymentDeadline.HasValue
-                        ? ((o.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
-                            ? "Expired"
-                            : (o.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                        ? PaymentDeadlineTime.RemainingDurationText(o.PaymentDeadline.Value, nowUtc)
                         : (string)null;
-                    var paymentDeadlineExpired = o.PaymentDeadline.HasValue && o.PaymentDeadline.Value <= nowUtc;
+                    var paymentDeadlineExpired = o.PaymentDeadline.HasValue && PaymentDeadlineTime.IsExpiredUtc(o.PaymentDeadline.Value, nowUtc);
                     var deadlineRelevant =
                         string.Equals(o.OrderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
                         || string.Equals(o.OrderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase)
@@ -1523,16 +1562,16 @@ namespace Solteira_Brands.Controllers
                 if (paymentType == "LAYAWAY" && installmentMonthNumber == 0) { installmentMonthNumber = 0; }
 
                 var nowUtc = DateTime.UtcNow;
-                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue ? order.PaymentDeadline.Value.ToString("o") : (string)null;
+                var paymentDeadlineUtcIso = order.PaymentDeadline.HasValue
+                    ? PaymentDeadlineTime.ToRoundTripIsoUtc(order.PaymentDeadline.Value)
+                    : (string)null;
                 var paymentDeadlineFormatted = order.PaymentDeadline.HasValue
-                    ? order.PaymentDeadline.Value.ToString("MM/dd/yyyy hh:mm tt")
+                    ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy hh:mm tt")
                     : (string)null;
                 var paymentDeadlineRemainingText = order.PaymentDeadline.HasValue
-                    ? ((order.PaymentDeadline.Value - nowUtc).TotalSeconds <= 0
-                        ? "Expired"
-                        : (order.PaymentDeadline.Value - nowUtc).ToString(@"dd\.hh\:mm\:ss"))
+                    ? PaymentDeadlineTime.RemainingDurationText(order.PaymentDeadline.Value, nowUtc)
                     : (string)null;
-                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && order.PaymentDeadline.Value <= nowUtc;
+                var paymentDeadlineExpired = order.PaymentDeadline.HasValue && PaymentDeadlineTime.IsExpiredUtc(order.PaymentDeadline.Value, nowUtc);
                 var deadlineRelevant =
                     string.Equals(orderStatus, OrderStatus.Approved, StringComparison.OrdinalIgnoreCase)
                     || string.Equals(orderStatus, OrderStatus.AwaitingPaymentVerification, StringComparison.OrdinalIgnoreCase)
@@ -1798,7 +1837,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Admin list of payments (for Payments page). Returns payments with order and proof details.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult GetPaymentsForAdmin()
         {
@@ -1833,7 +1872,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Admin — full payment detail for View modal. Order summary, payment history, installment schedule (if Layaway), meetup info (if Meetup).</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult GetPaymentDetailForAdmin(int paymentId)
         {
@@ -1867,7 +1906,8 @@ namespace Solteira_Brands.Controllers
                 }).ToList();
 
                 var paymentHistory = (order.Payments ?? new List<tblPaymentsModel>())
-                    .OrderBy(p => p.VerifiedAt ?? p.CreatedAt)
+                    // Most recent first (matches the Date column using VerifiedAt when available).
+                    .OrderByDescending(p => p.VerifiedAt ?? p.CreatedAt)
                     .Select(p => new
                     {
                         paymentId = p.Id,
@@ -2016,7 +2056,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Admin — current payment settings (active GCASH and BANK_TRANSFER) for Manage Payment Settings modal.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult GetPaymentSettingsForAdmin()
         {
@@ -2043,7 +2083,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Admin — upload QR image for payment settings. Saves to ~/Content/images_uploaded/qr/, returns imageID.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public ActionResult UploadQrImage(HttpPostedFileBase file)
         {
@@ -2074,7 +2114,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Admin — replace active config for GCASH or BANK_TRANSFER. Deactivates previous, inserts new, logs.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdatePaymentSetting(string paymentType, string accountName, string accountNumber, int? qrImageId)
         {
@@ -2104,7 +2144,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Admin — active meetup setting.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult GetMeetupSettingsForAdmin()
         {
@@ -2118,7 +2158,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Admin — replace active meetup config. Deactivates previous, inserts new, logs.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdateMeetupSetting(string locationName, string address)
         {
@@ -2144,7 +2184,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Admin — layaway settings (single config).</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult GetLayawaySettingsForAdmin()
         {
@@ -2158,7 +2198,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Admin — update layaway config (single row: update or insert), log. ResubmitWindowDays and GracePeriodDays optional (defaults 3, 0).</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdateLayawaySettings(double downpaymentPercentage, int monthsAllowed, int resubmitWindowDays = 3, int gracePeriodDays = 0)
         {
@@ -2348,7 +2388,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>Order status only via allowed transitions: Pending→Approved/Rejected; Approved→Rejected.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdateOrderStatus(int id, string status, string rejectionReason = null, bool? restoreStock = null)
         {
@@ -2435,7 +2475,9 @@ namespace Solteira_Brands.Controllers
                     var isMeetupOrder = deliveryTypeRaw.Equals("MEETUP", StringComparison.OrdinalIgnoreCase)
                                          || paymentTypeRaw == "CASH_MEETUP";
 
-                    order.PaymentDeadline = isMeetupOrder ? (DateTime?)null : nowUtcForDeadline.AddDays(3);
+                    order.PaymentDeadline = isMeetupOrder
+                        ? (DateTime?)null
+                        : nowUtcForDeadline.AddDays(PaymentDeadlineSettings.DaysToPayAfterApprovalOrResubmit);
                     order.IsLayaway = string.Equals(order.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase);
                     order.CancellationReason = null;
                     order.LastStatusUpdateAt = nowUtcForDeadline;
@@ -2471,7 +2513,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Admin verify or reject payment. Only when payment is SUBMITTED. VERIFIED: recalc totalPaidVerified and remainingBalance from VERIFIED payments only; set order status (Paid/Ready for Meetup when balance 0, else Layaway Active). REJECTED: only mark payment REJECTED; set order to Pending Payment (full) or Pending Downpayment/Layaway Active (layaway) so buyer can resubmit. No change to remaining balance or progress on reject.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UpdatePaymentStatus(int paymentId, string status, string rejectionReason = null, bool? allowResubmit = null)
         {
@@ -2528,12 +2570,12 @@ namespace Solteira_Brands.Controllers
                             // STRICT MONTHLY: anchor to order.CreatedAt so early payments don't shift the schedule.
                             // Resubmit grace: +3 days from the monthly deadline (so it doesn't slide based on rejection timing).
                             var monthlyDue = orderForDeadline.CreatedAt.AddMonths(verifiedCount);
-                            payment.Order.PaymentDeadline = monthlyDue.AddDays(3);
+                            payment.Order.PaymentDeadline = monthlyDue.AddDays(PaymentDeadlineSettings.LayawayResubmitGraceDaysAfterMonthlyDue);
                         }
                         else
                         {
-                            // Initial downpayment isn't monthly; keep the existing 3-day window behavior.
-                            payment.Order.PaymentDeadline = nowUtc.AddDays(3);
+                            // Initial downpayment isn't monthly; same window as post-approval payment.
+                            payment.Order.PaymentDeadline = nowUtc.AddDays(PaymentDeadlineSettings.DaysToPayAfterApprovalOrResubmit);
                         }
                     }
                     else
@@ -2596,6 +2638,19 @@ namespace Solteira_Brands.Controllers
                             order.RemainingBalance = 0;
                             order.OrderStatus = OrderStatus.ReadyForMeetup;
                             order.LastStatusUpdateAt = now;
+                            // Create CTM-* instantly once payment is approved and meetup becomes Ready.
+                            // Prevent duplicates if verification runs multiple times for the same order.
+                            if (!db.tbl_meetup_outcomes.Any(m => m.OrderId == orderId))
+                            {
+                                db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                                {
+                                    OrderId = orderId,
+                                    Status = "READY_FOR_MEETUP",
+                                    CreatedAt = now
+                                });
+                                LogActivity(db, "Meetup Ready for Meetup", "MeetupOutcomes", orderId,
+                                    "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; CTM created.");
+                            }
                             // Payment is effectively completed for meetup orders.
                             order.PaymentDeadline = null;
                         }
@@ -2663,7 +2718,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>POST: Revoke Approval. Approved → Pending only if no payment record exists.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult RevokeApproval(int orderId)
         {
@@ -2823,6 +2878,20 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid order status transition." });
                 order.OrderStatus = OrderStatus.ReadyForMeetup;
                 order.LastStatusUpdateAt = DateTime.Now;
+
+                // Create CTM-* immediately for the meetup list (stable ID based on earliest outcome row).
+                var hasReadyOutcome = db.tbl_meetup_outcomes.Any(m =>
+                    m.OrderId == orderId && string.Equals(m.Status, "READY_FOR_MEETUP", StringComparison.OrdinalIgnoreCase));
+                if (!hasReadyOutcome)
+                {
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                    {
+                        OrderId = orderId,
+                        Status = "READY_FOR_MEETUP",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+
                 db.SaveChanges();
                 LogActivity(db, "Ready for Meetup", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
                 return Json(new { success = true, message = "Order is Ready for Meetup.", orderStatus = order.OrderStatus });
@@ -2844,6 +2913,22 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Invalid order status transition." });
                 order.OrderStatus = OrderStatus.Completed;
                 order.LastStatusUpdateAt = DateTime.Now;
+
+                // Store meetup outcome so CTM-* and modal status remain consistent.
+                var latestOutcome = db.tbl_meetup_outcomes
+                    .Where(m => m.OrderId == orderId)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
+                if (latestOutcome == null || !string.Equals(latestOutcome.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase))
+                {
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel
+                    {
+                        OrderId = orderId,
+                        Status = "COMPLETED",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+
                 db.SaveChanges();
                 LogActivity(db, "Meetup Completed", "Orders", order.Id, "Order #" + (order.OrderNumber ?? orderId.ToString()));
                 return Json(new { success = true, message = "Order completed.", orderStatus = order.OrderStatus });
@@ -3080,10 +3165,17 @@ namespace Solteira_Brands.Controllers
                     {
                         var scheduledAt = o.MeetupDatetime
                             ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
+                        // CTM-* should be created instantly when meetup becomes Ready,
+                        // so we display the earliest meetup-outcome row id as the "Meetup ID".
+                        var firstOutcome = db.tbl_meetup_outcomes
+                            .Where(m => m.OrderId == o.Id)
+                            .OrderBy(m => m.CreatedAt)
+                            .FirstOrDefault();
                         return new
                         {
                             id = o.Id,
                             orderNumber = o.OrderNumber,
+                            meetupOutcomeId = firstOutcome != null ? (int?)firstOutcome.Id : null,
                             customerName = o.CustomerName,
                             deliveryAddress = o.DeliveryAddress,
                             contactNumber = o.ContactNumber,
@@ -3321,7 +3413,7 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>GET: Cancel orders that are Approved or Awaiting Payment Verification and older than 24h with no verified payment. Restore stock. Call from scheduler or manually.</summary>
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         public JsonResult CheckAndCancelOverdueOrders()
         {
@@ -3364,7 +3456,7 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
         /// <summary>Sales report by order CreatedAt. Presets use GET; custom range should use <see cref="PostSalesReport"/> for reliable form binding.</summary>
         public JsonResult GetSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
@@ -3502,7 +3594,7 @@ namespace Solteira_Brands.Controllers
         }
 
         // ----- IMAGE UPLOAD (tbl_images; files to ~/Content/images_uploaded/products/) -----
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpPost]
         public JsonResult UploadProductImage(HttpPostedFileBase file)
         {
@@ -3555,7 +3647,7 @@ namespace Solteira_Brands.Controllers
         }
 
         // ----- USERS (Admin): registered users list -----
-        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [Authorize(Roles = "ADMIN")]
         [HttpGet]
         public JsonResult GetUsersForAdmin()
         {

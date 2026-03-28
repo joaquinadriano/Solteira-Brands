@@ -1,5 +1,5 @@
 @{
-    Layout = "~/Views/Shared/_OperationsLayout.cshtml";
+    Layout = User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
 }
 
 <div class="orderDetails-main-content">

@@ -24,13 +24,16 @@ CREATE TABLE IF NOT EXISTS tbl_roles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
--- 2. tbl_users (username only; no first_name/last_name)
+-- 2. tbl_users (first_name/last_name + username cooldown)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_users (
     id              INT             NOT NULL AUTO_INCREMENT,
     role_id         INT             NOT NULL,
     email           VARCHAR(150)    NOT NULL,
     username        VARCHAR(150)    NOT NULL,
+    first_name     VARCHAR(50)     NOT NULL,
+    last_name      VARCHAR(50)     NOT NULL,
+    username_changed_at DATETIME  NULL,
     auth_provider   VARCHAR(50)    NOT NULL DEFAULT 'LOCAL',
     password_hash   VARCHAR(255)   NOT NULL,
     password_salt   VARCHAR(255)   NOT NULL,
@@ -81,7 +84,7 @@ CREATE TABLE IF NOT EXISTS tbl_images (
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_products (
     id              INT             NOT NULL AUTO_INCREMENT,
-    name            VARCHAR(150)    NOT NULL,
+    name            VARCHAR(30)     NOT NULL,
     category        VARCHAR(100)    NOT NULL,
     description     VARCHAR(255)    NULL,
     price           DECIMAL(10,2)   NOT NULL,
@@ -367,20 +370,57 @@ CREATE TABLE IF NOT EXISTS tbl_activity_logs (
 -- ----------------------------------------------------------------------------
 SET @dbname := DATABASE();
 
--- Drop first_name from tbl_users if it exists (you already did this)
+-- Add first_name to tbl_users if missing
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'first_name');
-SET @ddl := IF(@col_exists > 0, 'ALTER TABLE tbl_users DROP COLUMN first_name;', 'SELECT 1;');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN first_name VARCHAR(50) NOT NULL DEFAULT ''User'' AFTER username;',
+    'SELECT 1;');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add last_name to tbl_users if missing
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'last_name');
-SET @ddl := IF(@col_exists > 0, 'ALTER TABLE tbl_users DROP COLUMN last_name;', 'SELECT 1;');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN last_name VARCHAR(50) NOT NULL DEFAULT ''User'' AFTER first_name;',
+    'SELECT 1;');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- Backfill placeholders with something deterministic (based on username) for older DBs
+UPDATE tbl_users
+SET
+    first_name = CASE WHEN first_name IS NULL OR first_name = '' THEN 'User' ELSE first_name END,
+    last_name  = CASE WHEN last_name IS NULL OR last_name = '' THEN 'Account' ELSE last_name END
+WHERE
+    first_name IS NULL OR first_name = '' OR last_name IS NULL OR last_name = '';
+
+-- Add username_changed_at to tbl_users if missing (for the 30-day cooldown)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'username_changed_at');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN username_changed_at DATETIME NULL AFTER created_at;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Ensure username_changed_at is nullable (cooldown starts after first trigger)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'username_changed_at');
+SET @ddl := IF(@col_exists > 0,
+    'ALTER TABLE tbl_users MODIFY COLUMN username_changed_at DATETIME NULL;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+UPDATE tbl_users
+SET username_changed_at = NULL
+WHERE username_changed_at = created_at;
 
 -- Add auth_provider to tbl_users if not exists (LOCAL | GOOGLE)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -706,20 +746,20 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 -- 8. Trial accounts (SystemAdmin, Manager, Staff, Buyer — password: Password123@) !!!!!!!!!!!!!!
 --    Hash/salt = SEEDME until you visit /Account/SeedTrialPasswords
 -- ----------------------------------------------------------------------------
-INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN'  LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
+SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'System', 'Admin', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN'  LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'manager@solteira.local',     'Manager',   'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
+SELECT r.id, 'manager@solteira.local',     'Manager',   'Manager', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'staff@solteira.local',       'Staff',     'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF'   LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
+SELECT r.id, 'staff@solteira.local',       'Staff',     'Staff', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF'   LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'buyer@solteira.local',      'Buyer',     'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'BUYER'   LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
+SELECT r.id, 'buyer@solteira.local',      'Buyer',     'Buyer', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'BUYER'   LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- ----------------------------------------------------------------------------
@@ -733,6 +773,11 @@ WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'GCASH
 INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
 SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
+
+-- ----------------------------------------------------------------------------
+-- Migration: product name max length 30 (existing DBs: shorten any name > 30 chars first, then run)
+-- ----------------------------------------------------------------------------
+-- ALTER TABLE tbl_products MODIFY COLUMN name VARCHAR(30) NOT NULL;
 
 -- ----------------------------------------------------------------------------
 -- Migration: add is_featured to existing tbl_products (run if column missing)

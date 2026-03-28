@@ -10,7 +10,7 @@ namespace Solteira_Brands.Models.Maps
             HasKey(x => x.Id);
 
             Property(x => x.Id).HasColumnName("id");
-            Property(x => x.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+            Property(x => x.Name).HasColumnName("name").HasMaxLength(Solteira_Brands.Models.ProductFieldConstraints.MaxNameLength).IsRequired();
             Property(x => x.Category).HasColumnName("category").HasMaxLength(100).IsRequired();
             Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
             Property(x => x.Price).HasColumnName("price");

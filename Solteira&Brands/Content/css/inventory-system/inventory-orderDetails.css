@@ -1,4 +1,4 @@
-﻿.orderDetails-main-content {
+.orderDetails-main-content {
     position: relative;
     margin-left: 7.5vw;
     padding-top: 4.5rem;
@@ -69,6 +69,18 @@
     font-weight: 500;
     padding: 6px 12px;
     border-radius: 0.4vw;
+}
+
+/* Applied to status badges when admin shows a final "Order Rejected" outcome. */
+.orderDetails-badgeRejected {
+    background-color: #f8d7da !important;
+    color: #dc3545 !important;
+}
+
+/* Applied to status badges when admin shows a final "Order Cancelled" outcome. */
+.orderDetails-badgeCancelled {
+    background-color: #e2e3e5 !important;
+    color: #6c757d !important;
 }
 
 /* -----------Info---------- */

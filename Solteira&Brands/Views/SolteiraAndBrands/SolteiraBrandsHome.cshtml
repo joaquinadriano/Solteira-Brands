@@ -37,11 +37,17 @@
                                 <a ng-repeat="item in slide track by item.id" href="javascript:void(0)" class="featured-product-card" ng-click="goToProduct(item)">
                                     <div class="featured-card-image">
                                         <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" />
+                                        <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
                                     </div>
                                     <span class="featured-card-category">{{item.category || 'Jewelry'}}</span>
                                     <span class="featured-card-name">{{item.name}}</span>
                                     <p class="featured-card-desc">{{getShortDescription(item)}}</p>
-                                    <span class="featured-card-price">&#8369; {{item.price | number:2}}</span>
+                                    <div class="featured-card-footer">
+                                        <span class="featured-card-price">&#8369; {{item.price | number:2}}</span>
+                                        <div class="featured-stock-slot" ng-class="{'is-sold-out': (item.stockQuantity || 0) === 0}">
+                                            <div class="featured-stock" ng-if="(item.stockQuantity || 0) > 0">{{item.stockQuantity}} in stock</div>
+                                        </div>
+                                    </div>
                                 </a>
                             </div>
                         </div>
