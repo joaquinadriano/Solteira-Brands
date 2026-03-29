@@ -6,19 +6,14 @@ body {
 .payment-page-container {
     min-height: 100vh;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
     padding: 2vw;
-    box-sizing: border-box;
 }
 
 .payment-card {
     background-color: #87AE73;
-    width: 100%;
-    max-width: 28vw;
-    min-width: 0;
-    box-sizing: border-box;
+    width: 70%;
+/*    max-width: 35vw;*/
     padding: 1.5vw 2vw;
 }
 
@@ -31,19 +26,153 @@ body {
     margin-bottom: 1.5vw;
 }
 
+.payment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr; 
+    gap: 2vw;
+}
+
+    .payment-grid.deadline-expired-layout {
+        grid-template-columns: 1fr;
+        width: 25vw;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 1vw;
+        height: auto;
+        min-height: min-content;
+/*        padding-bottom: 3vw;*/
+    }
+
+.payment-page-container:has(.deadline-expired-layout) .payment-card {
+    width: fit-content;
+    min-width: 28vw; 
+}
+
+.payment-deadline-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 0;
+    background: linear-gradient(135deg, #ffffff, #f7f9f6);
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
+    margin-bottom: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.payment-deadline-box.expired {
+    background: linear-gradient(135deg, #fff5f5, #ffecec);
+    border: 1px solid #f5c2c2;
+}
+
+.payment-deadline-box.expired .deadline-badge {
+    background: #fdeaea;
+    color: #c53030;
+    border-color: #f5c2c2;
+}
+
+.payment-deadline-box.expired .deadline-icon {
+    background: #fdeaea;
+    color: #dc3545;
+}
+
+.payment-deadline-box.expired .deadline-time,
+.payment-deadline-box.expired .deadline-right {
+    color: #dc3545;
+}
+
+/* LEFT SIDE */
+.deadline-left {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.deadline-icon {
+    width: 3vw;
+    height: 3vw;
+    border-radius: 50%;
+    background: #eaf3e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #87AE73;
+    font-size: 1.5rem;
+}
+
+/* TEXT */
+.deadline-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .25vw;
+}
+
+.deadline-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    font-weight: 600;
+}
+
+.deadline-time {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e1e1e;
+}
+
+.deadline-badge {
+    display: inline-block;
+    padding: .5vw .5vw;
+    border-radius: 999px; /* pill shape */
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: #eef5ea;
+    color: #5f7f50;
+    border: 1px solid #dbe8d2;
+    white-space: nowrap;
+}
+
+/* HOVER EFFECT */
+.modern-deadline:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+
+    .modern-deadline:hover .deadline-badge {
+        background: #e3f0dc;
+    }
+
+/* ===== EXPIRED STATE ===== */
+.modern-deadline.expired .deadline-badge {
+    background: #fdeaea;
+    color: #c53030;
+    border-color: #f5c2c2;
+}
+
+.modern-deadline.expired {
+    background: linear-gradient(135deg, #fff5f5, #ffecec);
+    border: 1px solid #f5c2c2;
+}
+
+    .modern-deadline.expired .deadline-icon {
+        background: #fdeaea;
+        color: #dc3545;
+    }
+
+    .modern-deadline.expired .deadline-time,
+    .modern-deadline.expired .deadline-right {
+        color: #dc3545;
+    }
+
+
 .customer-info-box, .payment-methods-box {
     background: white;
     padding: 1vw 1.5vw;
     margin-bottom: 1.5vw;
     box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-}
-
-.info-details {
-    min-width: 0;
-    max-width: 100%;
 }
 
 .cust-name, .cust-phoneNum, .cust-address {
@@ -52,14 +181,7 @@ body {
     font-size: 1rem;
 }
 
-/* Long delivery addresses (e.g. unbroken digits) must wrap inside the card */
-.cust-address {
-    white-space: normal;
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
-    max-width: 100%;
-}
-
+.cust-address.text-break,
 .payment-meetup-address {
     white-space: normal;
     word-wrap: break-word;
@@ -74,17 +196,325 @@ body {
     background-color: #fff;
 }
 
-.price-display {
-    margin-top: .5vw;
+.info-separator {
+    color: #b0b0b0;
+}
+
+/* Container styling to match the meetup-details-card */
+.modern-summary-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-label-modern {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Individual Item Rows */
+.payment-order-item-modern {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #f0f0f0;
+}
+
+    .payment-order-item-modern:last-child {
+        border-bottom: none;
+    }
+
+.item-qty {
+    color: #6c757d;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-right: 8px;
+}
+
+.item-name {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.item-price {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Footer row to match 'footer-row' in your meetup code */
+.summary-footer-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid #f8f9fa;
+}
+
+.total-label {
+    color: #1e1e1e;
+    flex-grow: 1;
+}
+
+.total-amount {
+    font-weight: bold;
+    color: #87AE73;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/*.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #eee;
     padding-top: .5vw;
 }
 
-.layaway-price-grid p {
+.price-label {
+    color: #1e1e1e;
+    font-weight: bold;
+}
+
+.amount-to-pay {
+    font-weight: bold;
+    font-size: 1.25rem;
+    color: #333;*/ /* Or your brand's accent color */
+    /*text-align: right;
+}*/
+
+/* Optional: Highlight the specific row that needs payment */
+/*.highlight-row {
+    background-color: #fcfcfc;
+    padding: 10px 5px;
+    margin-top: 5px;
+    border-bottom: 2px solid #333;
+}*/
+
+/* --- Custom Radio Button Styles --- */
+
+/* Container for groups of radio items */
+.radio-group-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4vw;
+    margin-bottom: 1.2vw;
+    padding-left: 0.5vw;
+}
+
+/* The clickable wrapper */
+.radio-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 0.8vw;
+    transition: opacity 0.2s ease;
+    padding: 0.2vw 0;
+}
+
+/* Hide the default browser radio button */
+.custom-radio {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.1vw;
+    height: 1.1vw;
+    border: 2px solid #87AE73;
+    border-radius: 50%;
+    background-color: #fff;
+    display: grid;
+    place-content: center;
+    margin: 0;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+}
+
+    /* The inner dot (hidden by default) */
+    .custom-radio::before {
+        content: "";
+        width: 0.55vw;
+        height: 0.55vw;
+        border-radius: 50%;
+        transform: scale(0);
+        transition: 120ms transform ease-in-out;
+        background-color: #87AE73;
+        box-shadow: inset 1em 1em #87AE73; /* Ensures solid color */
+    }
+
+    /* Show dot when checked */
+    .custom-radio:checked::before {
+        transform: scale(1);
+    }
+
+    /* Optional: Slight background highlight on checked state border */
+    .custom-radio:checked {
+        border-color: #87AE73;
+    }
+
+/* Text label styling */
+.radio-label {
+    font-size: 1rem;
+    color: #1e1e1e;
+    user-select: none;
+}
+
+/* Hover effect */
+.radio-item:hover .custom-radio {
+    background-color: rgba(135, 174, 115, 0.1);
+    box-shadow: 0 0 0 4px rgba(135, 174, 115, 0.1);
+}
+
+/* Disabled state handling */
+.payment-method-disabled {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+}
+
+    .payment-method-disabled .custom-radio,
+    .payment-method-disabled .radio-label {
+        cursor: not-allowed !important;
+    }
+
+/*.layaway-price-grid p {
     display: flex;
     justify-content: space-between;
 }
 
-.layaway-progress {
+.due-date-badge {
+    background: #fff5f5;
+    color: #e03131;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: inline-block;
+}*/
+
+/* Apply flex layout to the container */
+.payment-channel-detail {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    background-color: #fcfcfc;
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* Force the QR image wrapper size */
+.qr-wrapper {
+    flex: 0 0 13vw !important;
+    width: 12vw !important;
+    display: block !important;
+}
+
+/* Force the image to fit the wrapper and override inline styles */
+.qr-image {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 15vw !important; /* This overrides the 180px you saw */
+    object-fit: contain;
+}
+
+/* Ensure details take up the remaining space */
+.details-wrapper {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.pm-text {
+    font-size: 1.25rem;
+}
+
+/* Specific to Layaway Card */
+.layaway-info-grid .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 0.9rem;
+}
+
+.badge-installment {
+    background: #e9ecef;
+    color: #495057;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.calendar-icon {
+    color: #87AE73;
+}
+
+/* Matching the Highlight row from your meetup style but for Layaway */
+.highlight-blue {
+    background: #f0f7ff !important;
+    border-left: 4px solid #0d6efd;
+    padding: 12px !important;
+    border-radius: 4px;
+}
+
+.modern-due-badge {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    color: #c53030;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+    .modern-due-badge .calendar-icon {
+        color: #e53e3e;
+        font-size: 1rem;
+    }
+
+    .modern-due-badge strong {
+        font-weight: 700;
+/*        text-decoration: underline;*/
+    }
+
+.modern-progress-bg {
+    background: #f1f3f5;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.modern-progress-fill {
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+    height: 100%;
+    transition: width 0.6s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #495057;
+    text-transform: uppercase;
+}
+
+.progress-percent {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #27ae60;
+}
+
+/*.layaway-progress {
     margin-top: 0.5vw;
 }
 
@@ -105,7 +535,7 @@ body {
     height: 100%;
     background-color: #87AE73;
 }
-
+*/
 .separator-line {
     border-top: 1px solid #eee;
     margin: 0.8vw 0;
@@ -123,9 +553,13 @@ body {
 
 .section-label {
     font-weight: bold;
+    font-size: 1.25rem;
     display: block;
     margin-bottom: .5vw;
+    margin-top: 1vw;
 }
+
+
 
 .payment-method-disabled {
     opacity: 0.55;
@@ -140,32 +574,54 @@ body {
 .payment-order-item {
     display: flex;
     justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.4vw 0;
     border-bottom: 1px solid #eee;
-    font-size: 0.95rem;
-    min-width: 0;
-}
-
-.payment-order-item > span:first-child {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    word-wrap: break-word;
-    text-align: left;
+    font-size: 1rem;
+    margin-top: .5vw;
+    margin-bottom: .5vw;
 }
 
 .payment-order-item:last-of-type {
     border-bottom: none;
 }
 
-.form-group {
-    margin-top: 1vw;
+.payment-methods-box input.form-control,
+.payment-methods-box input.form-control-sm {
+    display: block;
+    width: 100%;
+    background-color: #ffffff;
+    color: #1e1e1e ;
+    border: 1px solid #e0e0e0;
+    border-bottom: 2px solid #87AE73;
+    border-radius: 0;
+    padding: 0.6vw 0.8vw;
+    font-size: 1rem;
+    height: auto;
+    transition: all 0.2s ease-in-out;
+    box-shadow: none;
 }
 
-.form-group input[type="text"] {
-    width: 100%;
-    padding: .5vw;
-    border: 1px solid #87AE73;
+    .payment-methods-box input.form-control:focus,
+    .payment-methods-box input.form-control-sm:focus {
+        background-color: #fcfcfc;
+        border-color: #87AE73;
+        border-bottom-width: 3px;
+        box-shadow: 0 4px 12px rgba(135, 174, 115, 0.15);
+        outline: none;
+    }
+
+    .payment-methods-box input.form-control.is-invalid {
+        border-color: #dc3545;
+        border-bottom-color: #dc3545;
+        background-color: #fff5f5;
+    }
+
+.payment-methods-box .form-select,
+.payment-methods-box input[type="date"] {
+    border: 1px solid #e0e0e0;
+    border-bottom: 2px solid #87AE73;
+    border-radius: 0;
+    padding: 0.5vw 0.7vw;
+    background-color: white;
 }
 
 .custom-upload-btn {
@@ -190,6 +646,167 @@ body {
 
 .photo-limit {
     font-style: italic;
+}
+
+/* Container for the Meetup details */
+.meetup-details-card {
+    background-color: #fcfcfc !important;
+    border: 1px solid #eee;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+/* Flex rows to push prices to the right */
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.95rem;
+}
+
+    /* Specific styling for the required downpayment */
+    .summary-row.highlight {
+        border-top: 1px dashed #ddd;
+        border-bottom: 1px dashed #ddd;
+        margin: 8px 0;
+        padding: 10px 0;
+    }
+
+    .summary-row.footer-row {
+        opacity: 0.8;
+    }
+
+/* Location badge look */
+.meetup-location-box {
+    background-color: #f1f5ef;
+    border-left: 3px solid #87AE73;
+}
+
+.letter-spacing-1 {
+    letter-spacing: 1px;
+}
+
+.x-small {
+    font-size: 0.75rem;
+}
+
+.italic {
+    font-style: italic;
+}
+
+/* Ensure inputs look elegant inside the gray box */
+.meetup-details-card .form-control,
+.meetup-details-card .form-select {
+    border-radius: 4px !important;
+    border: 1px solid #ccc !important;
+    background-color: #fff !important;
+}
+
+    .meetup-details-card .form-control:focus {
+        border-color: #87AE73 !important;
+        box-shadow: 0 0 0 0.2rem rgba(135, 174, 115, 0.25) !important;
+    }
+
+.modern-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: .25vw;
+}
+
+.modern-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: #888;
+    margin-left: 2px;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+    .input-with-icon i {
+        position: absolute;
+        left: 12px;
+        color: #87AE73; 
+        font-size: 1rem;
+        pointer-events: none;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+.modern-control {
+    position: relative;
+    width: 100%;
+    height: 45px; 
+    padding: 10px 12px !important;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-bottom: 3px solid #eee;
+    font-size: 0.9rem;
+    color: #333;
+    z-index: 1;
+}
+
+    .modern-control:hover {
+        background-color: #f9fbf8;
+        border-bottom-color: #87AE73;
+    }
+
+    .modern-control:focus {
+        outline: none;
+        background-color: #fff;
+        border-bottom-color: #87AE73;
+        box-shadow: 0 4px 12px rgba(135, 174, 115, 0.12);
+        transform: translateY(-1px);
+    }
+
+input[type="date"] {
+    position: relative;
+}
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        display: block !important; 
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+input[type="date"].modern-control::-webkit-datetime-edit {
+    padding-left: 35px !important;   
+    display: inline-block;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #87AE73;
+    font-size: 1.1rem;
+    z-index: 5;
+    pointer-events: none;
+}
+
+select.modern-control {
+    appearance: none !important; 
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    padding-left: 2vw !important;
+    padding-right: 1.5vw !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23666' class='bi bi-chevron-down' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 15px center !important;
+    background-size: 12px !important;
 }
 
 .pay-btn-container {
@@ -226,4 +843,24 @@ body {
     color: #c00;
     font-size: 0.9rem;
     margin-top: 0.5vw;
+}
+
+.form-group {
+    margin-top: 1vw;
+}
+
+@media (max-width: 991px) {
+    .payment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-card {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .payment-page-container:has(.deadline-expired-layout) .payment-card {
+        width: 100%;
+        min-width: 0;
+    }
 }
