@@ -2522,7 +2522,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var byCat = res.data.salesByCategory || {};
                 $scope.pieLabels = byCat.labels || [];
                 $scope.pieData = byCat.data || [];
-                $scope.dashboardInventoryStock = res.data.inventoryStock || [];
+                var inv = res.data.inventoryStock || [];
+                $scope.dashboardInventoryStock = inv.filter(function (item) {
+                    var q = item && item.stockQuantity;
+                    if (q == null || q === '') return false;
+                    var n = Number(q);
+                    if (isNaN(n)) return false;
+                    return n < 3;
+                });
                 $scope.dashboardTopSelling = res.data.topSellingProducts || [];
                 var now = new Date();
                 $scope.dashboardDate = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -2559,7 +2566,11 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.dashboardTopSelling = [];
     $scope.getStockStatus = function (quantity) {
         if (quantity == null || quantity === undefined) return 'In Stock';
-        return quantity < 3 ? 'Low Stock' : 'In Stock';
+        var n = Number(quantity);
+        if (isNaN(n)) return 'In Stock';
+        if (n <= 0) return 'Out of Stock';
+        if (n < 3) return 'Low Stock';
+        return 'In Stock';
     };
     $scope.dashboardDefaultProductImage = '/Content/img/shared/default-product.svg';
     //----------Charts end---------
