@@ -3,6 +3,11 @@ body {
     padding: 0;
 }
 
+.my-orders-main-wrapper {
+    min-height: 60vh;
+    padding-bottom: 2rem;
+}
+
 .my-orders-text {
     font-family: "Kaisei Tokumin";
     font-size: 1.75rem;
@@ -21,27 +26,70 @@ body {
     justify-content: center;
     margin: 2vw;
     padding: 0;
+    background-color: transparent;
 }
 
 .my-orders-container {
-    width: 100%;
-    max-width: 1200px;
+    background-color: transparent;
+    box-shadow: none;
+    width: 80%;
+    max-width: 45vw;
 }
 
-/* Card layout - reference design: white card, soft shadow, green accents */
-.my-orders-main-wrapper {
-    background-color: #f8f6f1;
-    min-height: 60vh;
-    padding-bottom: 2rem;
+.search-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2vw;
 }
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 18vw;
+}
+
+.order-search-input {
+    width: 100%;
+    padding: 12px 45px 12px 15px;
+    background-color: #F6F6F6;
+    border: 1px solid #DEDEDE;
+    border-radius: 0;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+    .order-search-input::placeholder {
+        color: #737373;
+        opacity: 0.5;
+        font-weight: bold;
+    }
+
+    .order-search-input:focus {
+        border-color: #CCC;
+    }
+
+.search-icon-btn {
+    position: absolute;
+    right: 1vw;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+    .search-icon-btn i {
+        font-size: 1.25rem;
+        color: #B0B0B0;
+    }
+
 .my-orders-card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: none;
-    overflow: hidden;
-    margin-bottom: 0;
+    color: white;
+    padding: 2vw 3vw;
+    border-radius: 0;
+    transition: transform 0.2s ease;
 }
+
 .my-orders-card-header {
     display: flex;
     flex-wrap: wrap;
@@ -50,24 +98,29 @@ body {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #f0f0f0;
 }
+
 .my-orders-card-header-left {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
 }
+
 .my-orders-card-order-label {
     font-size: 1rem;
     color: #1a1a1a;
     margin-right: 0.35rem;
 }
+
 .my-orders-card-status {
     font-weight: 600;
     color: #87AE73;
     font-size: 1rem;
 }
+
 .my-orders-card-payment-type {
     font-size: 0.875rem;
 }
+
 .my-orders-card-header-right {
     display: flex;
     flex-wrap: wrap;
@@ -165,53 +218,6 @@ body {
     text-decoration: underline;
 }
 
-.my-orders-container .search-container {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 2vw;
-}
-
-.search-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 18vw;
-}
-
-.order-search-input {
-    width: 100%;
-    padding: 12px 45px 12px 15px;
-    background-color: #F6F6F6; 
-    border: 1px solid #DEDEDE; 
-    border-radius: 0;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-    .order-search-input::placeholder {
-        color: #737373;
-        opacity: 0.5;
-        font-weight: bold;
-    }
-
-    .order-search-input:focus {
-        border-color: #CCC;
-    }
-
-.search-icon-btn {
-    position: absolute;
-    right: 1vw;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-}
-
-    .search-icon-btn i {
-        font-size: 1.25rem;
-        color: #B0B0B0;
-    }
-
 .order-summary-header {
     display: flex;
     flex-wrap: wrap;
@@ -278,19 +284,19 @@ body {
 .btn-order-action {
     background: white;
     color: #87AE73;
-    border: none;
+    border: 1px solid #87AE73;
     padding: 8px 16px;
     font-size: 0.9rem;
     font-weight: bold;
     cursor: pointer;
     border-radius: 0;
-    transition: background 0.2s, color 0.2s;
+    transition: all 0.3s ease;
 }
 
-.btn-order-action:hover {
-    background: #f0f0f0;
-    color: #5a7a4a;
-}
+    .btn-order-action:hover {
+        background-color: #87AE73;
+        color: #fff;
+    }
 
 .order-rejection-message {
     color: #fff;
@@ -305,14 +311,6 @@ body {
     margin-right: 6px;
 }
 
-.order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    color: white;
-    margin-bottom: 1vw;
-}
-
 .orders-section {
     background-color: #87AE73;
     padding: 2vw 3vw;
@@ -325,10 +323,18 @@ body {
         transform: translateY(-10px); 
     }
 
-.order-status {
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     color: white;
+    margin-bottom: 1vw;
+}
+
+.order-status {
+/*    color: white;*/
     font-size: 1rem;
-    margin-bottom: 15px;
+/*    margin-bottom: 15px;*/
 }
 
 .delivery-info {
@@ -337,7 +343,7 @@ body {
 
 .status-weight {
     font-weight: bold;
-    font-size: 1rem;
+/*    font-size: 1rem;*/
 }
 
 .track-link {
@@ -381,28 +387,28 @@ body {
     object-fit: cover;
 }
 
-.my-orders-container .product-details {
+.product-details {
     display: flex;
     flex-direction: column;
 }
 
-.my-orders-container .product-name {
+ .product-name {
     font-weight: bold;
     font-size: 1rem;
     margin-bottom: .5vw;
 }
 
-.my-orders-container .product-desc {
-    color: #b0b0b0; 
+.product-desc {
+    color: #b0b0b0;
     font-size: .8rem;
 }
 
-.my-orders-container .product-qty {
+ .product-qty {
     margin-top: 1vw;
     font-size: 1rem;
 }
 
-.my-orders-container .product-price {
+ .product-price {
     font-weight: bold;
     font-size: 1rem;
 }
@@ -423,32 +429,360 @@ body {
 }
 
 /* Buyer-side Order Details modal (order summary) */
+
+/* --- Order Summary Modal Refined Layout --- */
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+
+/* Container for the address line */
+.address-line-item {
+    display: flex;
+    align-items: flex-start; /* Aligns icon with the top of the first line of text */
+    font-size: 0.95rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+    /* Specific icon styling to ensure it stays "right next to" the text */
+    .address-line-item i {
+        color: #87AE73; /* Using your theme green */
+        font-size: 0.9rem;
+        margin-top: 3px; /* Fine-tune vertical alignment with text */
+        flex-shrink: 0; /* Prevents the icon from squishing if text is long */
+    }
+
+    .address-line-item span {
+        word-break: break-word; /* Ensures long addresses wrap cleanly */
+    }
+
+/* Updated address card for a cleaner look */
+.address-card-modern {
+    background: #fdfdfd;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #eee; /* Solid light border feels more "modern" than dashed */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.address-details p {
+    margin-bottom: 2px;
+    line-height: 1.4;
+}
+
+.customer-name {
+    font-size: 1rem;
+}
+
+.customer-contact, .customer-address {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.section-divider {
+    border-top: 1px solid #eee;
+    margin: 1.5rem 0;
+}
+
+.buyer-order-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.item-tile-subtle {
+    background: #ffffff;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 10px !important;
+    transition: all 0.2s ease;
+}
+
+    .item-tile-subtle:hover {
+        border-color: #87AE73;
+        background: #fafafa;
+    }
+
+.item-info .item-name {
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1a1a1a;
+}
+
+.item-info .item-qty {
+    font-size: 0.85rem;
+    color: #777;
+}
+
+.item-price-total {
+    font-weight: 600;
+    color: #87AE73;
+}
+
+/* --- Exact Order Summary Modal Styles --- */
+/* Container Spacing */
+.buyer-order-details-body {
+    padding: 2.5rem !important;
+}
+
+/* Typography & Titles */
+.order-section-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #1a1a1a;
+}
+
+/* Address Styling */
+.address-details p {
+    margin-bottom: 2px;
+    font-size: 1rem;
+    color: #333;
+}
+
+.addr-name {
+    font-weight: 700;
+}
+
+/* Layout & Container */
+.border-end-light {
+    border-right: 1px solid #E0E0E0;
+    padding-right: 2rem;
+}
+
+.summary-content-section {
+    margin-bottom: 1.5rem;
+}
+
+/* Typography */
+.summary-heading {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.customer-name {
+    font-weight: 800;
+    font-size: 1rem;
+    margin-bottom: 2px;
+    color: #000;
+}
+
+.customer-info {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.summary-divider {
+    border: 0;
+    border-top: 1px solid #EEE;
+    margin: 1.5rem 0;
+    opacity: 1;
+}
+
+/* Product Rows */
+.product-row-modal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.product-main-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.summary-img {
+    width: 5vw;
+    height: 5vw;
+    object-fit: cover;
+}
+
+.item-name-text {
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1a1a1a;
+}
+
+.item-qty-text {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.summary-item-price {
+    font-weight: 600;
+    color: #87AE73; /* Matches the green price in screenshot */
+}
+
+/* Footer Section */
+.summary-total-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+}
+
+.summary-total-amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #87AE73;
+}
+
+.buyer-order-meta {
+    margin-top: 1.5rem;
+}
+
+    .buyer-order-meta p {
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+    }
+
+.view-proof-link {
+    font-size: 0.85rem;
+    color: #87AE73;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+    .view-proof-link:hover {
+        text-decoration: underline;
+    }
+
+/* Item Row Styling (Flex for image + text) */
+.order-item-entry-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+}
+
+.item-visual-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.item-thumbnail {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border: 1px solid #f0f0f0;
+}
+
+.item-display-name {
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.item-display-qty {
+    font-size: 0.9rem;
+    color: #777;
+}
+
+.item-display-price, .total-price {
+    color: #87AE73;
+    font-weight: 600;
+}
+
+/* Total Section */
+.order-total-display-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+}
+
+.total-label {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.total-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* Sidebar Styling (Right Column) */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px dotted #eee;
+}
+
+.info-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.info-value {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+/* Custom badge to match your green status */
+.badge-custom {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.border-end-faint {
+    border-right: 1px solid #f0f0f0;
+}
+
 .buyer-order-details-modal .modal-content {
     background-color: #FFFBE8;
-    border-radius: 12px;
+    border-radius: 0;
     border: none;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
 }
+
 .buyer-order-details-title {
     font-family: "Kaisei Tokumin", serif;
     font-weight: bold;
     color: #2d2d2d;
 }
+
 .buyer-order-details-body {
     padding: 1rem 1.5rem 1.5rem;
 }
+
 .buyer-order-status-line {
     margin-bottom: 1rem;
     font-size: 1rem;
 }
+
 .buyer-order-status-label {
     color: #5a7a4a;
     margin-right: 0.5rem;
 }
+
 .buyer-order-status-value {
     color: #87AE73;
     font-weight: bold;
 }
+
 .buyer-order-summary-card {
     background: #fff;
     border-radius: 8px;
@@ -456,6 +790,30 @@ body {
     margin-bottom: 0.5rem;
     border: 1px solid #eee;
 }
+
+.modal-dialog {
+    border-radius: 0;
+}
+
+.order-summary-title {
+    font-family: "Kaisei Tokumin";
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.summary-heading {  
+    font-weight: bold;
+}
+
+.address-details {
+    text-align: left;
+    font-size: 1rem;
+}
+
+.summary-divider {
+    color: #b0b0b0;
+}
+
 .buyer-order-item {
     display: flex;
     align-items: flex-start;
@@ -463,9 +821,11 @@ body {
     padding: 0.75rem 0;
     border-bottom: 1px solid #f0f0f0;
 }
+
 .buyer-order-item:last-of-type {
     border-bottom: none;
 }
+
 .buyer-order-item-img {
     width: 100px;
     height: 100px;
@@ -473,27 +833,32 @@ body {
     border-radius: 6px;
     flex-shrink: 0;
 }
+
 .buyer-order-item-details {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
+
 .buyer-order-item-name {
     font-weight: bold;
     color: #1a1a1a;
     font-size: 1rem;
 }
+
 .buyer-order-item-specs,
 .buyer-order-item-qty {
     color: #737373;
     font-size: 0.9rem;
 }
+
 .buyer-order-item-price {
     font-weight: bold;
     color: #1a1a1a;
     white-space: nowrap;
 }
+
 .buyer-order-total-row {
     display: flex;
     justify-content: flex-end;
@@ -503,19 +868,22 @@ body {
     margin-top: 0.5rem;
     border-top: 1px solid #eee;
 }
+
 .buyer-order-total-label {
     font-weight: bold;
     color: #1a1a1a;
 }
+
 .buyer-order-total-value {
     color: #87AE73;
     font-weight: bold;
     font-size: 1.1rem;
 }
+
 .buyer-order-meta {
-    font-size: 0.9rem;
-    color: #555;
+    color: #1e1e1e;
 }
+
 .buyer-order-meta p {
     margin-bottom: 0.25rem;
 }
@@ -536,9 +904,464 @@ body {
     color: #6a8f5a;
 }
 
+.payment-record p .payment-opt-style {
+    font-weight: bold !important;
+    color: #1e1e1e; /* Making it darker often helps the 'bold' stand out */
+}
+
+.delivery-tracking-card {
+    background-color: #fdfdf0; /* Pale yellow from your image */
+    border: 1px solid #e0e0b0;
+    padding: 2vw;
+}
+
+.tracking-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.track-link-green {
+    color: #87AE73;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.copy-btn {
+    line-height: 1;
+    vertical-align: middle;
+    transition: color 0.2s ease;
+    border: none;
+    background: transparent;
+    text-decoration: none !important;
+}
+
+    .copy-btn:hover {
+        color: #87AE73 !important; /* Changes to your theme green on hover */
+    }
+
+    .copy-btn i {
+        font-size: 1.1rem; /* Adjust icon size to match text */
+    }
+
+.payment-history-section {
+    margin-top: 20px;
+}
+
+    .payment-history-section .view-proof-link-small {
+        color: #87AE73 !important; 
+        text-decoration: underline !important;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-block;
+        transition: opacity 0.2s;
+    }
+
+        .payment-history-section .view-proof-link-small:hover {
+            color: #6d8d5d !important; 
+            opacity: 0.8;
+        }
+
+.status-badge-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; 
+    border: 1px solid #87AE73;
+    padding: 5px 10px;
+    font-size: 0.85rem;
+}
+
+.modal-footer .btn-secondary {
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+
 /* Order status badge colors (order status only; payment rejection uses red in payment row) */
-.order-status-gray { background-color: #6c757d; color: #fff; }
-.order-status-yellow { background-color: #ffc107; color: #212529; }
-.order-status-blue { background-color: #0d6efd; color: #fff; }
-.order-status-green { background-color: #198754; color: #fff; }
-.order-status-muted { background-color: #e9ecef; color: #6c757d; }
+.order-status-gray { 
+    font-size: 1rem;
+    background-color: #6c757d; 
+    color: #fff; 
+}
+
+.order-status-yellow {
+    font-size: 1rem;
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.order-status-blue {
+    font-size: 1rem;
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.order-status-green {
+    font-size: 1rem;
+    background-color: #198754;
+    color: #fff;
+}
+
+.order-status-red {
+    font-size: 1rem;
+    background-color: darkred;
+    color: #fff;
+}
+
+/* status timeline */
+.vertical-timeline-modern {
+    position: relative;
+    padding: 5px 0;
+}
+
+    .vertical-timeline-modern .timeline-dot {
+        font-size: 1.1rem; /* Slightly smaller/cleaner */
+        background: white;
+        width: 24px;
+        margin-right: 12px;
+    }
+
+    .vertical-timeline-modern .timeline-label {
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+    }
+
+    .vertical-timeline-modern .timeline-line {
+        background-color: #f0f0f0; /* Lighter line for modern feel */
+        left: 11px;
+    }
+
+.vertical-timeline {
+    position: relative;
+    padding: 10px 0;
+}
+
+.timeline-item {
+    display: flex;
+    position: relative;
+    padding-bottom: 15px;
+    align-items: flex-start;
+}
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+/*.timeline-line {
+    position: absolute;
+    left: 10px;
+    top: 24px;*/ /* Start slightly below the top icon */
+    /*bottom: 0;*/ /* Stretch to the next item */
+    /*width: 2px;
+    background-color: #e9ecef;
+    z-index: 1;
+}
+
+.timeline-dot {
+    position: relative;
+    z-index: 2;*/ /* Sits on top of the line */
+    /*background-color: white;*/ /* Blocks the line behind the icon */
+    /*width: 22px;*/ /* Fixed width for alignment */
+    /*font-size: 20px;
+    margin-right: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+}*/
+
+.timeline-content {
+    flex: 1;
+    padding-top: 2px; /* Aligns text vertically with the icon top */
+}
+
+.timeline-date-container {
+    display: flex;
+    gap: 12px;
+    margin-top: 1.5px;
+}
+
+    .timeline-date-container small {
+        font-size: 0.75rem !important;
+        color: #888 !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+.timeline-data-point {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+}
+
+    .timeline-data-point i {
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+/* States */
+.dot-green {
+    color: #198754;
+}
+
+.dot-red {
+    color: #dc3545;
+}
+
+.dot-yellow {
+    color: #ffc107;
+}
+
+.dot-gray {
+    color: #adb5bd;
+}
+
+.timeline-dot.pending {
+    opacity: 0.5;
+}
+
+.timeline-label {
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.timeline-date {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    min-width: 90px;
+}
+
+.timeline-note {
+    font-size: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.vertical-timeline {
+    padding-top: 5px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+/* Ensure the dot and line align with the top of the text */
+.timeline-dot {
+    margin-top: 2px;
+}
+
+.timeline-content small {
+    display: block;
+    margin-top: -2px;
+    color: #6c757d !important;
+    letter-spacing: 0.02rem;
+}
+
+/* Text colors to match your badges */
+.text-green {
+    color: #198754;
+}
+
+.text-red {
+    color: #dc3545;
+}
+
+.text-yellow {
+    color: #997404;
+}
+
+/* Container Layouts */
+.status-grid-modern {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.status-tile {
+    background: #f8f9fa;
+    padding: 10px 16px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    border: 1px solid #eee;
+}
+
+.status-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-right: 8px;
+}
+
+/* Modern Status Badge */
+.modern-badge {
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-value-text {
+    font-weight: 700;
+    color: #198754;
+    font-size: 0.9rem;
+}
+
+/* Delivery Card Modern */
+.delivery-card-modern {
+    background-color: #fcfcfc; /* Matching payment-card-subtle background */
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.tracking-title-modern {
+    font-size: 0.9rem;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 10px;
+    margin-bottom: 12px !important;
+}
+
+.tracking-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px border-top; /* Optional: adds a very light separator */
+}
+
+    .tracking-row span:first-child {
+        color: #6c757d; /* Text-muted style */
+        font-size: 0.85rem;
+    }
+
+.tracking-id {
+    font-family: 'Courier New', Courier, monospace; /* Makes IDs easier to read */
+    color: #212529;
+    font-weight: 600;
+}
+
+.btn-track-modern {
+    display: inline-block;
+    text-decoration: none;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    color: #87AE73;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 10px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+    .btn-track-modern:hover {
+        background-color: #f8f9fa;
+        border-color: #87AE73;
+    }
+
+.btn-copy-icon {
+    color: #adb5bd;
+    transition: color 0.2s;
+}
+
+.btn-copy-icon:hover {
+    color: #0d6efd;
+}
+
+/* Payment Section Modern */
+.payment-card-subtle {
+    background: #fcfcfc;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px dashed #ddd;
+}
+
+.payment-info-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+.payment-footer-modern {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.payment-amount-big {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #198754;
+}
+
+.payment-date-sub {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.view-proof-modern {
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #87AE73;  
+    transition: opacity 0.2s;
+}
+
+    .view-proof-modern:hover {
+        opacity: 0.8;
+        text-decoration: underline;
+    }
+
+.copy-btn-minimal {
+    background: none;
+    border: none;
+    color: #aaa;
+    margin-left: 5px;
+    transition: color 0.2s;
+}
+
+    .copy-btn-minimal:hover {
+        color: #333;
+    }
+
+.swal-title-custom {
+    font-family: "Kaisei Tokumin";
+    color: #1e1e1e;
+    font-size: 1.75rem;
+}
+
+.swal-text-custom {
+    font-family: "Nunito";
+    font-size: 1rem;
+    color: #1e1e1e;
+}
+
+.swal-button-custom {
+    font-family: "Kaisei Tokumin";
+    background-color: #87AE73;
+    color: white;
+    border-radius: 0;
+    border: none;
+    padding: 0.5vw 2vw;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+    .swal-button-custom:hover {
+        background-color: #789F64;
+    }

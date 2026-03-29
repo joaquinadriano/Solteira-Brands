@@ -7,7 +7,7 @@
 <div class="my-orders-main-wrapper" ng-controller="SolteiraBrandsController" ng-init="loadMyOrders()">
 
     <div class="my-orders-text">
-        <span>MY ORDERS</span>
+        <span>MY ORDERS ({{orders.length}})</span>
     </div>
 
     <hr class="hr-line" />
@@ -15,48 +15,75 @@
     <div class="my-orders-page-wrapper">
         <div class="my-orders-container">
 
-            <div class="row g-4" ng-if="orders.length > 0">
-                <div class="col-12" ng-repeat="order in orders" ng-attr.data-order-id="{{order.orderNumber}}">
-                    <div class="my-orders-card">
-                        <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center py-3 px-4">
-                            <span class="fw-bold">Order #{{order.orderNumber}}</span>
-                            <div class="d-flex align-items-center flex-wrap justify-content-end gap-2">
-                                <span class="status-weight badge px-2 py-1" ng-class="getOrderStatusBadgeClass(order)">{{getOverallStatus(order)}}</span>
-                                <span class="badge bg-warning text-dark small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Awaiting Verification</span>
-                                <i class="bi bi-info-circle small text-muted" ng-if="getOverallStatusTooltip(order)" title="{{getOverallStatusTooltip(order)}}" style="cursor:help;"></i>
-                                <span class="text-muted small">({{order.paymentType === 'LAYAWAY' ? 'Layaway' : 'Full payment'}})</span>
-                            </div>
-                        </div>
-                        <div class="card-body py-2 px-4">
-                            <div class="d-flex align-items-center justify-content-between p-3 rounded border border-light bg-light bg-opacity-50 mb-2" ng-repeat="item in order.items">
-                                <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}" class="rounded flex-shrink-0 border" style="width:72px;height:72px;object-fit:cover;" />
-                                <div class="flex-grow-1 min-w-0 ms-3">
-                                    <span class="fw-bold d-block text-dark" ng-bind="item.name"></span>
-                                    <span class="text-muted small">Qty: {{item.qty}}</span>
-                                </div>
-                                <div class="fw-bold text-dark flex-shrink-0 ms-3 text-end">&#8369; {{(item.price * item.qty) | number:2}}</div>
-                            </div>
-                        </div>
-                        <div class="card-footer border-0 bg-transparent d-flex justify-content-between align-items-center py-3 px-4">
-                            <div class="d-flex flex-column align-items-start">
-                                <div class="d-flex align-items-center">
-                                    <span class="text-muted">Total:</span>
-                                    <span class="fw-bold text-success fs-6 ms-2">&#8369; {{order.total | number:2}}</span>
-                                </div>
-                                <small class="text-muted mt-1"
-                                       ng-if="order.paymentDeadlineFormatted && getOverallStatus(order) !== 'Cancelled'">
-                                    Pay by: {{order.paymentDeadlineFormatted}} ({{order.paymentDeadlineRemainingText}})
-                                </small>
-                            </div>
-                            <button type="button" class="btn btn-outline-success btn-sm" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
-                        </div>
-                    </div>
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <input type="text" ng-model="searchOrder" placeholder="Search by Order ID, Product Name" class="order-search-input" />
+                    <span class="search-icon-btn"><i class="bi bi-search"></i></span>
                 </div>
             </div>
 
-            <div ng-if="orders.length === 0" class="text-center py-5 text-muted">
+            <div class="orders-section" ng-repeat="order in orders | filter:searchOrder" ng-attr-data-order-id="{{order.orderNumber}}">
+
+                <div class="order-header">
+                    <div class="order-status">
+                        <span class="d-block fw-bold text-white mb-2">Order #{{order.orderNumber}}</span>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="status-weight badge px-2 py-1" ng-class="getOrderStatusBadgeClass(order)">{{getOverallStatus(order)}}</span>
+                            <span class="badge bg-warning text-dark small" ng-if="getOverallStatus(order) === 'Layaway Active' && order.hasSubmittedPayment">Awaiting Verification</span>
+                            <i class="bi bi-info-circle small text-white-50" ng-if="getOverallStatusTooltip(order)" title="{{getOverallStatusTooltip(order)}}" style="cursor:help;"></i>
+                            <span class="text-white-50 small">({{order.paymentType === 'LAYAWAY' ? 'Layaway' : 'Full payment'}})</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-card-white">
+                    <div class="order-products">
+                        <div class="product-row" ng-repeat="item in order.items">
+                            <div class="product-info">
+                                <img ng-src="{{item.img || defaultProductImageUrl}}" class="product-img" alt="{{item.name}}" />
+                                <div class="product-details">
+                                    <span class="product-name" ng-bind="item.name"></span>
+                                    <span class="product-desc" ng-if="item.stones">{{item.stones}}</span>
+                                    <span class="product-desc" ng-if="item.material">{{item.material}}</span>
+                                    <span class="product-desc" ng-if="item.weight">{{item.weight}}</span>
+                                    <span class="product-qty">Qty: {{item.qty}}</span>
+                                </div>
+                            </div>
+                            <div class="product-price">
+                                &#8369; {{(item.price * item.qty) | number:2}}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border-top: 1px solid #f0f0f0; margin: 1vw 0;" />
+
+                    <div class="order-total-section d-flex justify-content-between align-items-end flex-wrap gap-3">
+                        <div class="text-start d-flex flex-column align-items-start gap-2">
+                            <button type="button" class="btn-order-action" ng-click="handleOrderAction(order); $event.stopPropagation();">{{getOrderActionLabel(order)}}</button>
+                            <small class="text-muted"
+                                   ng-if="order.paymentDeadlineFormatted && getOverallStatus(order) !== 'Cancelled'">
+                                Pay by: {{order.paymentDeadlineFormatted}} ({{order.paymentDeadlineRemainingText}})
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="total-label">Total: </span>
+                            <span class="total-amount">&#8369; {{order.total | number:2}}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div ng-if="order.latestPaymentRejectionReason && getOverallStatus(order) === 'Resubmit Payment Required'" class="order-rejection-message mt-2">
+                    <strong>Rejection reason:</strong> {{order.latestPaymentRejectionReason}}
+                </div>
+            </div>
+
+            <div ng-if="orders.length === 0" class="text-center py-5 text-muted empty-orders-zero">
                 <i class="bi bi-bag-x" style="font-size: 3rem;"></i>
                 <p class="mb-0 mt-2">You haven't placed any orders yet.</p>
+            </div>
+
+            <div ng-if="orders.length > 0 && (orders | filter:searchOrder).length === 0" class="text-center py-5 no-orders-filter">
+                <p class="mb-0">No orders found.</p>
             </div>
 
         </div>
@@ -64,11 +91,19 @@
 
     @* Buyer-side Order Details modal (order summary) *@
     <div class="modal fade" id="buyerOrderDetailsModal" tabindex="-1" aria-labelledby="buyerOrderDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content buyer-order-details-modal" ng-if="selectedOrderForDetails">
-                <div class="modal-header border-0 pb-0">
-                    <h2 class="modal-title buyer-order-details-title" id="buyerOrderDetailsModalLabel">Order Summary</h2>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closeOrderDetailsModal()"></button>
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content buyer-order-details-modal buyer-modal-container" ng-if="selectedOrderForDetails">
+                <div class="modal-header border-0 pb-0 position-relative">
+                    <button type="button"
+                            class="btn-close shadow-none"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                            ng-click="closeOrderDetailsModal()"
+                            style="position: absolute; right: 1.5rem; top: 1.5rem; z-index: 2;">
+                    </button>
+                    <div class="w-100 text-center mt-3">
+                        <h2 class="modal-title order-summary-title" id="buyerOrderDetailsModalLabel">ORDER SUMMARY</h2>
+                    </div>
                 </div>
                 <div class="modal-body buyer-order-details-body">
                     <p class="buyer-order-status-line">

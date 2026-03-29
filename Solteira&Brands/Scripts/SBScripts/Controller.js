@@ -1346,7 +1346,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     function updateLayoutNamePreview(firstName, lastName) {
         if (typeof window.updateLayoutProfileNameDisplay === 'function') {
-            window.updateLayoutProfileNameDisplay(firstName || '', lastName || '');
+            var u = ($scope.profile && $scope.profile.username) ? String($scope.profile.username).trim() : '';
+            window.updateLayoutProfileNameDisplay(firstName || '', lastName || '', u, '');
         }
     }
 
