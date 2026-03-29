@@ -98,7 +98,7 @@
                 <table class="table table-responsive text-center" id="dashboardInventoryTable">
                     <thead>
                         <tr>
-                            <th colspan=5 class="text-start h6">Inventory Stock</th>
+                            <th colspan="5" class="text-center h6">Inventory Stock</th>
                         </tr>
                         <tr>
                             <th>Photo</th>
@@ -119,7 +119,7 @@
                             <td>{{getStockStatus(item.stockQuantity)}}</td>
                         </tr>
                         <tr ng-if="dashboardInventoryStock.length === 0">
-                            <td colspan="5" class="text-muted py-3">No products in inventory.</td>
+                            <td colspan="5" class="text-muted py-3">No low-stock or out-of-stock products.</td>
                         </tr>
                     </tbody>
                 </table>
