@@ -193,6 +193,7 @@
     <Compile Include="Models\tblMeetupSettingsModel.cs" />
     <Compile Include="Models\tblPaymentSettingsModel.cs" />
     <Compile Include="Security\BuyerAuthorizeAttribute.cs" />
+    <Compile Include="Security\ForcePasswordChangeFilterAttribute.cs" />
     <Compile Include="Security\NoCacheForAuthorizedAttribute.cs" />
     <Compile Include="Security\PasswordHasher.cs" />
     <Compile Include="Security\PasswordValidation.cs" />

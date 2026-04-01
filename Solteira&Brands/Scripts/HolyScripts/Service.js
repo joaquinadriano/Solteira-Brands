@@ -165,9 +165,24 @@ app.service("SolteiraAndBrandsService", function ($http) {
             transformRequest: angular.identity
         });
     };
-    this.updateMeetupOutcome = function (orderId, status, receiptImageId, cancellationReason, restoreStock) {
+    this.uploadMeetupProof = function (file) {
+        var formData = new FormData();
+        formData.append("file", file);
+        return $http({
+            method: "POST",
+            url: "/SolteiraAndBrands/UploadMeetupProof",
+            data: formData,
+            headers: { "Content-Type": undefined },
+            transformRequest: angular.identity
+        });
+    };
+    this.updateMeetupOutcome = function (orderId, status, proofImageId, cancellationReason, restoreStock) {
         var params = { orderId: orderId, status: status };
-        if (receiptImageId) params.receiptImageId = receiptImageId;
+        if (proofImageId) {
+            // Send both names for backward compatibility while backend transitions.
+            params.proofImageId = proofImageId;
+            params.receiptImageId = proofImageId;
+        }
         if (cancellationReason) params.cancellationReason = cancellationReason;
         if (typeof restoreStock !== "undefined" && restoreStock !== null) params.restoreStock = restoreStock;
         return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateMeetupOutcome", params: params });

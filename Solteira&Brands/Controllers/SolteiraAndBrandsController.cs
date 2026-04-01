@@ -1495,6 +1495,7 @@ namespace Solteira_Brands.Controllers
                         meetupScheduledAtFormatted = (o.MeetupDatetime ?? (o.Payments != null ? o.Payments.FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null))?.ToString("MMM dd, yyyy hh:mm tt"),
                         meetupOutcomeAtFormatted = latestMeetupByOrder.ContainsKey(o.Id) ? latestMeetupByOrder[o.Id].CreatedAt.ToString("MMM dd, yyyy hh:mm tt") : (string)null,
                         meetupReceiptImageUrl = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].ReceiptImage != null ? (latestMeetupByOrder[o.Id].ReceiptImage.ImagePath + latestMeetupByOrder[o.Id].ReceiptImage.ImageFileName) : (string)null,
+                        meetupProofUrl = latestMeetupByOrder.ContainsKey(o.Id) && latestMeetupByOrder[o.Id].ReceiptImage != null ? (latestMeetupByOrder[o.Id].ReceiptImage.ImagePath + latestMeetupByOrder[o.Id].ReceiptImage.ImageFileName) : (string)null,
                         currentDate = DateTime.Today.ToString("MMM d, yyyy"),
                         isArchived = o.IsArchived
                     };
@@ -1766,6 +1767,7 @@ namespace Solteira_Brands.Controllers
             var meetupDate = request.MeetupDate;
             var meetupTime = request.MeetupTime;
             var paymentChannel = (request.PaymentChannel ?? "").Trim();
+            var paymentChannelUpper = paymentChannel.ToUpperInvariant();
 
             var username = User.Identity.Name;
             if (string.IsNullOrEmpty(username)) return Json(new { success = false, message = "Not authenticated." });
@@ -1774,8 +1776,18 @@ namespace Solteira_Brands.Controllers
             bool isMeetup = !string.IsNullOrWhiteSpace(meetupDate) && !string.IsNullOrWhiteSpace(meetupTime);
             bool isMeetupChannel = paymentChannel.IndexOf("meetup", StringComparison.OrdinalIgnoreCase) >= 0;
             string refTrimmed = (referenceNumber ?? "").Trim();
-            if (refTrimmed.Length > 20)
-                return Json(new { success = false, message = "Reference number must be 20 characters or less." });
+            if (paymentChannelUpper == "GCASH")
+            {
+                if (refTrimmed.Length > 13)
+                    return Json(new { success = false, message = "GCash reference number must be 13 characters or less." });
+            }
+            else
+            {
+                if (refTrimmed.Length > 30)
+                    return Json(new { success = false, message = "Reference number must be 30 characters or less." });
+                if (refTrimmed.Length > 0 && refTrimmed.Length < 8)
+                    return Json(new { success = false, message = "Reference number must be at least 8 characters." });
+            }
             if (refTrimmed.Length > 0 && !Regex.IsMatch(refTrimmed, @"^[A-Za-z0-9]+$"))
                 return Json(new { success = false, message = "Reference number may only contain letters and numbers." });
             if (!isMeetup)
@@ -1783,14 +1795,14 @@ namespace Solteira_Brands.Controllers
                 if (!proofImageId.HasValue || proofImageId.Value <= 0)
                     return Json(new { success = false, message = "Proof of payment is required. Please upload your payment proof first." });
                 if (string.IsNullOrEmpty(refTrimmed))
-                    return Json(new { success = false, message = "Reference number is required." });
+                    return Json(new { success = false, message = paymentChannelUpper == "GCASH" ? "GCash reference number is required (up to 13 characters)." : "Reference number is required (8-30 characters)." });
             }
             else
             {
                 if (!proofImageId.HasValue || proofImageId.Value <= 0)
                     return Json(new { success = false, message = "Proof of 30% down payment is required. Please upload your payment proof first." });
                 if (string.IsNullOrEmpty(refTrimmed))
-                    return Json(new { success = false, message = "Reference number for 30% down payment is required." });
+                    return Json(new { success = false, message = "Reference number for 30% down payment is required (8-30 characters)." });
             }
             DateTime? meetupDt = null;
             if (isMeetup)
@@ -2158,6 +2170,28 @@ namespace Solteira_Brands.Controllers
             var typeTrim = (paymentType ?? "").Trim().ToUpperInvariant();
             if (typeTrim != "GCASH" && typeTrim != "BANK_TRANSFER")
                 return Json(new { success = false, message = "Payment type must be GCASH or BANK_TRANSFER." });
+            var accountNameTrimmed = (accountName ?? "").Trim();
+            var accountNumberTrimmed = (accountNumber ?? "").Trim();
+            if (typeTrim == "GCASH")
+            {
+                if (string.IsNullOrWhiteSpace(accountNameTrimmed) || accountNameTrimmed.Length > 30)
+                    return Json(new { success = false, message = "GCash account name is required and must be 1-30 characters." });
+                if (!Regex.IsMatch(accountNameTrimmed, @"^[A-Za-z0-9\s\.,&()\-\/']+$"))
+                    return Json(new { success = false, message = "GCash account name contains invalid characters." });
+                if (!Regex.IsMatch(accountNumberTrimmed, @"^\d{11}$"))
+                    return Json(new { success = false, message = "GCash account number must be exactly 11 digits." });
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(accountNameTrimmed) || accountNameTrimmed.Length > 40)
+                    return Json(new { success = false, message = "Bank / Account Name is required and must be 1-40 characters." });
+                if (!Regex.IsMatch(accountNameTrimmed, @"^[A-Za-z0-9\s\.,&()\-\/']+$"))
+                    return Json(new { success = false, message = "Bank / Account Name contains invalid characters." });
+                if (accountNumberTrimmed.Length < 10 || accountNumberTrimmed.Length > 16)
+                    return Json(new { success = false, message = "Bank account number must be 10-16 characters." });
+                if (!Regex.IsMatch(accountNumberTrimmed, @"^[A-Za-z0-9\s\-\/]+$"))
+                    return Json(new { success = false, message = "Bank account number contains invalid characters." });
+            }
             using (var db = new SolteiraBrandsContext())
             {
                 foreach (var s in db.tbl_payment_settings.Where(s => s.PaymentType == typeTrim && s.IsActive))
@@ -2166,8 +2200,8 @@ namespace Solteira_Brands.Controllers
                 var newSetting = new tblPaymentSettingsModel
                 {
                     PaymentType = typeTrim,
-                    AccountName = (accountName ?? "").Trim(),
-                    AccountNumber = (accountNumber ?? "").Trim(),
+                    AccountName = accountNameTrimmed,
+                    AccountNumber = accountNumberTrimmed,
                     QrImageId = qrImageId > 0 ? qrImageId : null,
                     IsActive = true,
                     CreatedAt = now,
@@ -3289,12 +3323,20 @@ namespace Solteira_Brands.Controllers
                     scheduledAtFormatted,
                     meetupOutcomeStatus,
                     meetupOutcomeAtFormatted,
-                    meetupReceiptImageUrl
+                    meetupReceiptImageUrl,
+                    meetupProofUrl = meetupReceiptImageUrl
                 }, JsonRequestBehavior.AllowGet);
             }
         }
 
-        /// <summary>POST: Upload meetup receipt (proof of transaction). JPG/PNG, max 5MB. Saves to ~/Content/images_uploaded/proofoftransactions/.</summary>
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpPost]
+        public ActionResult UploadMeetupProof(HttpPostedFileBase file)
+        {
+            return UploadMeetupReceipt(file);
+        }
+
+        /// <summary>POST: Upload meetup proof (proof of transaction). JPG/PNG/MP4, max 5MB. Saves to ~/Content/images_uploaded/proofoftransactions/.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
         public ActionResult UploadMeetupReceipt(HttpPostedFileBase file)
@@ -3305,9 +3347,9 @@ namespace Solteira_Brands.Controllers
                 return Json(new { success = false, message = "No file uploaded." });
             var fileName = file.FileName ?? "";
             var ext = (Path.GetExtension(fileName) ?? "").ToLowerInvariant();
-            var allowedExts = new[] { ".jpg", ".jpeg", ".png" };
+            var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".mp4" };
             if (!allowedExts.Contains(ext))
-                return Json(new { success = false, message = "Only JPG or PNG allowed." });
+                return Json(new { success = false, message = "Only JPG, PNG, or MP4 allowed." });
             if (file.ContentLength > 5 * 1024 * 1024)
                 return Json(new { success = false, message = "File size exceeds 5MB." });
             var uniqueFileName = Guid.NewGuid().ToString() + ext;
@@ -3325,16 +3367,17 @@ namespace Solteira_Brands.Controllers
             }
         }
 
-        /// <summary>POST: Update meetup outcome. Allowed when order is Ready for Meetup or Meetup Rescheduled. COMPLETED requires receiptImageId; NO_SHOW sets order to No Show (enables Reschedule); CANCELLED sets order Cancelled.</summary>
+        /// <summary>POST: Update meetup outcome. Allowed when order is Ready for Meetup or Meetup Rescheduled. COMPLETED requires meetup proof image/video ID; NO_SHOW sets order to No Show (enables Reschedule); CANCELLED sets order Cancelled.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null, string cancellationReason = null, bool? restoreStock = null)
+        public JsonResult UpdateMeetupOutcome(int orderId, string status, int? receiptImageId = null, int? proofImageId = null, string cancellationReason = null, bool? restoreStock = null)
         {
             var statusTrim = (status ?? "").Trim().ToUpperInvariant();
+            var effectiveProofImageId = proofImageId ?? receiptImageId;
             if (statusTrim != "COMPLETED" && statusTrim != "NO_SHOW" && statusTrim != "CANCELLED")
                 return Json(new { success = false, message = "Status must be COMPLETED, NO_SHOW, or CANCELLED." });
-            if (statusTrim == "COMPLETED" && (!receiptImageId.HasValue || receiptImageId.Value <= 0))
-                return Json(new { success = false, message = "Receipt upload is required for Completed." });
+            if (statusTrim == "COMPLETED" && (!effectiveProofImageId.HasValue || effectiveProofImageId.Value <= 0))
+                return Json(new { success = false, message = "Proof upload is required for Completed." });
             using (var db = new SolteiraBrandsContext())
             {
                 var order = db.tbl_orders.Include("OrderItems").FirstOrDefault(o => o.Id == orderId);
@@ -3349,8 +3392,8 @@ namespace Solteira_Brands.Controllers
                         return Json(new { success = false, message = "Cannot transition to Completed from current status." });
                     order.OrderStatus = OrderStatus.Completed;
                     order.LastStatusUpdateAt = now;
-                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel { OrderId = orderId, Status = "COMPLETED", ReceiptImageId = receiptImageId, CreatedAt = now });
-                    LogActivity(db, "Meetup Completed", "MeetupOutcomes", orderId, "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; receipt uploaded.");
+                    db.tbl_meetup_outcomes.Add(new tblMeetupOutcomeModel { OrderId = orderId, Status = "COMPLETED", ReceiptImageId = effectiveProofImageId, CreatedAt = now });
+                    LogActivity(db, "Meetup Completed", "MeetupOutcomes", orderId, "Order #" + (order.OrderNumber ?? orderId.ToString()) + "; proof uploaded.");
                 }
                 else if (statusTrim == "NO_SHOW")
                 {
@@ -3745,6 +3788,18 @@ namespace Solteira_Brands.Controllers
         [Authorize]
         public ActionResult SolteiraBrandsChangePassword()
         {
+            var isForced = false;
+            var username = User?.Identity?.Name;
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                using (var db = new SolteiraBrandsContext())
+                {
+                    var account = db.tbl_users.Include("Role").FirstOrDefault(u => u.Username == username && u.IsActive);
+                    var roleName = account?.Role?.Name ?? string.Empty;
+                    isForced = (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF") && account != null && account.MustChangePassword;
+                }
+            }
+            ViewBag.IsForcedPasswordChange = isForced;
             return View("~/Views/SolteiraBrandsAccount/SolteiraBrandsChangePassword.cshtml");
         }
     }

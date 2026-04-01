@@ -21,6 +21,7 @@ namespace Solteira_Brands.Models
         public string PasswordSalt { get; set; }
         public bool IsVerified { get; set; }
         public bool IsActive { get; set; }
+        public bool MustChangePassword { get; set; }
         public DateTime CreatedAt { get; set; }
         // When the username was last changed (UTC). Used for the 30-day username cooldown.
         public DateTime? UsernameChangedAt { get; set; }

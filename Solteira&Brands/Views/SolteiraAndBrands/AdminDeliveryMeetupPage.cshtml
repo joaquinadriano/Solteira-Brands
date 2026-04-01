@@ -48,7 +48,7 @@
                                 <button type="button" class="btn btn-sm btn-success"
                                         ng-click="completeMeetupWithReceipt(o.id)"
                                         ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
-                                    Mark Completed (upload receipt)
+                                    Mark Completed (upload proof)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary"
                                         ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')"
@@ -167,11 +167,20 @@
                                 </div>
                                 <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="meetupDetail.meetupReceiptImageUrl">
                                     <div class="card-body p-4">
-                                        <h5 class="fw-bold mb-3"><i class="bi bi-receipt me-2 orderDetails-icon"></i>Meetup Receipt</h5>
-                                        <div class="text-center">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-camera-reels me-2 orderDetails-icon"></i>Meetup Proof</h5>
+                                        <div class="text-center" ng-if="!isVideoUrl(meetupDetail.meetupReceiptImageUrl)">
                                             <a ng-href="{{meetupDetail.meetupReceiptImageUrl}}" target="_blank" rel="noopener">
-                                                <img ng-src="{{meetupDetail.meetupReceiptImageUrl}}" alt="Meetup receipt" class="img-fluid rounded border" style="max-height: 260px;" />
+                                                <img ng-src="{{meetupDetail.meetupReceiptImageUrl}}" alt="Meetup proof" class="img-fluid rounded border" style="max-height: 260px;" />
                                             </a>
+                                        </div>
+                                        <div class="text-center" ng-if="isVideoUrl(meetupDetail.meetupReceiptImageUrl)">
+                                            <video class="img-fluid rounded border" style="max-height: 320px;" controls preload="metadata">
+                                                <source ng-src="{{meetupDetail.meetupReceiptImageUrl}}" type="video/mp4" />
+                                                Your browser does not support video preview.
+                                            </video>
+                                            <div class="mt-2">
+                                                <a ng-href="{{meetupDetail.meetupReceiptImageUrl}}" target="_blank" rel="noopener">Open video in new tab</a>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -192,7 +201,7 @@
                         <button type="button" class="btn btn-success me-2"
                                 ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();"
                                 ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">
-                            Mark Completed (upload receipt)
+                            Mark Completed (upload proof)
                         </button>
                         <button type="button" class="btn btn-outline-secondary me-2"
                                 ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();"
@@ -212,17 +221,17 @@
                 </div>
             </div>
         </div>
-        @* Modal: Upload receipt for Completed *@
+        @* Modal: Upload proof for Completed *@
         <div class="modal fade" id="meetupReceiptModal" tabindex="-1" data-bs-backdrop="static">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content delivery-form-box">
                     <div class="modal-header border-0">
-                        <h5 class="modal-title fw-bold">Upload receipt (required for Completed)</h5>
+                        <h5 class="modal-title fw-bold">Upload proof (required for Completed)</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <input type="file" class="form-control" id="meetupReceiptFile" accept=".jpg,.jpeg,.png" />
-                        <small class="text-muted">JPG or PNG, max 5MB.</small>
+                        <input type="file" class="form-control" id="meetupReceiptFile" accept=".jpg,.jpeg,.png,.mp4" />
+                        <small class="text-muted">JPG, PNG, or MP4, max 5MB.</small>
                         <div class="d-flex justify-content-end gap-2 mt-3">
                             <button type="button" class="delivery-btn-add" ng-click="confirmMeetupCompleted()">Confirm</button>
                         </div>

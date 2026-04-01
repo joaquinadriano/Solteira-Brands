@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS tbl_users (
     password_salt   VARCHAR(255)   NOT NULL,
     is_verified     TINYINT(1)      NOT NULL DEFAULT 0,
     is_active       TINYINT(1)      NOT NULL DEFAULT 1,
+    must_change_password TINYINT(1) NOT NULL DEFAULT 0,
     created_at      DATETIME        NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_tbl_users_email (email),
@@ -462,6 +463,16 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add must_change_password to tbl_users if not exists (force first password change for system-managed users)
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'must_change_password');
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE tbl_users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active;',
+    'SELECT 1;');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Add is_featured to tbl_products (featured products on storefront)
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'tbl_products' AND COLUMN_NAME = 'is_featured');
@@ -747,20 +758,20 @@ ON DUPLICATE KEY UPDATE name = VALUES(name);
 -- 8. Trial accounts (SystemAdmin, Manager, Staff, Buyer — password: Password123@) !!!!!!!!!!!!!!
 --    Hash/salt = SEEDME until you visit /Account/SeedTrialPasswords
 -- ----------------------------------------------------------------------------
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'System', 'Admin', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN'  LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'System', 'Admin', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN'  LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'manager@solteira.local',     'Manager',   'Manager', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'manager@solteira.local',     'Manager',   'Manager', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'staff@solteira.local',       'Staff',     'Staff', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF'   LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'staff@solteira.local',       'Staff',     'Staff', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF'   LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'buyer@solteira.local',      'Buyer',     'Buyer', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'BUYER'   LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'buyer@solteira.local',      'Buyer',     'Buyer', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 0, NOW() FROM tbl_roles r WHERE r.name = 'BUYER'   LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 -- ----------------------------------------------------------------------------

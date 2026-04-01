@@ -17,6 +17,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.PasswordSalt).HasColumnName("password_salt").HasMaxLength(255).IsRequired();
             Property(x => x.IsVerified).HasColumnName("is_verified");
             Property(x => x.IsActive).HasColumnName("is_active");
+            Property(x => x.MustChangePassword).HasColumnName("must_change_password").IsRequired();
             Property(x => x.CreatedAt).HasColumnName("created_at");
             Property(x => x.UsernameChangedAt).HasColumnName("username_changed_at");
             Property(x => x.AcceptedTerms).HasColumnName("accepted_terms").IsRequired();

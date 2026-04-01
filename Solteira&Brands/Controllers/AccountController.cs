@@ -23,6 +23,11 @@ namespace Solteira_Brands.Controllers
     /// </summary>
     public class AccountController : Controller
     {
+        private static bool IsSystemManagedRole(string roleName)
+        {
+            return roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF";
+        }
+
         /// <summary>
         /// Create or refresh the FormsAuthentication cookie for the specified user.
         /// Keeps User.Identity.Name and role in sync after profile changes.
@@ -194,6 +199,17 @@ namespace Solteira_Brands.Controllers
                 }
 
                 IssueAuthCookie(user, rememberMe);
+
+                if (IsSystemManagedRole(roleName) && user.MustChangePassword)
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        redirectUrl = Url.Action("SolteiraBrandsChangePassword", "SolteiraAndBrands"),
+                        role = roleName,
+                        mustChangePassword = true
+                    });
+                }
 
                 // Activity log: trail when inventory user (admin/manager/staff) logs in
                 if (roleName == "ADMIN" || roleName == "MANAGER" || roleName == "STAFF")
@@ -568,6 +584,7 @@ namespace Solteira_Brands.Controllers
                     PasswordSalt = saltBase64,
                     IsVerified = false,
                     IsActive = true,
+                    MustChangePassword = false,
                     CreatedAt = DateTime.UtcNow,
                     // Username cooldown should start only after the first successful username change attempt.
                     UsernameChangedAt = null,
@@ -867,12 +884,14 @@ namespace Solteira_Brands.Controllers
 
             using (var db = new SolteiraBrandsContext())
             {
-                    var seedUsers = db.tbl_users.Where(u => u.PasswordHash == "SEEDME").ToList();
+                    var seedUsers = db.tbl_users.Include("Role").Where(u => u.PasswordHash == "SEEDME").ToList();
                 foreach (var u in seedUsers)
                 {
                     var (hash, salt) = PasswordHasher.HashPassword(trialPassword);
                     u.PasswordHash = hash;
                     u.PasswordSalt = salt;
+                    var roleName = u.Role?.Name ?? string.Empty;
+                    u.MustChangePassword = IsSystemManagedRole(roleName);
                     updated++;
                 }
                 if (updated > 0)
@@ -1018,13 +1037,19 @@ namespace Solteira_Brands.Controllers
                 var (hash, salt) = PasswordHasher.HashPassword(newPassword);
                 user.PasswordHash = hash;
                 user.PasswordSalt = salt;
+                user.MustChangePassword = false;
                 db.SaveChanges();
 
                 // Refresh auth cookie so identity stays valid after password rotation
                 IssueAuthCookie(user);
 
                 // TODO: send email notification for password change (once SMTP is configured)
-                return Json(new { success = true });
+                var roleName = user.Role?.Name ?? "BUYER";
+                var redirectUrl = IsSystemManagedRole(roleName)
+                    ? Url.Action("AdminDashboardPage", "SolteiraAndBrands")
+                    : Url.Action("Settings", "Account");
+
+                return Json(new { success = true, redirectUrl });
             }
         }
     }

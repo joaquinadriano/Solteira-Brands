@@ -12,6 +12,8 @@ namespace Solteira_Brands
             // Back-button hardening: never cache authenticated pages.
             // Applies internally only to GET/HEAD actions protected by [Authorize]/[BuyerAuthorize].
             filters.Add(new NoCacheForAuthorizedAttribute());
+            // Force ADMIN/MANAGER/STAFF with temporary passwords to change password first.
+            filters.Add(new ForcePasswordChangeFilterAttribute());
         }
     }
 }

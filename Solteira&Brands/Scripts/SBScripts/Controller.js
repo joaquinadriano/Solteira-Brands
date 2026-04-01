@@ -2254,7 +2254,11 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
     function isPaymentReferenceValidForSubmit(ref) {
         var t = (ref || '').trim();
-        return t.length >= 1 && t.length <= 20 && PAYMENT_REFERENCE_ALNUM_REGEX.test(t);
+        var channel = (($scope.paymentFormData && $scope.paymentFormData.channel) || '').trim().toUpperCase();
+        if (channel === 'GCASH') {
+            return t.length >= 1 && t.length <= 13 && PAYMENT_REFERENCE_ALNUM_REGEX.test(t);
+        }
+        return t.length >= 8 && t.length <= 30 && PAYMENT_REFERENCE_ALNUM_REGEX.test(t);
     }
 
     function logPaymentButtonState(reason) {
@@ -2317,16 +2321,29 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 return;
             }
             var ref = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-            if (ref.length < 1) {
-                $scope.paymentValidation.reference = 'Reference number is required.';
+            if ($scope.paymentFormData && $scope.paymentFormData.channel === 'GCash') {
+                if (ref.length < 1) {
+                    $scope.paymentValidation.reference = 'Reference number is required.';
+                    $scope.paymentError = $scope.paymentValidation.reference;
+                    Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your GCash reference (letters and numbers only, up to 13 characters).' });
+                    return;
+                }
+                if (ref.length > 13) {
+                    $scope.paymentValidation.reference = 'GCash reference number must be 13 characters or less.';
+                    $scope.paymentError = $scope.paymentValidation.reference;
+                    Swal.fire({ icon: 'warning', title: 'Too long', text: 'GCash reference number must be 13 characters or less.' });
+                    return;
+                }
+            } else if (ref.length < 8) {
+                $scope.paymentValidation.reference = 'Reference number must be 8-30 characters.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference number required', text: 'Enter your payment reference (letters and numbers only, 8-30 characters).' });
                 return;
             }
-            if (ref.length > 20) {
-                $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
+            if (($scope.paymentFormData && $scope.paymentFormData.channel !== 'GCash') && ref.length > 30) {
+                $scope.paymentValidation.reference = 'Reference number must be 30 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 30 characters or less.' });
                 return;
             }
             if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(ref)) {
@@ -2350,16 +2367,16 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
                 return;
             }
             var refMeetup = (($scope.paymentForm && $scope.paymentForm.referenceNumber) || '').trim();
-            if (refMeetup.length < 1) {
-                $scope.paymentValidation.reference = 'Reference number for 30% down payment is required.';
+            if (refMeetup.length < 8) {
+                $scope.paymentValidation.reference = 'Reference number for 30% down payment must be 8-30 characters.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference (letters and numbers only, max 20 characters).' });
+                Swal.fire({ icon: 'warning', title: 'Reference required', text: 'Enter your payment reference (letters and numbers only, 8-30 characters).' });
                 return;
             }
-            if (refMeetup.length > 20) {
-                $scope.paymentValidation.reference = 'Reference number must be 20 characters or less.';
+            if (refMeetup.length > 30) {
+                $scope.paymentValidation.reference = 'Reference number must be 30 characters or less.';
                 $scope.paymentError = $scope.paymentValidation.reference;
-                Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 20 characters or less.' });
+                Swal.fire({ icon: 'warning', title: 'Too long', text: 'Reference number must be 30 characters or less.' });
                 return;
             }
             if (!PAYMENT_REFERENCE_ALNUM_REGEX.test(refMeetup)) {

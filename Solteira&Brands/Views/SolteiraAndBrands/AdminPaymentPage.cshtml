@@ -336,12 +336,12 @@
                     <div class="border rounded p-3 mb-4">
                         <h6 class="fw-bold mb-3">1. GCash</h6>
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Account Name</label>
-                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountName" placeholder="Account name" />
+                            <label class="form-label small mb-0">GCash Account Name</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountName" placeholder="GCash account name" maxlength="30" />
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Account Number</label>
-                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountNumber" placeholder="Account number" />
+                            <label class="form-label small mb-0">GCash Account Number</label>
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.gcashAccountNumber" placeholder="11-digit number" maxlength="11" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label small mb-0">QR Image</label>
@@ -358,11 +358,11 @@
                         <h6 class="fw-bold mb-3">2. Bank Transfer</h6>
                         <div class="mb-2">
                             <label class="form-label small mb-0">Bank / Account Name</label>
-                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountName" placeholder="Bank or account name" />
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountName" placeholder="Bank or account name" maxlength="40" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label small mb-0">Account Number</label>
-                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountNumber" placeholder="Account number" />
+                            <input type="text" class="form-control form-control-sm" ng-model="paymentSettingsForm.bankAccountNumber" placeholder="10-16 characters" maxlength="16" />
                         </div>
                         <div class="mb-2">
                             <label class="form-label small mb-0">QR Image</label>

@@ -807,6 +807,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
     $scope.meetupCompletedOrderId = null;
+    $scope.isVideoUrl = function (url) {
+        if (!url) return false;
+        return /\.mp4(\?|#|$)/i.test(url);
+    };
     $scope.completeMeetupWithReceipt = function (orderId) {
         $scope.meetupCompletedOrderId = orderId;
         var el = document.getElementById('meetupReceiptFile');
@@ -818,12 +822,17 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var orderId = $scope.meetupCompletedOrderId;
         if (!orderId) { Swal.fire({ icon: 'warning', title: 'Error', text: 'No order selected.' }); return; }
         var fileInput = document.getElementById('meetupReceiptFile');
-        if (!fileInput || !fileInput.files || !fileInput.files[0]) { Swal.fire({ icon: 'warning', title: 'Select file', text: 'Please select a receipt image (JPG or PNG, max 5MB).' }); return; }
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) { Swal.fire({ icon: 'warning', title: 'Select file', text: 'Please select a proof file (JPG, PNG, or MP4, max 5MB).' }); return; }
         var file = fileInput.files[0];
-        SolteiraAndBrandsService.uploadMeetupReceipt(file).then(function (res) {
+        var maxBytes = 5 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            Swal.fire({ icon: 'warning', title: 'File too large', text: 'File size exceeds 5MB. Please choose a smaller file.' });
+            return;
+        }
+        SolteiraAndBrandsService.uploadMeetupProof(file).then(function (res) {
             if (res.data && res.data.success && res.data.imageID) {
-                var receiptId = res.data.imageID;
-                SolteiraAndBrandsService.updateMeetupOutcome(orderId, 'COMPLETED', receiptId).then(function (r) {
+                var proofId = res.data.imageID;
+                SolteiraAndBrandsService.updateMeetupOutcome(orderId, 'COMPLETED', proofId).then(function (r) {
                     if (r.data && r.data.success) {
                         $scope.meetupCompletedOrderId = null;
                         var modalEl = document.getElementById('meetupReceiptModal');
@@ -835,7 +844,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             } else { Swal.fire({ icon: 'error', title: 'Upload failed', text: (res.data && res.data.message) || 'Please try again.' }); }
         }, function (err) { Swal.fire({ icon: 'error', title: 'Upload failed', text: (err.data && err.data.message) || 'Please try again.' }); });
     };
-    $scope.updateMeetupOutcome = function (orderId, status, receiptImageId) {
+    $scope.updateMeetupOutcome = function (orderId, status, proofImageId) {
         if (!orderId || !status) return;
 
         // Special handling for final cancellation: capture reason + stock decision,
@@ -887,7 +896,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             return;
         }
 
-        SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, receiptImageId).then(function (res) {
+        SolteiraAndBrandsService.updateMeetupOutcome(orderId, status, proofImageId).then(function (res) {
             if (res.data && res.data.success) {
                 $scope.loadDeliveryMeetup();
                 Swal.fire({ title: 'Updated', icon: 'success', confirmButtonText: 'OK' });
@@ -1506,11 +1515,46 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             Swal.fire({ icon: 'error', title: 'Upload failed', text: (err.data && err.data.message) || 'Please try again.' });
         });
     };
+    var PAYMENT_SETTINGS_ACCOUNT_NAME_REGEX = /^[A-Za-z0-9\s\.,&()\-\/']+$/;
+    var PAYMENT_SETTINGS_BANK_ACCOUNT_NUMBER_REGEX = /^[A-Za-z0-9\s\-\/]+$/;
     $scope.savePaymentSetting = function (paymentType) {
         var isGcash = paymentType === 'GCASH';
-        var accountName = isGcash ? $scope.paymentSettingsForm.gcashAccountName : $scope.paymentSettingsForm.bankAccountName;
-        var accountNumber = isGcash ? $scope.paymentSettingsForm.gcashAccountNumber : $scope.paymentSettingsForm.bankAccountNumber;
+        var accountName = ((isGcash ? $scope.paymentSettingsForm.gcashAccountName : $scope.paymentSettingsForm.bankAccountName) || '').trim();
+        var accountNumber = ((isGcash ? $scope.paymentSettingsForm.gcashAccountNumber : $scope.paymentSettingsForm.bankAccountNumber) || '').trim();
         var qrImageId = isGcash ? $scope.paymentSettingsForm.gcashQrImageId : $scope.paymentSettingsForm.bankQrImageId;
+
+        if (isGcash) {
+            if (!accountName || accountName.length > 30) {
+                Swal.fire({ icon: 'warning', title: 'Invalid GCash account name', text: 'GCash account name is required and must be 1-30 characters.' });
+                return;
+            }
+            if (!PAYMENT_SETTINGS_ACCOUNT_NAME_REGEX.test(accountName)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid GCash account name', text: 'Use letters, numbers, spaces, and common punctuation only.' });
+                return;
+            }
+            if (!/^\d{11}$/.test(accountNumber)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid GCash number', text: 'GCash account number must be exactly 11 digits.' });
+                return;
+            }
+        } else {
+            if (!accountName || accountName.length > 40) {
+                Swal.fire({ icon: 'warning', title: 'Invalid bank/account name', text: 'Bank / Account Name is required and must be 1-40 characters.' });
+                return;
+            }
+            if (!PAYMENT_SETTINGS_ACCOUNT_NAME_REGEX.test(accountName)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid bank/account name', text: 'Use letters, numbers, spaces, and common punctuation only.' });
+                return;
+            }
+            if (accountNumber.length < 10 || accountNumber.length > 16) {
+                Swal.fire({ icon: 'warning', title: 'Invalid account number', text: 'Bank account number must be 10-16 characters.' });
+                return;
+            }
+            if (!PAYMENT_SETTINGS_BANK_ACCOUNT_NUMBER_REGEX.test(accountNumber)) {
+                Swal.fire({ icon: 'warning', title: 'Invalid account number', text: 'Use letters, numbers, spaces, slashes, or hyphens only.' });
+                return;
+            }
+        }
+
         SolteiraAndBrandsService.updatePaymentSetting(paymentType, accountName, accountNumber, qrImageId).then(function (res) {
             if (res.data && res.data.success) {
                 Swal.fire({ title: (res.data.message || 'Saved'), icon: 'success', confirmButtonText: 'OK' });

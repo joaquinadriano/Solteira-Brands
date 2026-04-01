@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS tbl_users (
     password_salt         VARCHAR(255)    NOT NULL,
     is_verified           TINYINT(1)      NOT NULL DEFAULT 0,
     is_active             TINYINT(1)      NOT NULL DEFAULT 1,
+    must_change_password  TINYINT(1)      NOT NULL DEFAULT 0,
     username_changed_at   DATETIME        NULL,
     avatar_image_id       INT             NULL,
     accepted_terms        TINYINT(1)      NOT NULL DEFAULT 0,
@@ -356,20 +357,20 @@ INSERT INTO tbl_roles (name, description, created_at) VALUES
 ('BUYER',   'Customer role',        NOW())
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'System', 'Admin', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'systemadmin@solteira.local', 'SystemAdmin', 'System', 'Admin', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'ADMIN' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'manager@solteira.local', 'Manager', 'Manager', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'manager@solteira.local', 'Manager', 'Manager', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'MANAGER' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'staff@solteira.local', 'Staff', 'Staff', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'staff@solteira.local', 'Staff', 'Staff', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'STAFF' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
-INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, created_at)
-SELECT r.id, 'buyer@solteira.local', 'Buyer', 'Buyer', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, NOW() FROM tbl_roles r WHERE r.name = 'BUYER' LIMIT 1
+INSERT INTO tbl_users (role_id, email, username, first_name, last_name, username_changed_at, password_hash, password_salt, is_verified, is_active, must_change_password, created_at)
+SELECT r.id, 'buyer@solteira.local', 'Buyer', 'Buyer', 'Account', NULL, 'SEEDME', 'SEEDME', 1, 1, 0, NOW() FROM tbl_roles r WHERE r.name = 'BUYER' LIMIT 1
 ON DUPLICATE KEY UPDATE email = VALUES(email);
 
 INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
