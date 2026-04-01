@@ -2362,10 +2362,21 @@ namespace Solteira_Brands.Controllers
 
                 var totalSales = ordersInRange.Where(o => verifiedSaleOrderIds.Contains(o.Id)).Sum(o => o.TotalAmount);
                 var productSold = db.tbl_order_items.Where(oi => verifiedSaleOrderIds.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
-                var pendingOrders = ordersInRange.Count(o => o.OrderStatus == "Pending Approval" || o.OrderStatus == "Pending");
-                var approvedOrders = ordersInRange.Count(o => o.OrderStatus == "Approved");
-                // Count Completed (and legacy Shipped if any) for dashboard Orders card
-                var shippedOrders = ordersInRange.Count(o => o.OrderStatus == "Completed" || o.OrderStatus == "Shipped");
+
+                // Orders card: always global counts (not filtered by dashboard date range)
+                var pendingOrders = db.tbl_orders.Count(o => !o.IsArchived && (o.OrderStatus == "Pending Approval" || o.OrderStatus == "Pending"));
+                var approvedOrders = db.tbl_orders.Count(o => !o.IsArchived && o.OrderStatus == "Approved");
+                var allActiveOrderIds = db.tbl_orders.Where(o => !o.IsArchived).Select(o => o.Id).ToList();
+                var deliveriesForActiveOrders = db.tbl_deliveries
+                    .Where(d => allActiveOrderIds.Contains(d.OrderId))
+                    .ToList();
+                var latestDeliveryByOrderId = deliveriesForActiveOrders
+                    .GroupBy(d => d.OrderId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(x => x.UpdatedAt).ThenByDescending(x => x.CreatedAt).First());
+                var shippedOrders = latestDeliveryByOrderId.Values.Count(l =>
+                    string.Equals(l.DeliveryStatus, DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase));
 
                 // Daily sales: only verified-payment orders, by order date
                 var lineLabels = new List<string>();

@@ -188,6 +188,25 @@
             </div>
         </div>
 
+        <div class="row px-4 pt-3 pb-2">
+            <div class="col-md-12">
+                <div class="card bg-light border-0 p-3 rounded-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Category</label>
+                            <select class="form-select" ng-model="inventoryCategoryFilter" ng-change="onInventoryCategoryFilterChange()">
+                                <option value="All Categories">All Categories</option>
+                                <option value="Ring">Ring</option>
+                                <option value="Earring">Earring</option>
+                                <option value="Necklace">Necklace</option>
+                                <option value="Bracelet">Bracelet</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @* Inventory table (DataTables initialized via Angular after data loads) *@
         <div class="row px-4 pt-1">
             <div class="col">
@@ -208,7 +227,7 @@
                     </thead>
 
                     <tbody class="table-group-divider">
-                        <tr class="text-start" ng-repeat="item in inventoryProducts">
+                        <tr class="text-start" ng-repeat="item in getFilteredInventoryProducts() track by item.id">
                             <td>{{item.id}}</td>
                             <td>{{item.category}}</td>
                             <td>{{item.name}}</td>

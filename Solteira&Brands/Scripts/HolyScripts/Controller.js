@@ -630,25 +630,75 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.ordersForShipments = [];
     $scope.shipmentsList = [];
+    /** Rows shown in the table after status filter (DataTables needs a real array + DOM rebuild to stay in sync with Angular). */
+    $scope.filteredShipmentsList = [];
+    /** All | in_transit | delivered — same UI pattern as Inventory category filter. */
+    $scope.deliveryShipmentsStatusFilter = 'all';
+    /** Toggled to force ng-repeat + DataTables to rebuild so filtering actually replaces rows. */
+    $scope.deliveryShipmentsTableVisible = true;
+    $scope.deliveryShipmentsTableSeq = 0;
+
+    function normalizeShipmentDeliveryStatus(d) {
+        if (!d) return '';
+        var s = d.deliveryStatus != null ? d.deliveryStatus : d.DeliveryStatus;
+        s = (s != null ? String(s).trim().toUpperCase() : '');
+        s = s.replace(/\s+/g, '_');
+        return s;
+    }
+
+    function applyShipmentStatusFilter() {
+        var list = $scope.shipmentsList || [];
+        var f = ($scope.deliveryShipmentsStatusFilter || 'all').toString().toLowerCase().trim();
+        if (f === 'all') {
+            $scope.filteredShipmentsList = list.slice();
+            return;
+        }
+        var out = [];
+        angular.forEach(list, function (d) {
+            if (!d) return;
+            var st = normalizeShipmentDeliveryStatus(d);
+            if (f === 'in_transit' && st === 'IN_TRANSIT') out.push(d);
+            else if (f === 'delivered' && st === 'DELIVERED') out.push(d);
+        });
+        $scope.filteredShipmentsList = out;
+    }
+
+    /** Destroy DataTables, drop table from DOM briefly, then re-render filtered rows and re-init DataTables. */
+    function rebuildDeliveryShipmentsTable() {
+        $scope.deliveryShipmentsTableSeq = ($scope.deliveryShipmentsTableSeq || 0) + 1;
+        var seq = $scope.deliveryShipmentsTableSeq;
+        try {
+            if ($('#deliveryShipmentsTable').length && $.fn.DataTable && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) {
+                $('#deliveryShipmentsTable').DataTable().destroy();
+            }
+        } catch (e) { }
+        $scope.deliveryShipmentsTableVisible = false;
+        $timeout(function () {
+            if (seq !== $scope.deliveryShipmentsTableSeq) return;
+            $scope.deliveryShipmentsTableVisible = true;
+            $timeout(function () {
+                if (seq !== $scope.deliveryShipmentsTableSeq) return;
+                if ($scope.filteredShipmentsList.length > 0 && typeof window.initializeStandardTable === 'function') {
+                    window.initializeStandardTable('#deliveryShipmentsTable', 0);
+                }
+            }, 0);
+        }, 0);
+    }
+
+    $scope.onDeliveryShipmentsStatusFilterChange = function () {
+        applyShipmentStatusFilter();
+        rebuildDeliveryShipmentsTable();
+    };
+
     $scope.loadDeliveryShipments = function () {
         SolteiraAndBrandsService.getOrdersForDeliveryShipments().then(function (res) {
             $scope.ordersForShipments = (res.data && res.data.success && res.data.data) ? res.data.data : [];
         });
         SolteiraAndBrandsService.getDeliveryShipments().then(function (res) {
             $scope.shipmentsList = (res.data && res.data.success && res.data.data) ? res.data.data : [];
+            applyShipmentStatusFilter();
             $timeout(function () {
-                if (typeof window.initializeStandardTable !== 'function') return;
-                try {
-                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#deliveryShipmentsTable').length && $.fn.DataTable.isDataTable('#deliveryShipmentsTable')) {
-                        $('#deliveryShipmentsTable').DataTable().destroy();
-                    }
-                } catch (e) { }
-                // Wait one more tick to ensure ng-repeat rows are in the DOM.
-                $timeout(function () {
-                    if ($scope.shipmentsList && $scope.shipmentsList.length > 0) {
-                        window.initializeStandardTable('#deliveryShipmentsTable', 0);
-                    }
-                }, 0);
+                rebuildDeliveryShipmentsTable();
             }, 250);
         });
     };
@@ -1612,6 +1662,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
     $scope.inventorySearchText = '';
+    /** Same options as Sales Reports: filter inventory table by product category. */
+    $scope.inventoryCategoryFilter = 'All Categories';
     $scope.productCategories = ["Bracelet", "Ring", "Earring", "Necklace"];
     $scope.newProduct = {
         name: "",
@@ -1695,6 +1747,41 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 $scope.inventoryTableVisible = true;
             }, 0);
         });
+    };
+
+    /** Products to show in the inventory table (client-side filter by category). */
+    $scope.getFilteredInventoryProducts = function () {
+        var list = $scope.inventoryProducts || [];
+        var cat = ($scope.inventoryCategoryFilter || 'All Categories').toString().trim();
+        if (cat === 'All Categories') return list;
+        var out = [];
+        angular.forEach(list, function (p) {
+            if (!p) return;
+            var pc = (p.category != null ? p.category : p.Category);
+            pc = pc != null ? String(pc).trim() : '';
+            if (pc === cat) out.push(p);
+        });
+        return out;
+    };
+
+    /** Rebuild DataTables after category filter changes (rows come from ng-repeat). */
+    $scope.onInventoryCategoryFilterChange = function () {
+        if (!$scope.inventoryTableVisible) return;
+        var seq = $scope.inventoryLoadSeq || 0;
+        try {
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#inventoryTable').length && $.fn.DataTable.isDataTable('#inventoryTable')) {
+                $('#inventoryTable').DataTable().destroy();
+            }
+        } catch (e) { }
+        $scope.inventoryTableVisible = false;
+        $timeout(function () {
+            if (seq !== $scope.inventoryLoadSeq) return;
+            $scope.inventoryTableVisible = true;
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                window.initializeStandardTable('#inventoryTable', 0);
+            }, 0);
+        }, 0);
     };
 
     $scope.inventoryFileValidationMessage = '';
@@ -2810,11 +2897,22 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
+    /** Non-empty string when export should be disabled (for tooltips and Swal). */
+    $scope.getSalesReportExportDisabledHint = function () {
+        if (!$scope.reportFiltersApplied) return 'Wait for the report to finish loading.';
+        var range = ($scope.reportRange || '').toString().toLowerCase().trim();
+        if (range === 'custom') {
+            var s = salesReportDateToYyyyMmDd($scope.customReportStart);
+            var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
+            if (!s || !e) return 'Choose both start and end dates for custom range.';
+        }
+        var rows = $scope.salesReportRows || [];
+        if (!rows.length) return 'No sales data to export for the current filter.';
+        return '';
+    };
+
     $scope.canExportSalesReport = function () {
-        if (($scope.reportRange || '').toString().toLowerCase().trim() !== 'custom') return true;
-        var s = salesReportDateToYyyyMmDd($scope.customReportStart);
-        var e = salesReportDateToYyyyMmDd($scope.customReportEnd);
-        return !!(s && e && $scope.reportFiltersApplied);
+        return !$scope.getSalesReportExportDisabledHint();
     };
 
     $scope.onReportRangeChange = function () {
@@ -2860,7 +2958,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.exportSalesReportPdf = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
+            var hint = $scope.getSalesReportExportDisabledHint() || 'Export is not available.';
+            Swal.fire({ icon: 'warning', title: 'Cannot export', text: hint });
             return;
         }
         if (typeof pdfMake === 'undefined') {
@@ -3096,7 +3195,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.exportSalesReportCsv = function () {
         if (!$scope.canExportSalesReport()) {
-            Swal.fire({ icon: 'warning', title: 'Custom range', text: 'For custom range, set both start and end dates and wait for the table to load before exporting.' });
+            var hint = $scope.getSalesReportExportDisabledHint() || 'Export is not available.';
+            Swal.fire({ icon: 'warning', title: 'Cannot export', text: hint });
             return;
         }
         var rows = $scope.salesReportRows || [];

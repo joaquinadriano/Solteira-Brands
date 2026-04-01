@@ -98,9 +98,26 @@
             </div>
         </div>
 
+        <div class="row px-4 pt-3 pb-2">
+            <div class="col-md-12">
+                <div class="card bg-light border-0 p-3 rounded-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Status</label>
+                            <select class="form-select" ng-model="deliveryShipmentsStatusFilter" ng-change="onDeliveryShipmentsStatusFilterChange()">
+                                <option value="all">All</option>
+                                <option value="in_transit">In transit</option>
+                                <option value="delivered">Delivered</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @*table*@
         <div class="row  px-4 pt-1">
-            <div class="col">
+            <div class="col" ng-if="deliveryShipmentsTableVisible">
                 <table class="table table-striped table-responsive text-center" id="deliveryShipmentsTable">
                     <thead>
                         <tr>
@@ -118,7 +135,7 @@
                     </thead>
 
                     <tbody class="table-group-divider">
-                        <tr class="text-start" ng-repeat="d in shipmentsList track by d.id">
+                        <tr class="text-start" ng-repeat="d in filteredShipmentsList track by d.id">
                             <td data-order="{{d.id || 0}}">DLVRY-{{d.id}}</td>
                             <td>{{d.orderNumber}}</td>
                             <td>{{d.customerName}}</td>
@@ -140,8 +157,11 @@
                                 </div>
                             </td>
                         </tr>
-                        <tr ng-if="shipmentsList.length === 0">
-                            <td colspan="10" class="text-muted py-4">No shipments. Add an order from Paid orders above.</td>
+                        <tr ng-if="filteredShipmentsList.length === 0">
+                            <td colspan="10" class="text-muted py-4">
+                                <span ng-if="!shipmentsList.length">No shipments. Add an order from Paid orders above.</span>
+                                <span ng-if="shipmentsList.length">No shipments match this status filter.</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

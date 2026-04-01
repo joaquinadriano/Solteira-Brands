@@ -11,10 +11,10 @@
                 <p class="text-muted mb-0">View and export detailed item sales.</p>
             </div>
             <div class="col-auto d-flex gap-2">
-                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Choose both start and end dates for custom range to enable export' : 'Export as PDF'}}">
+                <button type="button" class="btn btn-outline-danger shadow-sm" ng-click="exportSalesReportPdf()" ng-disabled="!canExportSalesReport()" title="{{canExportSalesReport() ? 'Export as PDF' : getSalesReportExportDisabledHint()}}">
                     <i class="bi bi-file-earmark-pdf-fill me-2"></i>Export as PDF
                 </button>
-                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{!canExportSalesReport() ? 'Choose both start and end dates for custom range to enable export' : 'Export as CSV'}}">
+                <button type="button" class="btn btn-outline-success shadow-sm" ng-click="exportSalesReportCsv()" ng-disabled="!canExportSalesReport()" title="{{canExportSalesReport() ? 'Export as CSV' : getSalesReportExportDisabledHint()}}">
                     <i class="bi bi-filetype-csv me-2"></i>Export as CSV
                 </button>
             </div>
