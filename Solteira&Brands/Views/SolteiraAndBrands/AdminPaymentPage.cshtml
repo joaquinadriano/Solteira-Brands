@@ -218,6 +218,10 @@
                                     </h5>
                                     <p class="fw-bold mb-1">{{paymentDetail.meetupSchedule.locationName}}</p>
                                     <p class="mb-0 text-muted small">{{paymentDetail.meetupSchedule.address}}</p>
+                                    <p class="mt-2 mb-0" ng-if="paymentDetail.meetupSchedule.scheduledAtFormatted">
+                                        <span class="text-muted small">Buyer selected:</span>
+                                        <span class="fw-bold">{{paymentDetail.meetupSchedule.scheduledAtFormatted}}</span>
+                                    </p>
                                 </div>
                             </div>
 

@@ -204,19 +204,24 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/CheckAndCancelOverdueOrders" });
     };
 
-    this.getDashboardData = function (range, startDate, endDate) {
-        var params = { range: range || "lastmonth" };
-        if (range === "custom" && startDate) params.startDate = startDate;
-        if (range === "custom" && endDate) params.endDate = endDate;
+    this.getDashboardData = function (range, preset, startDate, endDate) {
+        var r = String(range == null ? "daily" : range).toLowerCase().trim();
+        var p = preset != null ? String(preset).toLowerCase().trim() : null;
+        var params = { range: r };
+        if (p) params.preset = p;
+        if (r === "custom" && startDate) params.startDate = startDate;
+        if (r === "custom" && endDate) params.endDate = endDate;
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetDashboardData", params: params });
     };
 
-    this.getSalesReport = function (range, startDate, endDate, category) {
+    this.getSalesReport = function (range, preset, startDate, endDate, category) {
         var r = String(range == null ? "all" : range).toLowerCase().trim();
+        var p = preset != null ? String(preset).toLowerCase().trim() : null;
         // Custom range: POST form body so MVC always binds startDate/endDate (GET query binding was unreliable in some environments).
         if (r === "custom") {
             var payload = {
                 range: r,
+                preset: p || "",
                 startDate: String(startDate != null && startDate !== "" ? startDate : ""),
                 endDate: String(endDate != null && endDate !== "" ? endDate : "")
             };
@@ -239,6 +244,8 @@ app.service("SolteiraAndBrandsService", function ($http) {
             });
         }
         var parts = ["range=" + encodeURIComponent(r)];
+        if (p)
+            parts.push("preset=" + encodeURIComponent(p));
         if (category)
             parts.push("category=" + encodeURIComponent(String(category)));
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetSalesReport?" + parts.join("&") });

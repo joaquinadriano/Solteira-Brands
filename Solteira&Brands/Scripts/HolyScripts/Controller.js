@@ -126,6 +126,19 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     joinedAtString: (u.joinedAtString != null ? u.joinedAtString : u.JoinedAtString) || '-'
                 };
             });
+
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#usersTable').length && $.fn.DataTable.isDataTable('#usersTable')) {
+                        $('#usersTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.usersList && $scope.usersList.length > 0) {
+                    // Sort by Joined Date (index 5) so newest users are on top.
+                    window.initializeStandardTable('#usersTable', 5);
+                }
+            }, 150);
         }, function (err) {
             $scope.usersList = [];
             var ed = err && err.data;
@@ -2622,16 +2635,53 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         shippedOrders: 0
     };
     $scope.dashboardDate = '';
-    $scope.dashboardRange = 'today';
+    $scope.totalSalesBreakdownTitle = 'Total Sales (Daily Breakdown)';
+    // Dashboard filter: default is Daily -> Today
+    $scope.dashboardRange = 'daily';
+    $scope.dashboardPreset = 'today';
     $scope.customStartDate = '';
     $scope.customEndDate = '';
 
+    function dashboardDateToYyyyMmDd(val) {
+        if (val == null || val === '') return '';
+        if (angular.isDate(val) && !isNaN(val.getTime())) {
+            var d = val;
+            var y = d.getFullYear();
+            var m = d.getMonth() + 1;
+            var day = d.getDate();
+            return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+        }
+        var s = (typeof val === 'string') ? val.trim() : String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        return '';
+    }
+
     $scope.loadDashboardData = function () {
-        var range = $scope.dashboardRange || 'lastmonth';
-        var startDate = range === 'custom' ? $scope.customStartDate : null;
-        var endDate = range === 'custom' ? $scope.customEndDate : null;
-        SolteiraAndBrandsService.getDashboardData(range, startDate, endDate).then(function (res) {
+        var range = ($scope.dashboardRange || 'daily').toString().toLowerCase().trim();
+        var preset = ($scope.dashboardPreset || '').toString().toLowerCase().trim();
+        var startDate = range === 'custom' ? dashboardDateToYyyyMmDd($scope.customStartDate) : null;
+        var endDate = range === 'custom' ? dashboardDateToYyyyMmDd($scope.customEndDate) : null;
+        $scope.totalSalesBreakdownTitle = (range === 'daily')
+            ? 'Total Sales (Hourly Breakdown)'
+            : 'Total Sales (Daily Breakdown)';
+        // fall back to raw input values (some browsers)
+        if (range === 'custom') {
+            try {
+                var elS = document.getElementById("dashboardStartDate");
+                var elE = document.getElementById("dashboardEndDate");
+                if (!startDate && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) startDate = elS.value;
+                if (!endDate && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) endDate = elE.value;
+            } catch (e) { /* ignore */ }
+        }
+        if (range === 'custom' && (!startDate || !endDate)) {
+            return;
+        }
+        SolteiraAndBrandsService.getDashboardData(range, preset || null, startDate, endDate).then(function (res) {
             if (res.data && res.data.success) {
+                if (res.data.invalidRange) {
+                    Swal.fire({ icon: 'warning', title: 'Invalid date range', text: res.data.invalidRangeMessage || 'Invalid date range.' });
+                    return;
+                }
                 var stats = res.data.stats || {};
                 $scope.dashboardStats = {
                     totalSales: stats.totalSales || 0,
@@ -2676,21 +2726,55 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.onDashboardRangeChange = function () {
-        if ($scope.dashboardRange === 'custom') {
+        var r = ($scope.dashboardRange || '').toString().toLowerCase().trim();
+        if (r === 'daily') {
+            $scope.dashboardPreset = 'today';
+            $scope.loadDashboardData();
+            return;
+        }
+        if (r === 'monthly') {
+            $scope.dashboardPreset = 'thismonth';
+            $scope.loadDashboardData();
+            return;
+        }
+        if (r === 'custom') {
+            $scope.dashboardPreset = '';
             var today = new Date();
             var lastMonth = new Date(today);
             lastMonth.setDate(lastMonth.getDate() - 30);
-            $scope.customEndDate = today.toISOString().slice(0, 10);
-            $scope.customStartDate = lastMonth.toISOString().slice(0, 10);
-        } else {
-            $scope.loadDashboardData();
+            $scope.customEndDate = dashboardDateToYyyyMmDd(today);
+            $scope.customStartDate = dashboardDateToYyyyMmDd(lastMonth);
+            $timeout(function () { $scope.onDashboardCustomDatesChanged(); }, 50);
+            return;
         }
+        // all
+        $scope.dashboardPreset = '';
+        $scope.loadDashboardData();
     };
 
-    $scope.applyCustomRange = function () {
-        if ($scope.dashboardRange === 'custom' && $scope.customStartDate && $scope.customEndDate) {
+    var dashboardCustomDatesTimeout = null;
+    $scope.onDashboardCustomDatesChanged = function () {
+        if (($scope.dashboardRange || '').toString().toLowerCase().trim() !== 'custom') return;
+        if (dashboardCustomDatesTimeout) $timeout.cancel(dashboardCustomDatesTimeout);
+        dashboardCustomDatesTimeout = $timeout(function () {
+            dashboardCustomDatesTimeout = null;
+            var s = dashboardDateToYyyyMmDd($scope.customStartDate);
+            var e = dashboardDateToYyyyMmDd($scope.customEndDate);
+            try {
+                var elS = document.getElementById("dashboardStartDate");
+                var elE = document.getElementById("dashboardEndDate");
+                if (!s && elS && elS.value && /^\d{4}-\d{2}-\d{2}$/.test(elS.value)) s = elS.value;
+                if (!e && elE && elE.value && /^\d{4}-\d{2}-\d{2}$/.test(elE.value)) e = elE.value;
+            } catch (err) { /* ignore */ }
+            if (!s || !e) return;
+            if (s > e) {
+                Swal.fire({ icon: 'warning', title: 'Invalid date range', text: 'End date must be the same as or later than the start date.' });
+                return;
+            }
+            $scope.customStartDate = s;
+            $scope.customEndDate = e;
             $scope.loadDashboardData();
-        }
+        }, 0);
     };
 
     $scope.dashboardInventoryStock = [];
@@ -2715,6 +2799,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.logsSearch = '';
     $scope.logsFilterDateFrom = '';
     $scope.logsFilterDateTo = '';
+    var activityLogsDataTable = null;
+    var activityLogsDtFilterRegistered = false;
 
     function toDateOnlyString(val) {
         if (!val) return '';
@@ -2725,6 +2811,22 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         }
         return '';
     }
+
+    function applyActivityLogsDataTableFilters() {
+        if (!activityLogsDataTable) return;
+        try {
+            var q = ($scope.logsSearch || '').toString();
+            activityLogsDataTable.search(q).draw();
+        } catch (e) { }
+    }
+
+    // Keep the existing filter UI working, but apply it to DataTables (instead of ng-repeat).
+    $scope.$watchGroup(['logsSearch', 'logsFilterDateFrom', 'logsFilterDateTo'], function () {
+        if (!activityLogsDataTable) return;
+        applyActivityLogsDataTableFilters();
+        // Date range filter runs via DataTables ext.search, so redraw is enough.
+        try { activityLogsDataTable.draw(); } catch (e) { }
+    });
 
     $scope.getFilteredActivityLogs = function () {
         var list = $scope.activityLogsList || [];
@@ -2766,6 +2868,47 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             } else {
                 $scope.activityLogsList = [];
             }
+
+            $timeout(function () {
+                if (typeof window.initializeStandardTable !== 'function') return;
+                try {
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable && $('#activityLogsTable').length && $.fn.DataTable.isDataTable('#activityLogsTable')) {
+                        $('#activityLogsTable').DataTable().destroy();
+                    }
+                } catch (e) { }
+                if ($scope.activityLogsList && $scope.activityLogsList.length > 0) {
+                    // Timestamp is last column (index 4 after removing Entity ID).
+                    window.initializeStandardTable('#activityLogsTable', 4);
+                    try { activityLogsDataTable = $('#activityLogsTable').DataTable(); } catch (e) { activityLogsDataTable = null; }
+
+                    // Date range filtering via DataTables custom filter.
+                    // Column indexes: 0 User, 1 Role, 2 Action, 3 Module, 4 Timestamp
+                    if (!activityLogsDtFilterRegistered && $.fn && $.fn.dataTable && $.fn.dataTable.ext && $.fn.dataTable.ext.search) {
+                        $.fn.dataTable.ext.search.push(function (settings, data) {
+                            try {
+                                if (!settings || settings.nTable == null) return true;
+                                if (settings.nTable.id !== 'activityLogsTable') return true;
+
+                                var dateFrom = toDateOnlyString($scope.logsFilterDateFrom);
+                                var dateTo = toDateOnlyString($scope.logsFilterDateTo);
+                                if (!dateFrom && !dateTo) return true;
+
+                                var ts = (data && data[4]) ? String(data[4]) : '';
+                                var logDate = ts.substring(0, 10);
+                                if (!logDate) return true;
+                                if (dateFrom && logDate < dateFrom) return false;
+                                if (dateTo && logDate > dateTo) return false;
+                                return true;
+                            } catch (e) {
+                                return true;
+                            }
+                        });
+                        activityLogsDtFilterRegistered = true;
+                    }
+
+                    applyActivityLogsDataTableFilters();
+                }
+            }, 150);
         }, function () {
             $scope.activityLogsList = [];
         });
@@ -2791,6 +2934,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.salesReportRows = [];
     $scope.salesReportGrandTotal = 0;
     $scope.reportRange = 'all';
+    $scope.reportPreset = '';
     $scope.customReportStart = '';
     $scope.customReportEnd = '';
     $scope.reportCategory = 'All Categories';
@@ -2838,6 +2982,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 return;
             }
             if (s > e) {
+                Swal.fire({ icon: 'warning', title: 'Invalid date range', text: 'End date must be the same as or later than the start date.' });
                 $scope.salesReportRows = [];
                 $scope.salesReportGrandTotal = 0;
                 $scope.reportFiltersApplied = false;
@@ -2851,6 +2996,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     $scope.loadSalesReport = function () {
         var range = ($scope.reportRange || 'all').toString().toLowerCase().trim();
+        var preset = ($scope.reportPreset || '').toString().toLowerCase().trim();
         var startDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportStart) : null;
         var endDate = range === 'custom' ? salesReportDateToYyyyMmDd($scope.customReportEnd) : null;
         if (range === 'custom') {
@@ -2868,9 +3014,16 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             $scope.reportFiltersApplied = false;
             return;
         }
-        SolteiraAndBrandsService.getSalesReport(range, startDate || null, endDate || null, cat === 'All Categories' ? null : cat).then(function (res) {
+        SolteiraAndBrandsService.getSalesReport(range, preset || null, startDate || null, endDate || null, cat === 'All Categories' ? null : cat).then(function (res) {
             // Step 4: replace array reference so ng-repeat always re-renders (map always builds a new array).
             if (res.data && res.data.success) {
+                if (res.data.invalidRange) {
+                    Swal.fire({ icon: 'warning', title: 'Invalid date range', text: res.data.invalidRangeMessage || 'Invalid date range.' });
+                    $scope.salesReportRows = [];
+                    $scope.salesReportGrandTotal = 0;
+                    $scope.reportFiltersApplied = false;
+                    return;
+                }
                 var raw = res.data.rows || [];
                 $scope.salesReportRows = raw.map(function (r) {
                     return {
@@ -2916,7 +3069,21 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     };
 
     $scope.onReportRangeChange = function () {
-        if (($scope.reportRange || '').toString().toLowerCase().trim() === 'custom') {
+        var r = ($scope.reportRange || '').toString().toLowerCase().trim();
+        if (r === 'daily') {
+            $scope.reportPreset = 'today';
+            $scope.reportFiltersApplied = false;
+            $scope.loadSalesReport();
+            return;
+        }
+        if (r === 'monthly') {
+            $scope.reportPreset = 'thismonth';
+            $scope.reportFiltersApplied = false;
+            $scope.loadSalesReport();
+            return;
+        }
+        if (r === 'custom') {
+            $scope.reportPreset = '';
             var today = new Date();
             var lastMonth = new Date(today);
             lastMonth.setDate(lastMonth.getDate() - 30);
@@ -2925,6 +3092,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             $scope.reportFiltersApplied = false;
             $timeout(function () { $scope.onCustomReportDatesChanged(); }, 50);
         } else {
+            $scope.reportPreset = '';
             $scope.reportFiltersApplied = false;
             $scope.loadSalesReport();
         }
@@ -2945,9 +3113,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     function getReportPeriodLabel() {
         var range = ($scope.reportRange || 'all').toLowerCase();
         if (range === 'all') return 'All time';
-        if (range === 'today') return 'Today';
-        if (range === 'lastweek') return 'Last week';
-        if (range === 'lastmonth') return 'Last month';
+        if (range === 'daily') return (($scope.reportPreset || '').toLowerCase() === 'yesterday' ? 'Yesterday' : 'Today');
+        if (range === 'monthly') return (($scope.reportPreset || '').toLowerCase() === 'lastmonth' ? 'Last month' : 'This month');
         if (range === 'custom') {
             var cs = salesReportDateToYyyyMmDd($scope.customReportStart);
             var ce = salesReportDateToYyyyMmDd($scope.customReportEnd);

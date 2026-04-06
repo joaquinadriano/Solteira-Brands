@@ -42,24 +42,19 @@
                                 <th>Role</th>
                                 <th>Action</th>
                                 <th>Module</th>
-                                <th>Entity ID</th>
                                 <th>Timestamp</th>
                             </tr>
                         </thead>
                         <tbody class="table-group-divider">
-                            <tr ng-repeat="log in getFilteredActivityLogs()">
+                            <tr ng-repeat="log in activityLogsList">
                                 <td class="text-start ps-3">{{log.username}}</td>
                                 <td><span class="badge" ng-class="getActivityLogRoleClass(log.roleName)" ng-bind="log.roleName"></span></td>
                                 <td class="fw-bold" ng-class="getActivityLogActionClass(log.action)" ng-bind="log.action"></td>
                                 <td>{{log.module}}</td>
-                                <td>{{log.entityId != null ? log.entityId : '-'}}</td>
                                 <td>{{log.createdAtString}}</td>
                             </tr>
                             <tr ng-if="activityLogsList.length === 0">
-                                <td colspan="6" class="text-muted py-4">No activity logs yet.</td>
-                            </tr>
-                            <tr ng-if="activityLogsList.length > 0 && getFilteredActivityLogs().length === 0">
-                                <td colspan="6" class="text-muted py-4">No matching logs. Try adjusting filters.</td>
+                                <td colspan="5" class="text-muted py-4">No activity logs yet.</td>
                             </tr>
                         </tbody>
                     </table>

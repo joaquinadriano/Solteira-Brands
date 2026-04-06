@@ -13,9 +13,9 @@
 
         <div class="row px-4 pt-3">
             <div class="col">
-                <div class="card border-0 shadow-sm p-3 rounded-4">
-
-                    <table class="table table-hover table-striped text-center align-middle" id="usersTable" style="width:100%">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="p-3 pt-0">
+                    <table class="table table-hover table-striped text-center align-middle mb-0" id="usersTable" style="width:100%">
                         <thead class="table-light">
                             <tr>
                                 <th class="text-start ps-3">Full Name</th>
@@ -59,17 +59,12 @@
                             </tr>
 
                             <tr ng-if="usersList.length === 0">
-                                <td class="text-muted py-4 text-center" colspan="1">No registered users found.</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
+                                <td class="text-muted py-4 text-center" colspan="7">No registered users found.</td>
                             </tr>
 
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>

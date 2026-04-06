@@ -10,16 +10,37 @@
                 <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
                     <label class="fw-semibold mb-0 me-2" style="font-size: 1rem;">Filter:</label>
                     <select class="form-select form-select-sm" style="width: auto; max-width: 180px;" ng-model="dashboardRange" ng-change="onDashboardRangeChange()">
-                        <option value="today">Today</option>
-                        <option value="lastweek">Last week</option>
-                        <option value="lastmonth">Last month</option>
-                        <option value="custom">Custom</option>
+                        <option value="daily">Daily</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom range</option>
+                        <option value="all">All</option>
                     </select>
-                    <div ng-if="dashboardRange === 'custom'" class="d-flex align-items-center gap-2 flex-wrap">
-                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customStartDate" placeholder="From" />
+
+                    @* Daily preset *@
+                    <div class="align-items-center gap-2 flex-wrap"
+                         ng-class="((dashboardRange || '').toLowerCase() === 'daily' ? 'd-flex' : 'd-none')">
+                        <select class="form-select form-select-sm" style="width: auto; max-width: 180px;" ng-model="dashboardPreset" ng-change="loadDashboardData()">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                        </select>
+                    </div>
+
+                    @* Monthly preset *@
+                    <div class="align-items-center gap-2 flex-wrap"
+                         ng-class="((dashboardRange || '').toLowerCase() === 'monthly' ? 'd-flex' : 'd-none')">
+                        <select class="form-select form-select-sm" style="width: auto; max-width: 180px;" ng-model="dashboardPreset" ng-change="loadDashboardData()">
+                            <option value="thismonth">This month</option>
+                            <option value="lastmonth">Last month</option>
+                        </select>
+                    </div>
+
+                    @* Custom range *@
+                    <div class="align-items-center gap-2 flex-wrap"
+                         ng-class="((dashboardRange || '').toLowerCase() === 'custom' ? 'd-flex' : 'd-none')">
+                        <input id="dashboardStartDate" type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customStartDate" placeholder="From" ng-change="onDashboardCustomDatesChanged()" />
                         <span class="text-muted">to</span>
-                        <input type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customEndDate" placeholder="To" />
-                        <button type="button" class="btn btn-sm btn-outline-dark" ng-click="applyCustomRange()">Apply</button>
+                        <input id="dashboardEndDate" type="date" class="form-control form-control-sm" style="width: auto;" ng-model="customEndDate" placeholder="To" ng-change="onDashboardCustomDatesChanged()" />
+                        <span class="text-muted small">Loads when both dates are set</span>
                     </div>
                 </div>
             </div>
@@ -70,7 +91,7 @@
         @*----------Charts------------*@
         <div class="row p-5 charts-row">
             <div class="dashboard-chart-1">
-                <p class="fw-bold text-center h4">Total Sales (Daily Breakdown)</p>
+                <p class="fw-bold text-center h4">{{totalSalesBreakdownTitle || 'Total Sales (Breakdown)'}}</p>
                 @*----------Line Chart----------*@
                 <div class="chart-container chart-container--line">
                     <canvas id="line" class="chart chart-line" chart-data="lineData"

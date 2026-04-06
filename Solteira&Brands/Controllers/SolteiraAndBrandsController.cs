@@ -1395,6 +1395,7 @@ namespace Solteira_Brands.Controllers
                             amount = latestSubOrRej.Amount,
                             createdAt = latestSubOrRej.CreatedAt.ToString("MMM dd, yyyy hh:mm tt"),
                             paymentStatus = latestSubOrRej.PaymentStatus,
+                            paymentChannel = latestSubOrRej.PaymentChannel,
                             rejectionReason = latestSubOrRej.RejectionReason,
                             allowResubmit = latestSubOrRej.AllowResubmit != 0
                         };
@@ -1561,6 +1562,7 @@ namespace Solteira_Brands.Controllers
                         amount = latestPaymentForCurrentSlot.Amount,
                         createdAt = latestPaymentForCurrentSlot.CreatedAt.ToString("MMM dd, yyyy hh:mm tt"),
                         paymentStatus = latestPaymentForCurrentSlot.PaymentStatus,
+                        paymentChannel = latestPaymentForCurrentSlot.PaymentChannel,
                         rejectionReason = latestPaymentForCurrentSlot.RejectionReason,
                         allowResubmit = latestPaymentForCurrentSlot.AllowResubmit != 0
                     };
@@ -2039,7 +2041,17 @@ namespace Solteira_Brands.Controllers
                 if (deliveryType == "MEETUP")
                 {
                     var meetupRow = db.tbl_meetup_settings.OrderByDescending(x => x.Id).FirstOrDefault();
-                    meetupSchedule = meetupRow != null ? new { locationName = meetupRow.LocationName ?? "", address = meetupRow.Address ?? "" } : null;
+                    var scheduledAt = order.MeetupDatetime
+                        ?? payment.MeetupDatetime
+                        ?? (order.Payments != null ? order.Payments.OrderByDescending(p => p.CreatedAt).FirstOrDefault(p => p.MeetupDatetime.HasValue)?.MeetupDatetime : null);
+                    meetupSchedule = meetupRow != null
+                        ? new
+                        {
+                            locationName = meetupRow.LocationName ?? "",
+                            address = meetupRow.Address ?? "",
+                            scheduledAtFormatted = scheduledAt.HasValue ? scheduledAt.Value.ToString("MMM dd, yyyy hh:mm tt") : (string)null
+                        }
+                        : null;
                 }
 
                 var paymentOverview = new
@@ -2311,57 +2323,156 @@ namespace Solteira_Brands.Controllers
 
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpGet]
-        public JsonResult GetDashboardData(string range = "lastmonth", string startDate = null, string endDate = null)
+        public JsonResult GetDashboardData(string range = "daily", string preset = null, string startDate = null, string endDate = null)
         {
             var now = DateTime.Now;
             DateTime startOfRange;
             DateTime endOfRange;
+            var rangeLower = (range ?? "daily").Trim().ToLowerInvariant();
+            var presetLower = (preset ?? "").Trim().ToLowerInvariant();
+            var invalidRange = false;
+            string invalidRangeMessage = null;
 
-            switch ((range ?? "").ToLowerInvariant())
+            // Dashboard needs a finite range for charts (avoid DateTime overflow),
+            // but "all" should still compute totals across all successful sales.
+            var chartStart = now.Date;
+            var chartEnd = now.Date.AddDays(1);
+
+            if (rangeLower == "all")
             {
-                case "today":
-                    startOfRange = now.Date;
-                    endOfRange = startOfRange.AddDays(1);
-                    break;
-                case "lastweek":
-                    endOfRange = now.Date.AddDays(1);
-                    startOfRange = endOfRange.AddDays(-7);
-                    break;
-                case "lastmonth":
-                    endOfRange = now.Date.AddDays(1);
-                    startOfRange = endOfRange.AddDays(-30);
-                    break;
-                case "custom":
-                    if (!DateTime.TryParse(startDate, out startOfRange)) startOfRange = now.Date.AddMonths(-1);
-                    if (!DateTime.TryParse(endDate, out endOfRange)) endOfRange = now.Date;
-                    startOfRange = startOfRange.Date;
-                    endOfRange = endOfRange.Date.AddDays(1);
-                    if (startOfRange > endOfRange) { var t = startOfRange; startOfRange = endOfRange.AddDays(-1); endOfRange = t.AddDays(1); }
-                    break;
-                default:
-                    endOfRange = now.Date.AddDays(1);
-                    startOfRange = endOfRange.AddDays(-30);
-                    break;
+                startOfRange = DateTime.MinValue;
+                endOfRange = DateTime.MaxValue;
+                // For charts, show a reasonable recent window.
+                chartStart = now.Date.AddDays(-30);
+                chartEnd = now.Date.AddDays(1);
+            }
+            else
+            {
+                switch (rangeLower)
+                {
+                    case "daily":
+                        if (presetLower == "yesterday")
+                        {
+                            startOfRange = now.Date.AddDays(-1);
+                            endOfRange = now.Date;
+                        }
+                        else
+                        {
+                            // default: today
+                            startOfRange = now.Date;
+                            endOfRange = startOfRange.AddDays(1);
+                        }
+                        chartStart = startOfRange;
+                        chartEnd = endOfRange;
+                        break;
+                    case "monthly":
+                        var firstOfThisMonth = new DateTime(now.Year, now.Month, 1);
+                        if (presetLower == "lastmonth")
+                        {
+                            var firstOfLastMonth = firstOfThisMonth.AddMonths(-1);
+                            startOfRange = firstOfLastMonth;
+                            endOfRange = firstOfThisMonth;
+                        }
+                        else
+                        {
+                            // default: this month
+                            startOfRange = firstOfThisMonth;
+                            endOfRange = firstOfThisMonth.AddMonths(1);
+                        }
+                        chartStart = startOfRange;
+                        chartEnd = endOfRange;
+                        break;
+                    case "custom":
+                        var sTrim = (startDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(sTrim))
+                            sTrim = (Request["startDate"] ?? "").Trim();
+                        var eTrim = (endDate ?? "").Trim();
+                        if (string.IsNullOrEmpty(eTrim))
+                            eTrim = (Request["endDate"] ?? "").Trim();
+                        if (!DateTime.TryParseExact(sTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var s0)
+                            || !DateTime.TryParseExact(eTrim, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var e0))
+                        {
+                            invalidRange = true;
+                            invalidRangeMessage = "Invalid date range.";
+                            startOfRange = DateTime.MinValue;
+                            endOfRange = DateTime.MinValue;
+                        }
+                        else
+                        {
+                            var d0 = s0.Date;
+                            var d1 = e0.Date;
+                            if (d0 > d1)
+                            {
+                                invalidRange = true;
+                                invalidRangeMessage = "Invalid date range. End date must be the same as or later than the start date.";
+                                startOfRange = DateTime.MinValue;
+                                endOfRange = DateTime.MinValue;
+                            }
+                            else
+                            {
+                                startOfRange = d0;
+                                endOfRange = d1.AddDays(1);
+                            }
+                        }
+                        chartStart = startOfRange;
+                        chartEnd = endOfRange;
+                        break;
+                    default:
+                        // default dashboard behavior: today
+                        startOfRange = now.Date;
+                        endOfRange = startOfRange.AddDays(1);
+                        chartStart = startOfRange;
+                        chartEnd = endOfRange;
+                        break;
+                }
             }
 
-            var daysInRange = (int)(endOfRange - startOfRange).TotalDays;
+            var daysInRange = (int)(chartEnd - chartStart).TotalDays;
             if (daysInRange <= 0) daysInRange = 1;
 
             using (var db = new SolteiraBrandsContext())
             {
-                var ordersInRange = db.tbl_orders.Where(o => !o.IsArchived && o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange).ToList();
-                var orderIdsInRange = ordersInRange.Select(o => o.Id).ToList();
+                // Successful transactions only (same logic as Sales Report):
+                // - courier: delivery marked DELIVERED (tbl_deliveries.UpdatedAt)
+                // - cash through meetup: meetup outcome COMPLETED (tbl_meetup_outcomes.CreatedAt)
+                var delivered = db.tbl_deliveries
+                    .Where(d => d.Order != null
+                        && !d.Order.IsArchived
+                        && d.Order.DeliveryType != "MEETUP"
+                        && d.Order.OrderStatus == OrderStatus.Completed
+                        && d.DeliveryStatus == DeliveryStatus.Delivered)
+                    .Select(d => new { orderId = d.OrderId, soldAt = d.UpdatedAt });
 
-                // Only count as "sales" orders that have at least one VERIFIED payment
-                var verifiedSaleOrderIds = db.tbl_payments
-                    .Where(p => p.PaymentStatus == PaymentStatus.Verified)
-                    .Select(p => p.OrderId)
-                    .Distinct()
-                    .Where(id => orderIdsInRange.Contains(id))
+                var meetupCompleted = db.tbl_meetup_outcomes
+                    .Where(m => m.Order != null
+                        && !m.Order.IsArchived
+                        && m.Order.OrderStatus == OrderStatus.Completed
+                        && m.Status == "COMPLETED")
+                    .Select(m => new { orderId = m.OrderId, soldAt = m.CreatedAt });
+
+                var successful = delivered.Concat(meetupCompleted);
+                if (rangeLower != "all")
+                {
+                    if (invalidRange)
+                        successful = successful.Where(x => false);
+                    else
+                        successful = successful.Where(x => x.soldAt >= startOfRange && x.soldAt < endOfRange);
+                }
+
+                var successfulLatest = successful
+                    .GroupBy(x => x.orderId)
+                    .Select(g => new { orderId = g.Key, soldAt = g.Max(x => x.soldAt) });
+
+                var successfulOrderIds = successfulLatest.Select(x => x.orderId).ToList();
+
+                var successfulOrders = db.tbl_orders
+                    .Where(o => !o.IsArchived && successfulOrderIds.Contains(o.Id))
                     .ToList();
 
-                var totalSales = ordersInRange.Where(o => verifiedSaleOrderIds.Contains(o.Id)).Sum(o => o.TotalAmount);
-                var productSold = db.tbl_order_items.Where(oi => verifiedSaleOrderIds.Contains(oi.OrderId)).Sum(i => (int?)i.Quantity) ?? 0;
+                var totalSales = successfulOrders.Sum(o => o.TotalAmount);
+                var productSold = db.tbl_order_items
+                    .Where(oi => successfulOrderIds.Contains(oi.OrderId))
+                    .Sum(i => (int?)i.Quantity) ?? 0;
 
                 // Orders card: always global counts (not filtered by dashboard date range)
                 var pendingOrders = db.tbl_orders.Count(o => !o.IsArchived && (o.OrderStatus == "Pending Approval" || o.OrderStatus == "Pending"));
@@ -2378,26 +2489,53 @@ namespace Solteira_Brands.Controllers
                 var shippedOrders = latestDeliveryByOrderId.Values.Count(l =>
                     string.Equals(l.DeliveryStatus, DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase));
 
-                // Daily sales: only verified-payment orders, by order date
+                // Sales line chart: daily buckets for multi-day ranges; hourly buckets for single-day ("daily") view.
                 var lineLabels = new List<string>();
                 var lineData = new List<double>();
-                var verifiedOrdersInRange = ordersInRange.Where(o => verifiedSaleOrderIds.Contains(o.Id)).ToList();
-                for (var i = 0; i < daysInRange; i++)
+                var soldAtByOrderId = successfulLatest.ToList().ToDictionary(x => x.orderId, x => x.soldAt);
+                if (daysInRange == 1 && rangeLower == "daily")
                 {
-                    var dayStart = startOfRange.AddDays(i);
-                    var dayEnd = dayStart.AddDays(1);
-                    var dayTotal = verifiedOrdersInRange.Where(o => o.CreatedAt >= dayStart && o.CreatedAt < dayEnd).Sum(o => o.TotalAmount);
-                    lineLabels.Add(dayStart.ToString("M/d"));
-                    lineData.Add((double)dayTotal);
+                    string HourLabel(int hour24)
+                    {
+                        var h = hour24 % 24;
+                        var suffix = h < 12 ? "am" : "pm";
+                        var h12 = h % 12;
+                        if (h12 == 0) h12 = 12;
+                        return h12 + suffix;
+                    }
+
+                    for (var h = 0; h < 24; h++)
+                    {
+                        var hourStart = chartStart.AddHours(h);
+                        var hourEnd = hourStart.AddHours(1);
+                        var hourTotal = successfulOrders
+                            .Where(o => soldAtByOrderId.ContainsKey(o.Id) && soldAtByOrderId[o.Id] >= hourStart && soldAtByOrderId[o.Id] < hourEnd)
+                            .Sum(o => o.TotalAmount);
+                        lineLabels.Add(HourLabel(h));
+                        lineData.Add((double)hourTotal);
+                    }
                 }
-                // Line chart needs at least 2 points to draw; for "today" (single day) duplicate so the segment is visible
-                if (daysInRange == 1 && lineLabels.Count == 1)
+                else
                 {
-                    lineLabels.Add(lineLabels[0]);
-                    lineData.Add(lineData[0]);
+                    for (var i = 0; i < daysInRange; i++)
+                    {
+                        var dayStart = chartStart.AddDays(i);
+                        var dayEnd = dayStart.AddDays(1);
+                        var dayTotal = successfulOrders
+                            .Where(o => soldAtByOrderId.ContainsKey(o.Id) && soldAtByOrderId[o.Id] >= dayStart && soldAtByOrderId[o.Id] < dayEnd)
+                            .Sum(o => o.TotalAmount);
+                        lineLabels.Add(dayStart.ToString("M/d"));
+                        lineData.Add((double)dayTotal);
+                    }
+                    // Line chart needs at least 2 points to draw; duplicate single point if the range is exactly one day.
+                    if (daysInRange == 1 && lineLabels.Count == 1)
+                    {
+                        lineLabels.Add(lineLabels[0]);
+                        lineData.Add(lineData[0]);
+                    }
                 }
 
-                // Sales by category: only order items from orders with verified payment
+                // Sales by category: only order items from successful orders
                 var categories = new[] { "Ring", "Earring", "Necklace", "Bracelet" };
                 var pieLabels = new List<string>();
                 var pieDataList = new List<double>();
@@ -2405,7 +2543,7 @@ namespace Solteira_Brands.Controllers
                 {
                     var total = (from oi in db.tbl_order_items
                                  join p in db.tbl_products on oi.ProductId equals p.Id
-                                 where p.Category == cat && verifiedSaleOrderIds.Contains(oi.OrderId)
+                                 where p.Category == cat && successfulOrderIds.Contains(oi.OrderId)
                                  select (decimal?)(oi.Quantity * oi.UnitPrice)).Sum() ?? 0;
                     pieLabels.Add(cat);
                     pieDataList.Add((double)total);
@@ -2426,9 +2564,9 @@ namespace Solteira_Brands.Controllers
                                          imageUrl = img != null ? (img.ImagePath + img.ImageFileName) : (string)null
                                      }).ToList();
 
-                // Top selling products: only from orders with verified payment
+                // Top selling products: only from successful orders
                 var topSold = db.tbl_order_items
-                    .Where(oi => oi.ProductId != null && verifiedSaleOrderIds.Contains(oi.OrderId))
+                    .Where(oi => oi.ProductId != null && successfulOrderIds.Contains(oi.OrderId))
                     .GroupBy(oi => oi.ProductId)
                     .Select(g => new { ProductId = g.Key.Value, TotalSold = g.Sum(x => x.Quantity) })
                     .OrderByDescending(x => x.TotalSold)
@@ -2453,6 +2591,8 @@ namespace Solteira_Brands.Controllers
                 return Json(new
                 {
                     success = true,
+                    invalidRange,
+                    invalidRangeMessage,
                     stats = new
                     {
                         totalSales,
@@ -3549,27 +3689,35 @@ namespace Solteira_Brands.Controllers
 
         [Authorize(Roles = "ADMIN,MANAGER")]
         [HttpGet]
-        /// <summary>Sales report by order CreatedAt. Presets use GET; custom range should use <see cref="PostSalesReport"/> for reliable form binding.</summary>
-        public JsonResult GetSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        /// <summary>
+        /// Sales report by SUCCESS date:
+        /// - Courier: when delivery is marked DELIVERED (tbl_deliveries.UpdatedAt)
+        /// - Cash through meetup: when meetup outcome is COMPLETED (tbl_meetup_outcomes.CreatedAt)
+        /// Presets use GET; custom range should use <see cref="PostSalesReport"/> for reliable form binding.
+        /// </summary>
+        public JsonResult GetSalesReport(string range = "all", string preset = null, string startDate = null, string endDate = null, string category = null)
         {
-            return BuildSalesReportJson(range, startDate, endDate, category);
+            return BuildSalesReportJson(range, preset, startDate, endDate, category);
         }
 
         /// <summary>Same report as GET; POST with application/x-www-form-urlencoded so startDate/endDate always bind for custom range.</summary>
         [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
         [HttpPost]
-        public JsonResult PostSalesReport(string range = "all", string startDate = null, string endDate = null, string category = null)
+        public JsonResult PostSalesReport(string range = "all", string preset = null, string startDate = null, string endDate = null, string category = null)
         {
-            return BuildSalesReportJson(range, startDate, endDate, category);
+            return BuildSalesReportJson(range, preset, startDate, endDate, category);
         }
 
-        private JsonResult BuildSalesReportJson(string range, string startDate, string endDate, string category)
+        private JsonResult BuildSalesReportJson(string range, string preset, string startDate, string endDate, string category)
         {
             var now = DateTime.Now;
             DateTime startOfRange;
             DateTime endOfRange;
             var rangeLower = (range ?? "all").Trim().ToLowerInvariant();
+            var presetLower = (preset ?? "").Trim().ToLowerInvariant();
             var customReportInvalid = false;
+            var invalidRange = false;
+            string invalidRangeMessage = null;
 
             if (rangeLower == "all")
             {
@@ -3580,17 +3728,33 @@ namespace Solteira_Brands.Controllers
             {
                 switch (rangeLower)
                 {
-                    case "today":
-                        startOfRange = now.Date;
-                        endOfRange = startOfRange.AddDays(1);
+                    case "daily":
+                        if (presetLower == "yesterday")
+                        {
+                            startOfRange = now.Date.AddDays(-1);
+                            endOfRange = now.Date;
+                        }
+                        else
+                        {
+                            // default: today
+                            startOfRange = now.Date;
+                            endOfRange = startOfRange.AddDays(1);
+                        }
                         break;
-                    case "lastweek":
-                        endOfRange = now.Date.AddDays(1);
-                        startOfRange = endOfRange.AddDays(-7);
-                        break;
-                    case "lastmonth":
-                        endOfRange = now.Date.AddDays(1);
-                        startOfRange = endOfRange.AddDays(-30);
+                    case "monthly":
+                        var firstOfThisMonth = new DateTime(now.Year, now.Month, 1);
+                        if (presetLower == "lastmonth")
+                        {
+                            var firstOfLastMonth = firstOfThisMonth.AddMonths(-1);
+                            startOfRange = firstOfLastMonth;
+                            endOfRange = firstOfThisMonth;
+                        }
+                        else
+                        {
+                            // default: this month
+                            startOfRange = firstOfThisMonth;
+                            endOfRange = firstOfThisMonth.AddMonths(1);
+                        }
                         break;
                     case "custom":
                         // Prefer action parameters; fall back to Request[] (Form + QueryString) when binding drops values.
@@ -3614,37 +3778,64 @@ namespace Solteira_Brands.Controllers
                             var d1 = endInclusive.Date;
                             if (d0 > d1)
                             {
-                                var tmp = d0;
-                                d0 = d1;
-                                d1 = tmp;
+                                invalidRange = true;
+                                invalidRangeMessage = "Invalid date range. End date must be the same as or later than the start date.";
+                                startOfRange = DateTime.MinValue;
+                                endOfRange = DateTime.MinValue;
+                                break;
                             }
                             startOfRange = d0;
                             endOfRange = d1.AddDays(1);
                         }
                         break;
                     default:
-                        endOfRange = now.Date.AddDays(1);
-                        startOfRange = endOfRange.AddDays(-30);
+                        startOfRange = DateTime.MinValue;
+                        endOfRange = DateTime.MinValue;
+                        customReportInvalid = true;
                         break;
                 }
             }
 
             using (var db = new SolteiraBrandsContext())
             {
-                IQueryable<tblOrdersModel> ordersInRange = db.tbl_orders;
+                // Successful transactions only:
+                // - courier: latest delivery marked DELIVERED
+                // - meetup: latest meetup outcome marked COMPLETED
+                var delivered = db.tbl_deliveries
+                    .Where(d => d.Order != null
+                        && !d.Order.IsArchived
+                        && d.Order.DeliveryType != "MEETUP"
+                        && d.DeliveryStatus == DeliveryStatus.Delivered)
+                    .Select(d => new { orderId = d.OrderId, soldAt = d.UpdatedAt });
+
+                var meetupCompleted = db.tbl_meetup_outcomes
+                    .Where(m => m.Order != null
+                        && !m.Order.IsArchived
+                        && m.Status == "COMPLETED")
+                    .Select(m => new { orderId = m.OrderId, soldAt = m.CreatedAt });
+
+                var successful = delivered.Concat(meetupCompleted);
+
                 if (rangeLower != "all")
                 {
-                    if (customReportInvalid)
-                        ordersInRange = ordersInRange.Where(o => false);
+                    if (customReportInvalid || invalidRange)
+                        successful = successful.Where(x => false);
                     else
-                        ordersInRange = ordersInRange.Where(o => o.CreatedAt >= startOfRange && o.CreatedAt < endOfRange);
+                        successful = successful.Where(x => x.soldAt >= startOfRange && x.soldAt < endOfRange);
                 }
 
-                var query = from oi in db.tbl_order_items
-                            join o in ordersInRange on oi.OrderId equals o.Id
-                            join p in db.tbl_products on oi.ProductId equals p.Id into prodJoin
-                            from p in prodJoin.DefaultIfEmpty()
-                            select new { oi, o, p };
+                // In case of multiple "DELIVERED"/"COMPLETED" rows, take the latest soldAt per order.
+                var successfulLatest = successful
+                    .GroupBy(x => x.orderId)
+                    .Select(g => new { orderId = g.Key, soldAt = g.Max(x => x.soldAt) });
+
+                var query =
+                    from s in successfulLatest
+                    join o in db.tbl_orders on s.orderId equals o.Id
+                    join oi in db.tbl_order_items on o.Id equals oi.OrderId
+                    join p in db.tbl_products on oi.ProductId equals p.Id into prodJoin
+                    from p in prodJoin.DefaultIfEmpty()
+                    select new { oi, o, p, soldAt = s.soldAt };
 
                 if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3653,11 +3844,12 @@ namespace Solteira_Brands.Controllers
                 }
 
                 var rows = query
-                    .OrderBy(x => x.o.CreatedAt)
+                    .OrderBy(x => x.soldAt)
+                    .ThenBy(x => x.o.Id)
                     .ThenBy(x => x.oi.Id)
                     .Select(x => new
                     {
-                        date = x.o.CreatedAt,
+                        date = x.soldAt,
                         orderNumber = x.o.OrderNumber,
                         itemName = x.oi.ProductName ?? "",
                         category = x.p != null ? x.p.Category : "N/A",
@@ -3680,7 +3872,14 @@ namespace Solteira_Brands.Controllers
 
                 var grandTotal = rows.Any() ? rows.Sum(x => x.total) : 0m;
 
-                return Json(new { success = true, rows = rows, grandTotal = grandTotal }, JsonRequestBehavior.AllowGet);
+                return Json(new
+                {
+                    success = true,
+                    rows = rows,
+                    grandTotal = grandTotal,
+                    invalidRange = invalidRange,
+                    invalidRangeMessage = invalidRangeMessage
+                }, JsonRequestBehavior.AllowGet);
             }
         }
 

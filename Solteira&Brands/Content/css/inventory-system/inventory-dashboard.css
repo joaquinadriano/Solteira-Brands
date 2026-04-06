@@ -139,27 +139,27 @@ color: #87AE73;*/
     flex: 1;
 }
 
-#userTable.dataTable, #usersTable.dataTable {
+#userTable.dataTable {
     border: 0.19vw solid #87AE73;
     border-radius: 0.3vw;
     border-collapse: separate;
     overflow: hidden;
 }
 
-    #userTable.dataTable thead th, #usersTable.dataTable thead th {
+    #userTable.dataTable thead th {
         background-color: #FFFBE8;
         border-bottom: none;
     }
 
-    #userTable.dataTable tbody tr, #usersTable.dataTable tbody tr {
+    #userTable.dataTable tbody tr {
         background-color: #FFFBE8 !important;
     }
 
-        #userTable.dataTable tbody tr:hover, #userTables.dataTable tbody tr:hover {
+        #userTable.dataTable tbody tr:hover {
             background-color: #FFFBE8 !important;
         }
 
-    #userTable.dataTable tbody td, #usersTable.dataTable tbody td {
+    #userTable.dataTable tbody td {
         background-color: #FFFBE8 !important;
     }
 

@@ -23,42 +23,74 @@
         <div class="row px-4 pt-3 pb-2">
             <div class="col-md-12">
                 <div class="card bg-light border-0 p-3 rounded-3">
-                    <div class="row g-3 align-items-end">
+                    @* Top row: Filter (left) + dynamic field (right) *@
+                    <div class="row g-3 align-items-start">
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Filter</label>
                             <select class="form-select" ng-model="reportRange" ng-change="onReportRangeChange()">
                                 <option value="all">All</option>
-                                <option value="today">Today</option>
-                                <option value="lastweek">Last week</option>
-                                <option value="lastmonth">Last month</option>
+                                <option value="daily">Daily</option>
+                                <option value="monthly">Monthly</option>
                                 <option value="custom">Custom range</option>
                             </select>
                         </div>
-                        @* Stay in DOM when not custom (ng-if broke getElementById); ng-style avoids relying on angular.css .ng-hide. *@
-                        <div class="col-md-5 d-flex align-items-end gap-2 flex-wrap" ng-style="{'display': ((reportRange || '').toLowerCase() === 'custom' ? 'flex' : 'none')}">
-                            <div>
-                                <label class="form-label small text-muted mb-0">From</label>
-                                <input id="salesReportStartDate"
-                                       type="date"
-                                       class="form-control"
-                                       style="width: auto;"
-                                       ng-model="customReportStart"
-                                       ng-model-options="{ debounce: 0 }"
-                                       ng-change="onCustomReportDatesChanged()" />
+
+                        <div class="col-md-9">
+                            @* Daily (shows beside Filter) *@
+                            <div class="align-items-start gap-2 flex-wrap"
+                                 ng-class="((reportRange || '').toLowerCase() === 'daily' ? 'd-flex' : 'd-none')">
+                                <div style="min-width: 240px;">
+                                    <label class="form-label fw-bold">Daily</label>
+                                    <select class="form-select" ng-model="reportPreset" ng-change="loadSalesReport()">
+                                        <option value="today">Today</option>
+                                        <option value="yesterday">Yesterday</option>
+                                    </select>
+                                </div>
                             </div>
-                            <span class="text-muted align-self-end pb-2">to</span>
-                            <div>
-                                <label class="form-label small text-muted mb-0">To</label>
-                                <input id="salesReportEndDate"
-                                       type="date"
-                                       class="form-control"
-                                       style="width: auto;"
-                                       ng-model="customReportEnd"
-                                       ng-model-options="{ debounce: 0 }"
-                                       ng-change="onCustomReportDatesChanged()" />
+
+                            @* Monthly (shows beside Filter) *@
+                            <div class="align-items-start gap-2 flex-wrap"
+                                 ng-class="((reportRange || '').toLowerCase() === 'monthly' ? 'd-flex' : 'd-none')">
+                                <div style="min-width: 240px;">
+                                    <label class="form-label fw-bold">Monthly</label>
+                                    <select class="form-select" ng-model="reportPreset" ng-change="loadSalesReport()">
+                                        <option value="thismonth">This month</option>
+                                        <option value="lastmonth">Last month</option>
+                                    </select>
+                                </div>
                             </div>
-                            <span class="text-muted small align-self-end pb-2">Loads when both dates are set</span>
+
+                            @* Custom range (shows beside Filter; keep in DOM for getElementById) *@
+                            <div class="align-items-end gap-2 flex-wrap"
+                                 ng-class="((reportRange || '').toLowerCase() === 'custom' ? 'd-flex' : 'd-none')">
+                                <div>
+                                    <label class="form-label small text-muted mb-0">From</label>
+                                    <input id="salesReportStartDate"
+                                           type="date"
+                                           class="form-control"
+                                           style="width: auto;"
+                                           ng-model="customReportStart"
+                                           ng-model-options="{ debounce: 0 }"
+                                           ng-change="onCustomReportDatesChanged()" />
+                                </div>
+                                <span class="text-muted align-self-end pb-2">to</span>
+                                <div>
+                                    <label class="form-label small text-muted mb-0">To</label>
+                                    <input id="salesReportEndDate"
+                                           type="date"
+                                           class="form-control"
+                                           style="width: auto;"
+                                           ng-model="customReportEnd"
+                                           ng-model-options="{ debounce: 0 }"
+                                           ng-change="onCustomReportDatesChanged()" />
+                                </div>
+                                <span class="text-muted small align-self-end pb-2">Loads when both dates are set</span>
+                            </div>
                         </div>
+                    </div>
+
+                    @* Bottom row: Category under Filter *@
+                    <div class="row g-3 mt-1">
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Category</label>
                             <select class="form-select" ng-model="reportCategory" ng-change="loadSalesReport()">
@@ -101,7 +133,7 @@
                                 <td class="text-end fw-bold">{{formatReportCurrency(row.total)}}</td>
                             </tr>
                             <tr ng-if="salesReportRows.length === 0">
-                                <td colspan="7" class="text-muted py-4">No sales data for the selected filter.</td>
+                                <td colspan="7" class="text-muted py-4">No data available.</td>
                             </tr>
                         </tbody>
                         <tfoot class="table-light fw-bold border-top">
