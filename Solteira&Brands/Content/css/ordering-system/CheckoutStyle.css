@@ -149,6 +149,35 @@ body {
         font-family: inherit;
     }
 
+.address-row {
+    display: flex;
+    gap: 0.5vw;
+}
+
+.address-field {
+    flex: 1;
+}
+
+.address-field-zip {
+    flex: 0 0 30%;
+}
+
+    .address-field input {
+        width: 100%;
+    }
+
+.address-field-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: normal;
+    opacity: 0.85;
+    margin-bottom: 0.2vw;
+}
+
+.billing-same-checkbox {
+    margin-bottom: 0 !important;
+}
+
     .checkout-form-card .form-group .validation-error {
         display: block;
         font-size: 0.9rem;

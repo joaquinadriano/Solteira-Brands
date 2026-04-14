@@ -15,8 +15,24 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             $scope.notificationItemsDisplay = [];
         });
     };
+
+    // Action-required counts (pending orders + pending payments)
+    $scope.pendingOrderCount = 0;
+    $scope.pendingPaymentCount = 0;
+    $scope.loadActionRequiredCounts = function () {
+        SolteiraAndBrandsService.getActionRequiredCounts().then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.pendingOrderCount = res.data.pendingOrders || 0;
+                $scope.pendingPaymentCount = res.data.pendingPayments || 0;
+            }
+        }, function () {
+            $scope.pendingOrderCount = 0;
+            $scope.pendingPaymentCount = 0;
+        });
+    };
+
     $scope.getNotificationCount = function () {
-        return ($scope.notificationItemsDisplay || []).length;
+        return ($scope.notificationItemsDisplay || []).length + $scope.pendingOrderCount + $scope.pendingPaymentCount;
     };
     $scope.dismissNotification = function (index) {
         if ($scope.notificationItemsDisplay && index >= 0 && index < $scope.notificationItemsDisplay.length) {
@@ -27,6 +43,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         return item && (item.stockQuantity == null || item.stockQuantity === 0);
     };
     $scope.loadLowStockNotifications();
+    $scope.loadActionRequiredCounts();
 
     //----------Navigation----------
 
@@ -1918,6 +1935,18 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             });
             return;
         }
+        if ($scope.newProduct.category === 'Ring') {
+            var rsVal = $scope.newProduct.ringSize;
+            if (rsVal === null || rsVal === undefined || String(rsVal).trim() === '') {
+                Swal.fire({ title: 'Ring size required', text: 'Ring size (US) is required for Ring products.', icon: 'warning', confirmButtonText: 'OK' });
+                return;
+            }
+            var rsNum = parseFloat(rsVal);
+            if (isNaN(rsNum) || rsNum <= 0) {
+                Swal.fire({ title: 'Invalid ring size', text: 'Ring size must be a positive number.', icon: 'warning', confirmButtonText: 'OK' });
+                return;
+            }
+        }
         var stonesAddTrim = String($scope.newProduct.stones).trim();
         var materialAddTrim = String($scope.newProduct.material).trim();
         var weightAddTrim = String($scope.newProduct.weight || '').trim();
@@ -1955,6 +1984,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Description: $scope.newProduct.description,
                 Price: parseFloat($scope.newProduct.price) || 0,
                 Material: $scope.newProduct.material,
+                RingSize: $scope.newProduct.category === 'Ring' ? String($scope.newProduct.ringSize || '') : '',
                 Stones: $scope.newProduct.stones,
                 Weight: $scope.newProduct.weight,
                 Length: $scope.newProduct.length,
@@ -1967,7 +1997,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             SolteiraAndBrandsService.createProduct(payload).then(function (res) {
                 if (res.data && res.data.success) {
                     $('#inventoryAddItemModal').modal('hide');
-                    $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
+                    $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', ringSize: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
                     $scope.resetInventoryAddPhotoInput();
                     Swal.fire({
                         title: 'Inventory item added!',
@@ -2137,6 +2167,18 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             });
             return;
         }
+        if ($scope.editProduct.category === 'Ring') {
+            var rsVal = $scope.editProduct.ringSize;
+            if (rsVal === null || rsVal === undefined || String(rsVal).trim() === '') {
+                Swal.fire({ title: 'Ring size required', text: 'Ring size (US) is required for Ring products.', icon: 'warning', confirmButtonText: 'OK' });
+                return;
+            }
+            var rsNum = parseFloat(rsVal);
+            if (isNaN(rsNum) || rsNum <= 0) {
+                Swal.fire({ title: 'Invalid ring size', text: 'Ring size must be a positive number.', icon: 'warning', confirmButtonText: 'OK' });
+                return;
+            }
+        }
         var stonesEditTrim = String($scope.editProduct.stones).trim();
         var materialEditTrim = String($scope.editProduct.material).trim();
         var weightEditTrim = String($scope.editProduct.weight || '').trim();
@@ -2166,6 +2208,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Description: $scope.editProduct.description,
                 Price: parseFloat($scope.editProduct.price) || 0,
                 Material: $scope.editProduct.material,
+                RingSize: $scope.editProduct.category === 'Ring' ? String($scope.editProduct.ringSize || '') : '',
                 Stones: $scope.editProduct.stones,
                 Weight: $scope.editProduct.weight,
                 Length: $scope.editProduct.length,
@@ -3208,14 +3251,14 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
             // CUSTOM CORPORATE FOOTER 
             footer: function (currentPage, pageCount) {
+                var generatedByRole = $scope.reportGeneratedByRole || 'User';
                 return {
                     margin: [40, 10, 40, 0],
                     stack: [
-                        // Beige Divider Line
                         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: '#F5F5DC' }] },
                         {
                             columns: [
-                                { text: 'Generated: ' + generatedAt, fontSize: 8, color: '#666', margin: [0, 8, 0, 0] },
+                                { text: 'Generated: ' + generatedAt + '  |  By: ' + generatedByRole, fontSize: 8, color: '#666', margin: [0, 8, 0, 0] },
                                 { text: 'Page ' + currentPage + ' of ' + pageCount, alignment: 'right', fontSize: 8, color: '#2D5A27', bold: true, margin: [0, 8, 0, 0] }
                             ]
                         }

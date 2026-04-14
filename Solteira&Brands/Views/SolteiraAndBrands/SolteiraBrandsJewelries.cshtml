@@ -15,15 +15,12 @@
 <div ng-controller="SolteiraBrandsController">
 
     <div class="nav-jewelry" ng-show="viewMode === 'list'">
-        <div class="filter-container">
-            <div class="filter-btn">
-                <span class="btn-content">FILTER <i class="bi bi-filter fs-5"></i></span>
+        <div class="category-container">
+            <div class="category-btn">
+                <span class="btn-content">CATEGORY <i class="bi bi-grid fs-5"></i></span>
             </div>
-            <div class="filter-dropdown">
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'az'}" ng-click="setJewelriesSort('az')">A-Z</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'za'}" ng-click="setJewelriesSort('za')">Z-A</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_lh'}" ng-click="setJewelriesSort('price_lh')">PRICE: L-H</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_hl'}" ng-click="setJewelriesSort('price_hl')">PRICE: H-L</div>
+            <div class="category-dropdown">
+                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === ''}" ng-click="setJewelriesCategory('')">ALL</div>
                 <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Bracelet'}" ng-click="setJewelriesCategory('Bracelet')">BRACELET</div>
                 <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Earring'}" ng-click="setJewelriesCategory('Earring')">EARRING</div>
                 <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Necklace'}" ng-click="setJewelriesCategory('Necklace')">NECKLACE</div>
@@ -35,18 +32,30 @@
             <span>JEWELRIES</span>
         </div>
 
-        <div class="search-container">
-
-            <div class="search-wrapper">
-                <div class="search-btn">
-                    <span class="btn-content">
-                        SEARCH <i class="bi bi-search search-icon fs-5"></i>
-                    </span>
+        <div class="nav-jewelry-right">
+            <div class="filter-container">
+                <div class="filter-btn">
+                    <span class="btn-content">SORT BY <i class="bi bi-filter fs-5"></i></span>
                 </div>
-                <input type="text" placeholder="SEARCH..." class="search-field" ng-model="jewelriesSearch" />
-                <i class="bi bi-x-lg close-search" ng-click="jewelriesSearch = ''" role="button" aria-label="Clear search"></i>
+                <div class="filter-dropdown">
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'az'}" ng-click="setJewelriesSort('az')">A-Z</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'za'}" ng-click="setJewelriesSort('za')">Z-A</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_lh'}" ng-click="setJewelriesSort('price_lh')">PRICE: LOW TO HIGH</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_hl'}" ng-click="setJewelriesSort('price_hl')">PRICE: HIGH TO LOW</div>
+                </div>
             </div>
 
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <div class="search-btn">
+                        <span class="btn-content">
+                            SEARCH <i class="bi bi-search search-icon fs-5"></i>
+                        </span>
+                    </div>
+                    <input type="text" placeholder="SEARCH..." class="search-field" ng-model="jewelriesSearch" />
+                    <i class="bi bi-x-lg close-search" ng-click="jewelriesSearch = ''" role="button" aria-label="Clear search"></i>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -111,6 +120,7 @@
                             <li ng-repeat="stone in selectedProduct.stones track by $index" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
 
                             <li>{{selectedProduct.material}}</li>
+                            <li ng-if="selectedProduct.ringSize">Ring Size: {{selectedProduct.ringSize}} (US)</li>
                             <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>
                         </ul>
                     </div>
@@ -191,6 +201,8 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        const categoryContainer = document.querySelector('.category-container');
+        const categoryBtn = document.querySelector('.category-btn');
         const filterContainer = document.querySelector('.filter-container');
         const filterBtn = document.querySelector('.filter-btn');
         const searchContainer = document.querySelector('.search-container');
@@ -198,20 +210,27 @@
         const searchField = document.querySelector('.search-field');
         const closeBtn = document.querySelector('.close-search');
 
-        // Combined Global Click Listener
         window.addEventListener('click', function (e) {
-            // 1. If we click a product, let Angular handle it and do nothing here
             if (e.target.closest('.product-card')) return;
-
-            // 2. Otherwise, handle filter/search closing
+            if (categoryContainer) categoryContainer.classList.remove('active');
             if (filterContainer) filterContainer.classList.remove('active');
             if (searchContainer) searchContainer.classList.remove('active');
         });
 
+        if (categoryBtn) {
+            categoryBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (filterContainer) filterContainer.classList.remove('active');
+                if (searchContainer) searchContainer.classList.remove('active');
+                categoryContainer.classList.toggle('active');
+            });
+        }
+
         if (filterBtn) {
             filterBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                searchContainer.classList.remove('active');
+                if (categoryContainer) categoryContainer.classList.remove('active');
+                if (searchContainer) searchContainer.classList.remove('active');
                 filterContainer.classList.toggle('active');
             });
         }
@@ -219,7 +238,8 @@
         if (searchBtn) {
             searchBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                filterContainer.classList.remove('active');
+                if (categoryContainer) categoryContainer.classList.remove('active');
+                if (filterContainer) filterContainer.classList.remove('active');
                 searchContainer.classList.add('active');
                 setTimeout(() => searchField.focus(), 300);
             });

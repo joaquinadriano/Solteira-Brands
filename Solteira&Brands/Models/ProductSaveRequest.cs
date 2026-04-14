@@ -18,6 +18,9 @@ namespace Solteira_Brands.Models
         [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Material { get; set; }
 
+        [StringLength(10)]
+        public string RingSize { get; set; }
+
         [StringLength(ProductFieldConstraints.MaxSpecFieldLength)]
         public string Stones { get; set; }
 

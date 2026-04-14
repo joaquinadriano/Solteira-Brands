@@ -3,11 +3,18 @@
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 2vw;
+    padding: 2vw 3vw;
     box-sizing: border-box;
     position: relative;
 }
 
+.nav-jewelry-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.category-container,
 .filter-container {
     display: inline-block;
     position: relative;
@@ -15,21 +22,24 @@
     text-align: center;
 }
 
+.category-btn,
 .filter-btn {
     background-color: white;
     border: 2px solid #1E1E1E;
-    padding: .6vw .6vw;
+    padding: .6vw .8vw;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
 }
 
+.category-btn i,
 .filter-btn i {
     transition: transform 0.3s ease;
     display: inline-block;
 }
 
+.category-container.active .category-btn i,
 .filter-container.active .filter-btn i {
     transform: rotate(180deg);
 }
@@ -37,19 +47,21 @@
 .btn-content {
     display: flex;
     align-items: center;
-    gap: 1vw;
+    gap: 0.5rem;
     font-family: "Nunito";
     font-size: 1.05rem;
     font-weight: bold;
+    white-space: nowrap;
 }
 
+.category-dropdown,
 .filter-dropdown {
     display: flex;
     flex-direction: column;
     position: absolute;
     top: 100%;
     left: 0;
-    width: 100%;
+    min-width: 100%;
     z-index: 1000;
     max-height: 0;
     overflow-y: auto;
@@ -57,12 +69,13 @@
     transition: max-height 0.3s ease-out;
 }
 
-    .filter-container.active .filter-dropdown{
-        max-height: 26.5vw;
-    }
+.category-container.active .category-dropdown,
+.filter-container.active .filter-dropdown {
+    max-height: 26.5vw;
+}
 
 @media (max-width: 991.98px) {
-    /* 26.5vw can be too short on mobile, cutting off filter options */
+    .category-container.active .category-dropdown,
     .filter-container.active .filter-dropdown {
         max-height: 70vh;
     }
@@ -72,13 +85,14 @@
     background-color: white;
     border: 2px solid #1E1E1E;
     border-top: none;
-    padding: .35vw;
+    padding: .35vw .8vw;
     font-family: "Nunito";
     font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s ease;
     line-height: 1.2;
+    white-space: nowrap;
 }
 
     .filter-item:hover {

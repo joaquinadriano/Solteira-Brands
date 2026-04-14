@@ -4,7 +4,7 @@
 --
 -- VARCHAR lengths match Entity Framework Maps + ProductFieldConstraints.cs:
 --   Products: name 30, spec fields 50, category 100, description 255
---   Orders/checkout: delivery_address 100 (CreateOrderRequest), customer_name 150,
+--   Orders/checkout: delivery_address 500, billing_address 500, customer_name 150,
 --   contact_number 50, payment_method 100, status/type fields 50, reasons 500
 --
 -- For incremental upgrades on existing DBs, keep using:
@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS tbl_products (
     description     VARCHAR(255)    NULL,
     price           DECIMAL(10,2)   NOT NULL,
     material        VARCHAR(50)     NULL,
+    ring_size       VARCHAR(10)     NULL,
     stones          VARCHAR(50)     NULL,
     weight          VARCHAR(50)     NULL,
     length          VARCHAR(50)     NULL,
@@ -161,7 +162,8 @@ CREATE TABLE IF NOT EXISTS tbl_orders (
     order_number                        VARCHAR(50)     NOT NULL,
     customer_name                       VARCHAR(150)    NOT NULL,
     contact_number                      VARCHAR(50)     NOT NULL,
-    delivery_address                    VARCHAR(100)    NOT NULL,
+    delivery_address                    VARCHAR(500)    NOT NULL,
+    billing_address                     VARCHAR(500)    NULL,
     payment_method                      VARCHAR(100)    NOT NULL,
     payment_type                        VARCHAR(50)     NULL,
     total_amount                        DECIMAL(12,2)   NOT NULL,

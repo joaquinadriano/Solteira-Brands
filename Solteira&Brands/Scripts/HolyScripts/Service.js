@@ -255,6 +255,10 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetLowStockNotifications" });
     };
 
+    this.getActionRequiredCounts = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetActionRequiredCounts" });
+    };
+
     this.getActivityLogs = function () {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetActivityLogs" });
     };

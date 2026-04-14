@@ -163,6 +163,18 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end inventory-notification-dropdown p-0">
                         <div class="inventory-notification-header py-2 px-3 border-bottom">Notifications</div>
+                        <a ng-if="pendingOrderCount > 0" href="@Url.Action("AdminOrdersPage", "SolteiraAndBrands")" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom text-decoration-none text-dark">
+                            <i class="bi bi-cart-check-fill text-warning" style="font-size: 1.4rem; min-width: 32px; text-align: center;"></i>
+                            <div class="inventory-notification-text flex-grow-1">
+                                <span>{{pendingOrderCount}} order{{pendingOrderCount > 1 ? 's' : ''}} <span class="text-warning fw-semibold">awaiting approval</span></span>
+                            </div>
+                        </a>
+                        <a ng-if="pendingPaymentCount > 0" href="@Url.Action("AdminPaymentPage", "SolteiraAndBrands")" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom text-decoration-none text-dark">
+                            <i class="bi bi-credit-card-fill text-info" style="font-size: 1.4rem; min-width: 32px; text-align: center;"></i>
+                            <div class="inventory-notification-text flex-grow-1">
+                                <span>{{pendingPaymentCount}} payment{{pendingPaymentCount > 1 ? 's' : ''}} <span class="text-info fw-semibold">awaiting verification</span></span>
+                            </div>
+                        </a>
                         <div ng-repeat="item in notificationItemsDisplay track by item.id" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom">
                             <img ng-src="{{item.imageUrl || '/Content/img/shared/default-product.svg'}}" alt="" class="inventory-notification-thumb" />
                             <div class="inventory-notification-text flex-grow-1">

@@ -1,8 +1,9 @@
 @{
     Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml";
+    string reportRoleLabel = User.IsInRole("ADMIN") ? "System Admin" : (User.IsInRole("MANAGER") ? "Manager" : "User");
 }
 
-<div class="main-content" ng-init="onReportsPageInit()">
+<div class="main-content" ng-init="onReportsPageInit(); reportGeneratedByRole = '@reportRoleLabel'">
     <div class="container-fluid orders-container px-1">
 
         <div class="row px-4 pb-3 mb-0 align-items-center border-bottom">
@@ -33,6 +34,7 @@
                                 <option value="monthly">Monthly</option>
                                 <option value="custom">Custom range</option>
                             </select>
+                            <span class="d-block mt-1" style="font-size: 0.7rem; color: #adb5bd;" ng-if="(reportRange || '').toLowerCase() === 'all'">From January 2026 to present</span>
                         </div>
 
                         <div class="col-md-9">

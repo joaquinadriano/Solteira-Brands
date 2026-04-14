@@ -14,8 +14,11 @@ namespace Solteira_Brands.Models
         public string CustomerName { get; set; }
         public string ContactNumber { get; set; }
 
-        [StringLength(100)]
+        [StringLength(500)]
         public string DeliveryAddress { get; set; }
+
+        [StringLength(500)]
+        public string BillingAddress { get; set; }
         public string PaymentMethod { get; set; }
         public string PaymentType { get; set; }
         public decimal TotalAmount { get; set; }

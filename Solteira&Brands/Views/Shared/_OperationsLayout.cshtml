@@ -55,17 +55,19 @@
                 </a>
             </li>
             <li class="option" id="option-orders">
-                <a href="@Url.Action("AdminOrdersPage", "SolteiraAndBrands")">
+                <a href="@Url.Action("AdminOrdersPage", "SolteiraAndBrands")" class="position-relative">
                     <img src="@Url.Content("~/Content/img/icons/orders.svg")" id="orders-icon" alt="" />
                     <img src="@Url.Content("~/Content/img/icons/orders-hover.svg")" id="orders-hover-icon" alt="" />
                     <p class="sidebar-text">Orders</p>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;" ng-show="pendingOrderCount > 0" ng-bind="pendingOrderCount"></span>
                 </a>
             </li>
             <li class="option" id="option-payment">
-                <a href="@Url.Action("AdminPaymentPage", "SolteiraAndBrands")">
+                <a href="@Url.Action("AdminPaymentPage", "SolteiraAndBrands")" class="position-relative">
                     <img src="@Url.Content("~/Content/img/icons/payment.svg")" id="payment-icon" alt="" />
                     <img src="@Url.Content("~/Content/img/icons/payment-hover.svg")" id="payment-hover-icon" alt="" />
                     <p class="sidebar-text">Payment</p>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;" ng-show="pendingPaymentCount > 0" ng-bind="pendingPaymentCount"></span>
                 </a>
             </li>
             <li class="option dropend" id="option-delivery">
@@ -121,6 +123,18 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-end inventory-notification-dropdown p-0">
                     <div class="inventory-notification-header py-2 px-3 border-bottom">Notifications</div>
+                    <a ng-if="pendingOrderCount > 0" href="@Url.Action("AdminOrdersPage", "SolteiraAndBrands")" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom text-decoration-none text-dark">
+                        <i class="bi bi-cart-check-fill text-warning" style="font-size: 1.4rem; min-width: 32px; text-align: center;"></i>
+                        <div class="inventory-notification-text flex-grow-1">
+                            <span>{{pendingOrderCount}} order{{pendingOrderCount > 1 ? 's' : ''}} <span class="text-warning fw-semibold">awaiting approval</span></span>
+                        </div>
+                    </a>
+                    <a ng-if="pendingPaymentCount > 0" href="@Url.Action("AdminPaymentPage", "SolteiraAndBrands")" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom text-decoration-none text-dark">
+                        <i class="bi bi-credit-card-fill text-info" style="font-size: 1.4rem; min-width: 32px; text-align: center;"></i>
+                        <div class="inventory-notification-text flex-grow-1">
+                            <span>{{pendingPaymentCount}} payment{{pendingPaymentCount > 1 ? 's' : ''}} <span class="text-info fw-semibold">awaiting verification</span></span>
+                        </div>
+                    </a>
                     <div ng-repeat="item in notificationItemsDisplay track by item.id" class="inventory-notification-item d-flex align-items-center gap-2 py-2 px-3 border-bottom">
                         <img ng-src="{{item.imageUrl || '/Content/img/shared/default-product.svg'}}" alt="" class="inventory-notification-thumb" />
                         <div class="inventory-notification-text flex-grow-1">

@@ -311,29 +311,12 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.jewelriesSort = '';
     $scope.jewelriesCategory = '';
 
-    // Jewelries filters: make options mutually exclusive.
-    // When a sort is chosen (A–Z, Z–A, Price L–H, Price H–L), clear any category filter.
     $scope.setJewelriesSort = function (sort) {
-        if ($scope.jewelriesSort === sort) {
-            // Clicking the same sort again clears it.
-            $scope.jewelriesSort = '';
-        } else {
-            $scope.jewelriesSort = sort;
-            // Ensure only one type of filter is active at a time.
-            $scope.jewelriesCategory = '';
-        }
+        $scope.jewelriesSort = ($scope.jewelriesSort === sort) ? '' : sort;
     };
 
-    // When a category is chosen (Bracelet, Earring, Necklace, Ring), clear any sort filter.
     $scope.setJewelriesCategory = function (cat) {
-        if ($scope.jewelriesCategory === cat) {
-            // Clicking the same category again clears it.
-            $scope.jewelriesCategory = '';
-        } else {
-            $scope.jewelriesCategory = cat;
-            // Ensure only one type of filter is active at a time.
-            $scope.jewelriesSort = '';
-        }
+        $scope.jewelriesCategory = ($scope.jewelriesCategory === cat) ? '' : cat;
     };
     $scope.getFilteredJewelries = function () {
         var list = $scope.jewelries || [];
@@ -1562,9 +1545,18 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     var CHECKOUT_NAME_MAX_LEN = 30;
-    var CHECKOUT_ADDRESS_MAX_LEN = 100;
-    // Same allowed characters as registration name validation (validateNameFormat), fixed 30-char limit for checkout.
+    var CHECKOUT_ADDRESS_MAX_LEN = 500;
     $scope.checkoutContactNamePattern = /^[a-zA-Z\s'.\-]{1,30}$/;
+
+    $scope.billingSameAsDelivery = true;
+
+    function isBillingSameChecked() {
+        try {
+            var el = document.getElementById('billingSameCheck');
+            if (el) return !!el.checked;
+        } catch (e) { }
+        return !!$scope.billingSameAsDelivery;
+    }
 
     function isValidCheckoutContactName(value) {
         var t = (value || '').trim();
@@ -1572,16 +1564,49 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return $scope.checkoutContactNamePattern.test(t);
     }
 
+    function buildConcatenatedAddress(line1, line2, city, province, zip) {
+        var parts = [];
+        var l1 = (line1 || '').trim();
+        var l2 = (line2 || '').trim();
+        var c = (city || '').trim();
+        var p = (province || '').trim();
+        var z = (zip || '').trim();
+        if (l1) parts.push(l1);
+        if (l2) parts.push(l2);
+        if (c) parts.push(c);
+        if (p && z) parts.push(p + ' ' + z);
+        else if (p) parts.push(p);
+        else if (z) parts.push(z);
+        return parts.join(', ');
+    }
+
+    function isDeliveryAddressComplete() {
+        var l1 = ($scope.deliveryLine1 || '').trim();
+        var city = ($scope.deliveryCity || '').trim();
+        var prov = ($scope.deliveryProvince || '').trim();
+        var zip = ($scope.deliveryZip || '').trim();
+        return l1.length > 0 && city.length > 0 && prov.length > 0 && /^\d{4,10}$/.test(zip);
+    }
+
+    function isBillingAddressComplete() {
+        if (isBillingSameChecked()) return true;
+        var l1 = ($scope.billingLine1 || '').trim();
+        var city = ($scope.billingCity || '').trim();
+        var prov = ($scope.billingProvince || '').trim();
+        var zip = ($scope.billingZip || '').trim();
+        return l1.length > 0 && city.length > 0 && prov.length > 0 && /^\d{4,10}$/.test(zip);
+    }
+
     $scope.isCheckoutReadyToPlaceOrder = function () {
         var name = ($scope.customerName || '').trim();
-        var address = ($scope.deliveryAddress || '').trim();
         var nameOk = isValidCheckoutContactName(name);
         var contact = ($scope.contactNumber || '').trim();
         var contactOk = /^\d{11}$/.test(contact);
-        var addressOk = address.length > 0 && address.length <= CHECKOUT_ADDRESS_MAX_LEN;
+        var deliveryOk = isDeliveryAddressComplete();
+        var billingOk = isBillingAddressComplete();
         var paymentOk = !!(($scope.paymentMethod || '').trim());
         var termsOk = $scope.isCheckoutTermsAccepted();
-        return nameOk && contactOk && addressOk && paymentOk && termsOk;
+        return nameOk && contactOk && deliveryOk && billingOk && paymentOk && termsOk;
     };
 
     $scope.orders = [];
@@ -2430,7 +2455,6 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }
         var name = ($scope.customerName || '').trim();
         var contact = ($scope.contactNumber || '').trim();
-        var address = ($scope.deliveryAddress || '').trim();
         var payment = ($scope.paymentMethod || '').trim();
         if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact name.' }); return; }
         if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Contact name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
@@ -2443,16 +2467,21 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             return;
         }
         if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
-        if (!address) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your delivery address.' }); return; }
-        if (address.length > CHECKOUT_ADDRESS_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Address too long', text: 'Delivery address must be ' + CHECKOUT_ADDRESS_MAX_LEN + ' characters or fewer.' }); return; }
+        if (!isDeliveryAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all delivery address fields.' }); return; }
+        if (!isBillingAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all billing address fields.' }); return; }
         if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
-        // Terms checkbox: rely on actual DOM state (ng-model is unreliable on this checkout view).
         if (!$scope.isCheckoutTermsAccepted()) { Swal.fire({ icon: 'warning', title: 'Terms required', text: 'Please acknowledge the payment Terms & Conditions before placing the order.' }); return; }
+
+        var deliveryAddress = buildConcatenatedAddress($scope.deliveryLine1, $scope.deliveryLine2, $scope.deliveryCity, $scope.deliveryProvince, $scope.deliveryZip);
+        var billingAddress = isBillingSameChecked()
+            ? deliveryAddress
+            : buildConcatenatedAddress($scope.billingLine1, $scope.billingLine2, $scope.billingCity, $scope.billingProvince, $scope.billingZip);
 
         var payload = {
             CustomerName: name,
             ContactNumber: contact,
-            DeliveryAddress: address,
+            DeliveryAddress: deliveryAddress,
+            BillingAddress: billingAddress,
             PaymentMethod: payment,
             TotalAmount: $scope.getCheckoutSubtotal(),
             Items: selected.map(function (item) {

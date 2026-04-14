@@ -159,6 +159,7 @@ namespace Solteira_Brands.Controllers
                     orderDateString = o.CreatedAt.ToString("MM/dd/yyyy"),
                     itemCount = o.OrderItems != null ? o.OrderItems.Count : 0,
                     deliveryAddress = o.DeliveryAddress,
+                    billingAddress = o.BillingAddress,
                     totalAmount = o.TotalAmount,
                     orderStatus = o.OrderStatus
                 }).ToList();
@@ -299,6 +300,7 @@ namespace Solteira_Brands.Controllers
                                 description = p.Description,
                                 price = p.Price,
                                 material = p.Material,
+                                ringSize = p.RingSize,
                                 stones = p.Stones,
                                 weight = p.Weight,
                                 length = p.Length,
@@ -318,6 +320,7 @@ namespace Solteira_Brands.Controllers
                                 x.description,
                                 x.price,
                                 x.material,
+                                x.ringSize,
                                 x.stones,
                                 x.weight,
                                 x.length,
@@ -332,6 +335,18 @@ namespace Solteira_Brands.Controllers
                             });
 
                 return Json(new { success = true, data = list }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [Authorize(Roles = "ADMIN,MANAGER,STAFF")]
+        [HttpGet]
+        public JsonResult GetActionRequiredCounts()
+        {
+            using (var db = new SolteiraBrandsContext())
+            {
+                var pendingOrders = db.tbl_orders.Count(o => !o.IsArchived && o.OrderStatus == OrderStatus.PendingApproval);
+                var pendingPayments = db.tbl_payments.Count(p => p.PaymentStatus == PaymentStatus.Submitted);
+                return Json(new { success = true, pendingOrders, pendingPayments }, JsonRequestBehavior.AllowGet);
             }
         }
 
@@ -376,10 +391,22 @@ namespace Solteira_Brands.Controllers
                 var materialTrim = (request.Material ?? string.Empty).Trim();
                 var weightTrim = (request.Weight ?? string.Empty).Trim();
                 var lengthTrim = (request.Length ?? string.Empty).Trim();
+                var ringSizeTrim = (request.RingSize ?? string.Empty).Trim();
+                var categoryTrim = (request.Category ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(stonesTrim))
                     return Json(new { success = false, message = "Stones is required." });
                 if (string.IsNullOrWhiteSpace(materialTrim))
                     return Json(new { success = false, message = "Material is required." });
+                if (string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(ringSizeTrim))
+                        return Json(new { success = false, message = "Ring size is required for Ring products." });
+                    decimal rs;
+                    if (!decimal.TryParse(ringSizeTrim, out rs) || rs <= 0)
+                        return Json(new { success = false, message = "Ring size must be a positive number." });
+                    if (ringSizeTrim.Length > 10)
+                        return Json(new { success = false, message = "Ring size must be at most 10 characters." });
+                }
                 if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
@@ -400,10 +427,11 @@ namespace Solteira_Brands.Controllers
                 var product = new tblProductsModel
                 {
                     Name = nameTrim,
-                    Category = (request.Category ?? string.Empty).Trim(),
+                    Category = categoryTrim,
                     Description = (request.Description ?? string.Empty).Trim(),
                     Price = request.Price,
                     Material = materialTrim,
+                    RingSize = string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ringSizeTrim) ? ringSizeTrim : null,
                     Stones = stonesTrim,
                     Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim,
                     Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim,
@@ -447,10 +475,22 @@ namespace Solteira_Brands.Controllers
                 var materialTrim = (request.Material ?? string.Empty).Trim();
                 var weightTrim = (request.Weight ?? string.Empty).Trim();
                 var lengthTrim = (request.Length ?? string.Empty).Trim();
+                var ringSizeTrim = (request.RingSize ?? string.Empty).Trim();
+                var categoryTrim = (request.Category ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(stonesTrim))
                     return Json(new { success = false, message = "Stones is required." });
                 if (string.IsNullOrWhiteSpace(materialTrim))
                     return Json(new { success = false, message = "Material is required." });
+                if (string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(ringSizeTrim))
+                        return Json(new { success = false, message = "Ring size is required for Ring products." });
+                    decimal rs;
+                    if (!decimal.TryParse(ringSizeTrim, out rs) || rs <= 0)
+                        return Json(new { success = false, message = "Ring size must be a positive number." });
+                    if (ringSizeTrim.Length > 10)
+                        return Json(new { success = false, message = "Ring size must be at most 10 characters." });
+                }
                 if (stonesTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
@@ -470,10 +510,11 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "A product with this name already exists. Please use a different name." });
 
                 product.Name = nameTrim;
-                product.Category = (request.Category ?? string.Empty).Trim();
+                product.Category = categoryTrim;
                 product.Description = (request.Description ?? string.Empty).Trim();
                 product.Price = request.Price;
                 product.Material = materialTrim;
+                product.RingSize = string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ringSizeTrim) ? ringSizeTrim : null;
                 product.Stones = stonesTrim;
                 product.Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim;
                 product.Length = string.IsNullOrEmpty(lengthTrim) ? null : lengthTrim;
@@ -543,6 +584,7 @@ namespace Solteira_Brands.Controllers
                                     price = p.Price,
                                     category = p.Category,
                                     material = p.Material,
+                                    ringSize = p.RingSize,
                                     stones = p.Stones,
                                     weight = p.Weight,
                                     length = p.Length,
@@ -892,17 +934,19 @@ namespace Solteira_Brands.Controllers
                 var customerNameTrim = (request.CustomerName ?? "").Trim();
                 var contactTrim = (request.ContactNumber ?? "").Trim();
                 var deliveryAddressTrim = (request.DeliveryAddress ?? "").Trim();
+                var billingAddressTrim = (request.BillingAddress ?? "").Trim();
                 if (string.IsNullOrEmpty(customerNameTrim) || string.IsNullOrEmpty(contactTrim) || string.IsNullOrEmpty(deliveryAddressTrim))
                     return Json(new { success = false, message = "Contact name, contact number, and delivery address are required." });
                 const int checkoutNameMaxLen = 30;
-                const int checkoutAddressMaxLen = 100;
+                const int checkoutAddressMaxLen = 500;
                 if (customerNameTrim.Length > checkoutNameMaxLen)
                     return Json(new { success = false, message = "Contact name must be " + checkoutNameMaxLen + " characters or fewer." });
-                // Same character rules as buyer registration names (letters, spaces, apostrophe, period, hyphen); no digits.
                 if (!Regex.IsMatch(customerNameTrim, @"^[a-zA-Z\s'\.\-]{1," + checkoutNameMaxLen + "}$"))
                     return Json(new { success = false, message = "Contact name may only include letters, spaces, apostrophes, periods, and hyphens. No numbers." });
                 if (deliveryAddressTrim.Length > checkoutAddressMaxLen)
                     return Json(new { success = false, message = "Delivery address must be " + checkoutAddressMaxLen + " characters or fewer." });
+                if (billingAddressTrim.Length > checkoutAddressMaxLen)
+                    return Json(new { success = false, message = "Billing address must be " + checkoutAddressMaxLen + " characters or fewer." });
 
                 // Server-side stock validation: ensure every item has sufficient stock before creating order
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
@@ -930,6 +974,7 @@ namespace Solteira_Brands.Controllers
                     CustomerName = customerNameTrim,
                     ContactNumber = contactTrim,
                     DeliveryAddress = deliveryAddressTrim,
+                    BillingAddress = string.IsNullOrEmpty(billingAddressTrim) ? deliveryAddressTrim : billingAddressTrim,
                     PaymentMethod = paymentMethod,
                     PaymentType = paymentType,
                     TotalAmount = request.TotalAmount,
@@ -1054,6 +1099,7 @@ namespace Solteira_Brands.Controllers
                         orderDateString = o.CreatedAt.ToString("MM/dd/yyyy"),
                         itemCount = o.OrderItems != null ? o.OrderItems.Count : 0,
                         deliveryAddress = o.DeliveryAddress,
+                        billingAddress = o.BillingAddress,
                         totalAmount = o.TotalAmount,
                         orderStatus = status,
                         paymentType = o.PaymentType ?? "FULL",
@@ -1184,6 +1230,7 @@ namespace Solteira_Brands.Controllers
                         email = order.User != null ? order.User.Email : "",
                         contactNumber = order.ContactNumber,
                         deliveryAddress = order.DeliveryAddress,
+                        billingAddress = order.BillingAddress,
                         paymentMethod = order.PaymentMethod,
                         totalAmount = order.TotalAmount,
                         items = items,
@@ -1642,6 +1689,7 @@ namespace Solteira_Brands.Controllers
                     customerName = order.CustomerName,
                     contactNumber = order.ContactNumber,
                     deliveryAddress = order.DeliveryAddress,
+                    billingAddress = order.BillingAddress,
                     totalAmount = order.TotalAmount,
                     remainingBalance = remainingBalanceRecalc,
                     totalPaidVerified = totalPaidVerified,
@@ -2080,6 +2128,7 @@ namespace Solteira_Brands.Controllers
                     email = order.User != null ? order.User.Email : "",
                     contactNumber = order.ContactNumber,
                     deliveryAddress = order.DeliveryAddress,
+                    billingAddress = order.BillingAddress,
                     paymentMethod = order.PaymentMethod,
                     totalAmount = order.TotalAmount,
                     items,
@@ -3171,7 +3220,7 @@ namespace Solteira_Brands.Controllers
                         && o.DeliveryType != "MEETUP"
                         && (o.RemainingBalance <= 0 || o.PaymentType == null || (o.PaymentType != null && o.PaymentType.ToUpper() != "LAYAWAY")))
                     .OrderByDescending(o => o.CreatedAt)
-                    .Select(o => new { id = o.Id, orderNumber = o.OrderNumber, customerName = o.CustomerName, deliveryAddress = o.DeliveryAddress, totalAmount = o.TotalAmount, paymentType = o.PaymentType ?? "FULL", createdAt = o.CreatedAt })
+                    .Select(o => new { id = o.Id, orderNumber = o.OrderNumber, customerName = o.CustomerName, deliveryAddress = o.DeliveryAddress, billingAddress = o.BillingAddress, totalAmount = o.TotalAmount, paymentType = o.PaymentType ?? "FULL", createdAt = o.CreatedAt })
                     .ToList();
                 return Json(new { success = true, data = orders }, JsonRequestBehavior.AllowGet);
             }
@@ -3196,6 +3245,7 @@ namespace Solteira_Brands.Controllers
                     orderNumber = d.Order.OrderNumber,
                     customerName = d.Order.CustomerName,
                     deliveryAddress = d.Order.DeliveryAddress,
+                    billingAddress = d.Order.BillingAddress,
                     deliveryType = d.DeliveryType,
                     courier = d.Courier,
                     trackingNumber = d.TrackingNumber,
@@ -3254,6 +3304,7 @@ namespace Solteira_Brands.Controllers
                     email = order.User != null ? order.User.Email : "",
                     contactNumber = order.ContactNumber,
                     deliveryAddress = order.DeliveryAddress,
+                    billingAddress = order.BillingAddress,
                     totalAmount = order.TotalAmount,
                     items
                 };
@@ -3400,6 +3451,7 @@ namespace Solteira_Brands.Controllers
                             meetupOutcomeId = firstOutcome != null ? (int?)firstOutcome.Id : null,
                             customerName = o.CustomerName,
                             deliveryAddress = o.DeliveryAddress,
+                            billingAddress = o.BillingAddress,
                             contactNumber = o.ContactNumber,
                             totalAmount = o.TotalAmount,
                             orderStatus = o.OrderStatus,
@@ -3454,6 +3506,7 @@ namespace Solteira_Brands.Controllers
                     email = order.User != null ? order.User.Email : "",
                     contactNumber = order.ContactNumber,
                     deliveryAddress = order.DeliveryAddress,
+                    billingAddress = order.BillingAddress,
                     totalAmount = order.TotalAmount,
                     items
                 };

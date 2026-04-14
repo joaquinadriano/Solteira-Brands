@@ -14,7 +14,8 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.OrderNumber).HasColumnName("order_number").HasMaxLength(50).IsRequired();
             Property(x => x.CustomerName).HasColumnName("customer_name").HasMaxLength(150).IsRequired();
             Property(x => x.ContactNumber).HasColumnName("contact_number").HasMaxLength(50).IsRequired();
-            Property(x => x.DeliveryAddress).HasColumnName("delivery_address").HasMaxLength(100).IsRequired();
+            Property(x => x.DeliveryAddress).HasColumnName("delivery_address").HasMaxLength(500).IsRequired();
+            Property(x => x.BillingAddress).HasColumnName("billing_address").HasMaxLength(500).IsOptional();
             Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(100).IsRequired();
             Property(x => x.PaymentType).HasColumnName("payment_type").HasMaxLength(50).IsOptional();
             Property(x => x.TotalAmount).HasColumnName("total_amount");

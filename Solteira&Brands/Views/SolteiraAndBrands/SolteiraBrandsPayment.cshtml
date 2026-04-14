@@ -68,6 +68,9 @@
                         <p class="cust-name">{{paymentOrder.customerName}}</p>
                         <p class="cust-phoneNum">{{paymentOrder.contactNumber}}</p>
                         <p class="cust-address text-break">{{paymentOrder.deliveryAddress}}</p>
+                        <p class="cust-address text-break text-muted small" ng-if="paymentOrder.billingAddress && paymentOrder.billingAddress !== paymentOrder.deliveryAddress">
+                            <strong>Billing:</strong> {{paymentOrder.billingAddress}}
+                        </p>
                     </div>
                     <hr class="info-separator" />
                     <div class="payment-order-summary modern-summary-card">

@@ -15,6 +15,7 @@ namespace Solteira_Brands.Models.Maps
             Property(x => x.Description).HasColumnName("description").HasMaxLength(255);
             Property(x => x.Price).HasColumnName("price");
             Property(x => x.Material).HasColumnName("material").HasMaxLength(Solteira_Brands.Models.ProductFieldConstraints.MaxSpecFieldLength);
+            Property(x => x.RingSize).HasColumnName("ring_size").HasMaxLength(10);
             Property(x => x.Stones).HasColumnName("stones").HasMaxLength(Solteira_Brands.Models.ProductFieldConstraints.MaxSpecFieldLength);
             Property(x => x.Weight).HasColumnName("weight").HasMaxLength(Solteira_Brands.Models.ProductFieldConstraints.MaxSpecFieldLength);
             Property(x => x.Length).HasColumnName("length").HasMaxLength(Solteira_Brands.Models.ProductFieldConstraints.MaxSpecFieldLength);
