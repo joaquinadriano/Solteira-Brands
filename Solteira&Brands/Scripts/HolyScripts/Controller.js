@@ -120,6 +120,8 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                     id: u.id != null ? u.id : u.Id,
                     username: (u.username != null ? u.username : u.Username) || '',
                     email: (u.email != null ? u.email : u.Email) || '',
+                    firstName: (u.firstName != null ? u.firstName : u.FirstName) || '',
+                    lastName: (u.lastName != null ? u.lastName : u.LastName) || '',
                     roleName: (u.roleName != null ? u.roleName : u.RoleName) || 'UNKNOWN',
                     isActive: u.isActive != null ? u.isActive : u.IsActive,
                     isVerified: u.isVerified != null ? u.isVerified : u.IsVerified,

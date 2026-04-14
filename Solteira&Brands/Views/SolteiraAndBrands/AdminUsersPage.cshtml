@@ -18,7 +18,7 @@
                     <table class="table table-hover table-striped text-center align-middle mb-0" id="usersTable" style="width:100%">
                         <thead class="table-light">
                             <tr>
-                                <th class="text-start ps-3">Full Name</th>
+                                <th class="text-start ps-3">Username</th>
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Account Status</th>
@@ -83,6 +83,12 @@
 
                             <div class="col-5 text-muted small">Username</div>
                             <div class="col-7 fw-medium">{{selectedUserForView.username}}</div>
+
+                            <div class="col-5 text-muted small">First Name</div>
+                            <div class="col-7 fw-medium">{{selectedUserForView.firstName || '-'}}</div>
+
+                            <div class="col-5 text-muted small">Last Name</div>
+                            <div class="col-7 fw-medium">{{selectedUserForView.lastName || '-'}}</div>
 
                             <div class="col-5 text-muted small">Email</div>
                             <div class="col-7">{{selectedUserForView.email}}</div>
