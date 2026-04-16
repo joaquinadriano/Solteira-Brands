@@ -6,7 +6,12 @@
 <div class="main-content" ng-init="onReportsPageInit(); reportGeneratedByRole = '@reportRoleLabel'">
     <div class="container-fluid orders-container px-1">
 
-        <div class="row px-4 pb-3 mb-0 align-items-center border-bottom">
+        <div class="alert alert-danger d-flex align-items-center mx-4 mt-3 mb-0 rounded-3 shadow-sm" role="alert" ng-if="!isOnline" style="font-size:0.9rem;">
+            <i class="bi bi-wifi-off me-2 fs-5"></i>
+            <div><strong>No internet connection.</strong> Report export is disabled until the connection is restored.</div>
+        </div>
+
+        <div class="row px-4 pb-3 mb-0 align-items-center border-bottom" ng-class="{'mt-3': isOnline}">
             <div class="col">
                 <p class="h1 fw-bold inventory-title ps-0 ms-0">Sales Reports</p>
                 <p class="text-muted mb-0">View and export detailed item sales.</p>

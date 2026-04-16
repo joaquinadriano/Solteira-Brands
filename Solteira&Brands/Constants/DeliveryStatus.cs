@@ -6,5 +6,6 @@ namespace Solteira_Brands.Constants
         public const string Pending = "PENDING";
         public const string InTransit = "IN_TRANSIT";
         public const string Delivered = "DELIVERED";
+        public const string Failed = "FAILED";
     }
 }

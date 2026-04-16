@@ -162,32 +162,20 @@ namespace Solteira_Brands.Services
         // ----- DELIVERY STATUS -----
 
         /// <summary>
-        /// Delivery transitions: PENDING → IN_TRANSIT → DELIVERED.
+        /// Delivery transitions: any status allowed.
         /// </summary>
         public static bool CanTransitionDelivery(string from, string to)
         {
-            var current = NormalizeUpper(from);
             var target = NormalizeUpper(to);
+            var validStatuses = new[] { DeliveryStatus.Pending, DeliveryStatus.InTransit, DeliveryStatus.Delivered, DeliveryStatus.Failed };
 
-            if (current == target)
-                return true;
-
-            switch (current)
+            switch (target)
             {
-                case null:
-                    // New delivery must start at PENDING.
-                    return target == DeliveryStatus.Pending;
-
                 case DeliveryStatus.Pending:
-                    return target == DeliveryStatus.InTransit
-                        || target == DeliveryStatus.Delivered;
-
                 case DeliveryStatus.InTransit:
-                    return target == DeliveryStatus.Delivered;
-
                 case DeliveryStatus.Delivered:
-                    // Delivered is terminal.
-                    return false;
+                case DeliveryStatus.Failed:
+                    return true;
 
                 default:
                     return false;

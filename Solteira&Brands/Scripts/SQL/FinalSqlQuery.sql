@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS tbl_products (
     description     VARCHAR(255)    NULL,
     price           DECIMAL(10,2)   NOT NULL,
     material        VARCHAR(50)     NULL,
+    color           VARCHAR(30)     NULL,
     ring_size       VARCHAR(10)     NULL,
     stones          VARCHAR(50)     NULL,
     weight          VARCHAR(50)     NULL,

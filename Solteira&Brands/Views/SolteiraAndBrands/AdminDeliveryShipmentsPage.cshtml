@@ -54,8 +54,7 @@
                                                type="text"
                                                class="form-control delivery-input-field"
                                                ng-model="trackingNumberForNew"
-                                                       placeholder="e.g. 1234567890 (10-22 digits)"
-                                                       maxlength="22"
+                                               placeholder="e.g. 1234567890 (10-17 digits)"
                                                inputmode="numeric"
                                                pattern="\\d*"
                                                oninput="this.value=this.value.replace(/[^0-9]/g,'');"
@@ -63,7 +62,7 @@
                                                ng-class="{'is-invalid': trackingNumberForNewTouched && trackingNumberForNew && !isValidTrackingNumber(trackingNumberForNew)}" />
                                         <div class="invalid-feedback d-block"
                                              ng-if="trackingNumberForNewTouched && trackingNumberForNew && !isValidTrackingNumber(trackingNumberForNew)">
-                                            Tracking number must be 10-22 digits.
+                                            Invalid tracking number. Must be 10-17 digits.
                                         </div>
                                     </div>
                                 </div>
@@ -106,8 +105,10 @@
                             <label class="form-label fw-bold">Status</label>
                             <select class="form-select" ng-model="deliveryShipmentsStatusFilter" ng-change="onDeliveryShipmentsStatusFilterChange()">
                                 <option value="all">All</option>
-                                <option value="in_transit">In transit</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_transit">In Transit</option>
                                 <option value="delivered">Delivered</option>
+                                <option value="failed">Failed</option>
                             </select>
                         </div>
                     </div>
@@ -259,7 +260,7 @@
                                         <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 orderDetails-icon"></i>Status Timeline</h5>
                                         <ul class="list-unstyled mb-0">
                                             <li class="d-flex align-items-center mb-2" ng-repeat="t in deliveryDetail.statusTimeline">
-                                                <span class="badge me-2" ng-class="{'bg-secondary': t.status === 'PENDING', 'bg-primary': t.status === 'IN_TRANSIT', 'bg-success': t.status === 'DELIVERED'}">{{t.status}}</span>
+                                                <span class="badge me-2" ng-class="{'bg-secondary': t.status === 'PENDING', 'bg-primary': t.status === 'IN_TRANSIT', 'bg-success': t.status === 'DELIVERED', 'bg-danger': t.status === 'FAILED'}">{{t.status}}</span>
                                                 <span class="text-muted small">{{t.at}}</span>
                                             </li>
                                         </ul>
@@ -299,8 +300,10 @@
                         <div class="mb-3">
                             <label class="form-label">Delivery Status</label>
                             <select class="form-select" ng-model="editDeliveryForm.deliveryStatus">
+                                <option value="PENDING">PENDING</option>
                                 <option value="IN_TRANSIT">IN_TRANSIT</option>
                                 <option value="DELIVERED">DELIVERED</option>
+                                <option value="FAILED">FAILED</option>
                             </select>
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">
@@ -315,8 +318,7 @@
                             <input type="text"
                                    class="form-control"
                                    ng-model="editDeliveryForm.trackingNumber"
-                                   placeholder="Tracking number (10-22 digits)"
-                                   maxlength="22"
+                                   placeholder="Tracking number (10-17 digits)"
                                    inputmode="numeric"
                                    pattern="\\d*"
                                    oninput="this.value=this.value.replace(/[^0-9]/g,'');"
@@ -324,7 +326,7 @@
                                    ng-class="{'is-invalid': editTrackingNumberTouched && editDeliveryForm.trackingNumber && !isValidTrackingNumber(editDeliveryForm.trackingNumber)}" />
                             <div class="invalid-feedback d-block"
                                  ng-if="editTrackingNumberTouched && editDeliveryForm.trackingNumber && !isValidTrackingNumber(editDeliveryForm.trackingNumber)">
-                                Tracking number must be 10-22 digits.
+                                Invalid tracking number. Must be 10-17 digits.
                             </div>
                         </div>
                         <div class="mb-3" ng-if="editingDelivery.deliveryOverview.deliveryStatus === 'PENDING'">

@@ -300,6 +300,7 @@ namespace Solteira_Brands.Controllers
                                 description = p.Description,
                                 price = p.Price,
                                 material = p.Material,
+                                color = p.Color,
                                 ringSize = p.RingSize,
                                 stones = p.Stones,
                                 weight = p.Weight,
@@ -320,6 +321,7 @@ namespace Solteira_Brands.Controllers
                                 x.description,
                                 x.price,
                                 x.material,
+                                x.color,
                                 x.ringSize,
                                 x.stones,
                                 x.weight,
@@ -389,6 +391,7 @@ namespace Solteira_Brands.Controllers
 
                 var stonesTrim = (request.Stones ?? string.Empty).Trim();
                 var materialTrim = (request.Material ?? string.Empty).Trim();
+                var colorTrim = (request.Color ?? string.Empty).Trim();
                 var weightTrim = (request.Weight ?? string.Empty).Trim();
                 var lengthTrim = (request.Length ?? string.Empty).Trim();
                 var ringSizeTrim = (request.RingSize ?? string.Empty).Trim();
@@ -411,6 +414,8 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (colorTrim.Length > 30)
+                    return Json(new { success = false, message = "Color must be at most 30 characters." });
                 if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
@@ -431,6 +436,7 @@ namespace Solteira_Brands.Controllers
                     Description = (request.Description ?? string.Empty).Trim(),
                     Price = request.Price,
                     Material = materialTrim,
+                    Color = string.IsNullOrEmpty(colorTrim) ? null : colorTrim,
                     RingSize = string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ringSizeTrim) ? ringSizeTrim : null,
                     Stones = stonesTrim,
                     Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim,
@@ -473,6 +479,7 @@ namespace Solteira_Brands.Controllers
 
                 var stonesTrim = (request.Stones ?? string.Empty).Trim();
                 var materialTrim = (request.Material ?? string.Empty).Trim();
+                var colorTrim = (request.Color ?? string.Empty).Trim();
                 var weightTrim = (request.Weight ?? string.Empty).Trim();
                 var lengthTrim = (request.Length ?? string.Empty).Trim();
                 var ringSizeTrim = (request.RingSize ?? string.Empty).Trim();
@@ -495,6 +502,8 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Stones must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (materialTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Material must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
+                if (colorTrim.Length > 30)
+                    return Json(new { success = false, message = "Color must be at most 30 characters." });
                 if (weightTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
                     return Json(new { success = false, message = "Weight must be at most " + ProductFieldConstraints.MaxSpecFieldLength + " characters." });
                 if (lengthTrim.Length > ProductFieldConstraints.MaxSpecFieldLength)
@@ -514,6 +523,7 @@ namespace Solteira_Brands.Controllers
                 product.Description = (request.Description ?? string.Empty).Trim();
                 product.Price = request.Price;
                 product.Material = materialTrim;
+                product.Color = string.IsNullOrEmpty(colorTrim) ? null : colorTrim;
                 product.RingSize = string.Equals(categoryTrim, "Ring", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ringSizeTrim) ? ringSizeTrim : null;
                 product.Stones = stonesTrim;
                 product.Weight = string.IsNullOrEmpty(weightTrim) ? null : weightTrim;
@@ -584,6 +594,7 @@ namespace Solteira_Brands.Controllers
                                     price = p.Price,
                                     category = p.Category,
                                     material = p.Material,
+                                    color = p.Color,
                                     ringSize = p.RingSize,
                                     stones = p.Stones,
                                     weight = p.Weight,
@@ -3096,25 +3107,15 @@ namespace Solteira_Brands.Controllers
         public JsonResult UpdateDeliveryStatus(int deliveryId, string status)
         {
             var statusTrim = (status ?? "").Trim().ToUpperInvariant();
-            if (statusTrim != DeliveryStatus.InTransit && statusTrim != DeliveryStatus.Delivered)
-                return Json(new { success = false, message = "Status must be IN_TRANSIT or DELIVERED." });
+            var validDeliveryStatuses = new[] { DeliveryStatus.Pending, DeliveryStatus.InTransit, DeliveryStatus.Delivered, DeliveryStatus.Failed };
+            if (!validDeliveryStatuses.Any(s => s == statusTrim))
+                return Json(new { success = false, message = "Status must be PENDING, IN_TRANSIT, DELIVERED, or FAILED." });
             var now = DateTime.Now;
             using (var db = new SolteiraBrandsContext())
             {
                 var delivery = db.tbl_deliveries.Include("Order").FirstOrDefault(d => d.Id == deliveryId);
                 if (delivery == null || delivery.Order == null) return Json(new { success = false, message = "Delivery not found." });
                 if (delivery.Order.IsArchived) return Json(new { success = false, message = "Archived orders cannot be modified." });
-                var orderStatus = delivery.Order.OrderStatus ?? "";
-                if (!OrderLifecycleRules.CanTransitionDelivery(delivery.DeliveryStatus, statusTrim))
-                    return Json(new { success = false, message = "Invalid delivery status transition." });
-                if (statusTrim == DeliveryStatus.InTransit && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase) && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
-                    return Json(new { success = false, message = "Order must be Paid or In Delivery." });
-                // Allow marking as Delivered when the order is already In Delivery (normal flow)
-                // OR still Paid (for older records where the status wasn't updated correctly).
-                if (statusTrim == DeliveryStatus.Delivered
-                    && !orderStatus.Equals("In Delivery", StringComparison.OrdinalIgnoreCase)
-                    && !orderStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
-                    return Json(new { success = false, message = "Order must be Paid or In Delivery before marking Delivered." });
                 delivery.DeliveryStatus = statusTrim;
                 delivery.UpdatedAt = now;
                 if (statusTrim == DeliveryStatus.InTransit)
@@ -3127,6 +3128,16 @@ namespace Solteira_Brands.Controllers
                     delivery.Order.OrderStatus = OrderStatus.Completed;
                     delivery.Order.LastStatusUpdateAt = now;
                     LogActivity(db, "Order Completed", "Orders", delivery.Order.Id, "Order #" + (delivery.Order.OrderNumber ?? delivery.OrderId.ToString()));
+                }
+                else if (statusTrim == DeliveryStatus.Pending)
+                {
+                    delivery.Order.OrderStatus = OrderStatus.Paid;
+                    delivery.Order.LastStatusUpdateAt = now;
+                }
+                else if (statusTrim == DeliveryStatus.Failed)
+                {
+                    delivery.Order.OrderStatus = OrderStatus.InDelivery;
+                    delivery.Order.LastStatusUpdateAt = now;
                 }
                 db.SaveChanges();
                 LogActivity(db, "Delivery Status " + statusTrim, "Deliveries", delivery.Id, "Order #" + (delivery.Order.OrderNumber ?? delivery.OrderId.ToString()));
@@ -3330,20 +3341,14 @@ namespace Solteira_Brands.Controllers
                     return Json(new { success = false, message = "Delivery not found." });
                 if (delivery.Order.IsArchived)
                     return Json(new { success = false, message = "Archived orders cannot be modified." });
-                var currentStatus = (delivery.DeliveryStatus ?? "").Trim();
-                if (string.Equals(currentStatus, DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase))
-                    return Json(new { success = false, message = "Cannot edit a delivered shipment." });
-
                 var now = DateTime.Now;
                 var newStatus = (deliveryStatus ?? "").Trim();
                 if (!string.IsNullOrEmpty(newStatus) &&
                     (newStatus.Equals(DeliveryStatus.Pending, StringComparison.OrdinalIgnoreCase)
                      || newStatus.Equals(DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase)
-                     || newStatus.Equals(DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase)))
+                     || newStatus.Equals(DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase)
+                     || newStatus.Equals(DeliveryStatus.Failed, StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!OrderLifecycleRules.CanTransitionDelivery(delivery.DeliveryStatus, newStatus))
-                        return Json(new { success = false, message = "Invalid delivery status transition." });
-
                     delivery.DeliveryStatus = newStatus;
                     if (newStatus.Equals(DeliveryStatus.InTransit, StringComparison.OrdinalIgnoreCase))
                     {
@@ -3353,6 +3358,16 @@ namespace Solteira_Brands.Controllers
                     else if (newStatus.Equals(DeliveryStatus.Delivered, StringComparison.OrdinalIgnoreCase))
                     {
                         delivery.Order.OrderStatus = OrderStatus.Completed;
+                        delivery.Order.LastStatusUpdateAt = now;
+                    }
+                    else if (newStatus.Equals(DeliveryStatus.Pending, StringComparison.OrdinalIgnoreCase))
+                    {
+                        delivery.Order.OrderStatus = OrderStatus.Paid;
+                        delivery.Order.LastStatusUpdateAt = now;
+                    }
+                    else if (newStatus.Equals(DeliveryStatus.Failed, StringComparison.OrdinalIgnoreCase))
+                    {
+                        delivery.Order.OrderStatus = OrderStatus.InDelivery;
                         delivery.Order.LastStatusUpdateAt = now;
                     }
                 }

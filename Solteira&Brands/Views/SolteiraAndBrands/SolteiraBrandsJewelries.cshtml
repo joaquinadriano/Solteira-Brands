@@ -120,6 +120,7 @@
                             <li ng-repeat="stone in selectedProduct.stones track by $index" ng-if="isEnumerable(selectedProduct.stones)">{{stone}}</li>
 
                             <li>{{selectedProduct.material}}</li>
+                            <li ng-if="selectedProduct.color">Color: {{selectedProduct.color}}</li>
                             <li ng-if="selectedProduct.ringSize">Ring Size: {{selectedProduct.ringSize}} (US)</li>
                             <li>{{selectedProduct.weight}} <span ng-if="selectedProduct.length">, {{selectedProduct.length}}</span></li>
                         </ul>

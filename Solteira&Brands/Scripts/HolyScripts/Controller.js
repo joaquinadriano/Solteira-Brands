@@ -511,10 +511,6 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.editDeliveryForm = { courierChoice: 'LBC', otherCourierName: '', trackingNumber: '', trackingLink: '', dispatchDate: '', eta: '', deliveryStatus: '' };
     $scope.openDeliveryEditModal = function (d) {
         if (!d || !d.id) return;
-        if ((d.deliveryStatus || '').toUpperCase() === 'DELIVERED') {
-            Swal.fire({ icon: 'warning', title: 'Cannot edit', text: 'Delivered shipments cannot be edited.' });
-            return;
-        }
         SolteiraAndBrandsService.getDeliveryDetailForAdmin(d.id).then(function (res) {
             if (res.data && res.data.success) {
                 var ov = res.data.deliveryOverview;
@@ -535,8 +531,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 var tnLink = tnParts.length > 1 ? tnParts[1] : '';
                 $scope.editTrackingNumberTouched = false;
                 var statusUp = (ov.deliveryStatus || '').toUpperCase();
-                // Edit UI cannot set PENDING; default PENDING shipments to IN_TRANSIT in the dropdown.
-                var formDeliveryStatus = statusUp === 'PENDING' ? 'IN_TRANSIT' : (statusUp === 'DELIVERED' ? 'DELIVERED' : 'IN_TRANSIT');
+                var formDeliveryStatus = statusUp || 'PENDING';
                 $scope.editDeliveryForm = {
                     courierChoice: courierChoice,
                     otherCourierName: '',
@@ -577,7 +572,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 return;
             }
             if (!$scope.isValidTrackingNumber(rawNumberEdit)) {
-                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
+                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-17 digits.' });
                 return;
             }
             if (!$scope.editDeliveryForm.dispatchDate) {
@@ -606,7 +601,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         } else {
             // IN_TRANSIT: validate only if the user provided a new tracking number.
             if (rawNumberEdit && !$scope.isValidTrackingNumber(rawNumberEdit)) {
-                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
+                Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-17 digits.' });
                 return;
             }
         }
@@ -689,8 +684,10 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         angular.forEach(list, function (d) {
             if (!d) return;
             var st = normalizeShipmentDeliveryStatus(d);
-            if (f === 'in_transit' && st === 'IN_TRANSIT') out.push(d);
+            if (f === 'pending' && st === 'PENDING') out.push(d);
+            else if (f === 'in_transit' && st === 'IN_TRANSIT') out.push(d);
             else if (f === 'delivered' && st === 'DELIVERED') out.push(d);
+            else if (f === 'failed' && st === 'FAILED') out.push(d);
         });
         $scope.filteredShipmentsList = out;
     }
@@ -741,7 +738,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         var parts = s.split('||');
         return parts[0] || parts[1] || '-';
     };
-    var TRACKING_NUMBER_REGEX = /^\d{10,22}$/;
+    var TRACKING_NUMBER_REGEX = /^\d{10,17}$/;
     $scope.isValidTrackingNumber = function (val) {
         var s = (val || '').toString().trim();
         return !!s && TRACKING_NUMBER_REGEX.test(s);
@@ -819,7 +816,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             return;
         }
         if (!$scope.isValidTrackingNumber(rawNumber)) {
-            Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-22 digits.' });
+            Swal.fire({ icon: 'warning', title: 'Invalid tracking number', text: 'Tracking number must be 10-17 digits.' });
             return;
         }
 
@@ -1694,8 +1691,13 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.inventoryProducts = [];
     $scope.showArchivedInventory = false;
     $scope.inventorySearchText = '';
-    /** Same options as Sales Reports: filter inventory table by product category. */
     $scope.inventoryCategoryFilter = 'All Categories';
+    $scope.inventoryMaterialFilter = '';
+    $scope.inventoryColorFilter = '';
+    $scope.inventoryPriceFilter = '';
+    $scope.inventoryStockFilter = '';
+    $scope.inventoryAvailabilityFilter = '';
+    $scope.inventoryRingSizeFilter = '';
     $scope.productCategories = ["Bracelet", "Ring", "Earring", "Necklace"];
     $scope.newProduct = {
         name: "",
@@ -1705,6 +1707,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         stockQuantity: null,
         stones: "",
         material: "",
+        color: "",
         weight: "",
         length: "",
         isBestSeller: false,
@@ -1781,23 +1784,40 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         });
     };
 
-    /** Products to show in the inventory table (client-side filter by category). */
     $scope.getFilteredInventoryProducts = function () {
         var list = $scope.inventoryProducts || [];
         var cat = ($scope.inventoryCategoryFilter || 'All Categories').toString().trim();
-        if (cat === 'All Categories') return list;
+        var mat = ($scope.inventoryMaterialFilter || '').trim();
+        var col = ($scope.inventoryColorFilter || '').trim();
+        var priceKey = ($scope.inventoryPriceFilter || '').trim();
+        var stockKey = ($scope.inventoryStockFilter || '').trim();
+        var avail = ($scope.inventoryAvailabilityFilter || '').trim();
+        var ringSize = ($scope.inventoryRingSizeFilter || '').trim();
+
+        var priceCeilings = { lt20000: 20000, lt40000: 40000, lt60000: 60000, lt80000: 80000, lt100000: 100000 };
+        var stockCeilings = { lt3: 3, lt5: 5, lt10: 10 };
+
         var out = [];
         angular.forEach(list, function (p) {
             if (!p) return;
-            var pc = (p.category != null ? p.category : p.Category);
-            pc = pc != null ? String(pc).trim() : '';
-            if (pc === cat) out.push(p);
+            var pc = String(p.category || p.Category || '').trim();
+            if (cat !== 'All Categories' && pc !== cat) return;
+            if (mat && String(p.material || '').trim() !== mat) return;
+            if (col && String(p.color || '').trim() !== col) return;
+            if (priceKey && priceCeilings[priceKey] != null && (p.price || 0) >= priceCeilings[priceKey]) return;
+            if (stockKey && stockCeilings[stockKey] != null && (p.stockQuantity || 0) >= stockCeilings[stockKey]) return;
+            if (avail === 'outofstock' && (p.stockQuantity || 0) > 0) return;
+            if (avail === 'instock' && (p.stockQuantity || 0) <= 0) return;
+            if (ringSize) {
+                var rs = String(p.ringSize || '').trim();
+                if (rs !== ringSize) return;
+            }
+            out.push(p);
         });
         return out;
     };
 
-    /** Rebuild DataTables after category filter changes (rows come from ng-repeat). */
-    $scope.onInventoryCategoryFilterChange = function () {
+    $scope.onInventoryFilterChange = function () {
         if (!$scope.inventoryTableVisible) return;
         var seq = $scope.inventoryLoadSeq || 0;
         try {
@@ -1984,6 +2004,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Description: $scope.newProduct.description,
                 Price: parseFloat($scope.newProduct.price) || 0,
                 Material: $scope.newProduct.material,
+                Color: $scope.newProduct.color || '',
                 RingSize: $scope.newProduct.category === 'Ring' ? String($scope.newProduct.ringSize || '') : '',
                 Stones: $scope.newProduct.stones,
                 Weight: $scope.newProduct.weight,
@@ -1997,7 +2018,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
             SolteiraAndBrandsService.createProduct(payload).then(function (res) {
                 if (res.data && res.data.success) {
                     $('#inventoryAddItemModal').modal('hide');
-                    $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', ringSize: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
+                    $scope.newProduct = { name: '', category: '', description: '', price: null, stockQuantity: null, stones: '', material: '', color: '', ringSize: '', weight: '', length: '', isBestSeller: false, isFeatured: false };
                     $scope.resetInventoryAddPhotoInput();
                     Swal.fire({
                         title: 'Inventory item added!',
@@ -2121,6 +2142,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
     $scope.openEditProduct = function (item) {
         if (!item || $scope.showArchivedInventory) return;
         $scope.editProduct = angular.copy(item);
+        $scope.editProduct.color = $scope.editProduct.color || '';
         $scope.inventoryEditPhotoFile = null;
         $('#inventoryEditItemModal').modal('show');
     };
@@ -2208,6 +2230,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
                 Description: $scope.editProduct.description,
                 Price: parseFloat($scope.editProduct.price) || 0,
                 Material: $scope.editProduct.material,
+                Color: $scope.editProduct.color || '',
                 RingSize: $scope.editProduct.category === 'Ring' ? String($scope.editProduct.ringSize || '') : '',
                 Stones: $scope.editProduct.stones,
                 Weight: $scope.editProduct.weight,
@@ -3000,8 +3023,26 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
         return '';
     }
 
+    $scope.isOnline = navigator.onLine !== false;
+    function onConnectionOnline() {
+        $scope.$applyAsync(function () { $scope.isOnline = true; });
+    }
+    function onConnectionOffline() {
+        $scope.$applyAsync(function () {
+            $scope.isOnline = false;
+            Swal.fire({ icon: 'error', title: 'Connection Lost', text: 'Your internet connection has been interrupted. Report export is disabled until the connection is restored.' });
+        });
+    }
+    window.addEventListener('online', onConnectionOnline);
+    window.addEventListener('offline', onConnectionOffline);
+    $scope.$on('$destroy', function () {
+        window.removeEventListener('online', onConnectionOnline);
+        window.removeEventListener('offline', onConnectionOffline);
+    });
+
     $scope.onReportsPageInit = function () {
         $scope.reportFiltersApplied = false;
+        $scope.isOnline = navigator.onLine !== false;
         $scope.loadSalesReport();
     };
 
@@ -3097,6 +3138,7 @@ app.controller("SolteiraAndBrandsController", ['$scope', '$timeout', '$interval'
 
     /** Non-empty string when export should be disabled (for tooltips and Swal). */
     $scope.getSalesReportExportDisabledHint = function () {
+        if (!$scope.isOnline) return 'No internet connection. Please check your connection and try again.';
         if (!$scope.reportFiltersApplied) return 'Wait for the report to finish loading.';
         var range = ($scope.reportRange || '').toString().toLowerCase().trim();
         if (range === 'custom') {
