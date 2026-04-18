@@ -117,6 +117,54 @@ CREATE TABLE IF NOT EXISTS tbl_products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- 5b. tbl_product_images (1..5 images per product; primary image flag)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_product_images (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    product_id      INT             NOT NULL,
+    image_id        INT             NOT NULL,
+    is_primary      TINYINT(1)      NOT NULL DEFAULT 0,
+    created_at      DATETIME        NOT NULL,
+    updated_at      DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tbl_product_images_product_image (product_id, image_id),
+    INDEX idx_tbl_product_images_product_id (product_id),
+    INDEX idx_tbl_product_images_image_id (image_id),
+    CONSTRAINT fk_tbl_product_images_product
+        FOREIGN KEY (product_id) REFERENCES tbl_products (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_tbl_product_images_image
+        FOREIGN KEY (image_id) REFERENCES tbl_images (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Backfill from legacy tbl_products.image_id (safe no-op on new DB with no rows).
+INSERT INTO tbl_product_images (product_id, image_id, is_primary, created_at, updated_at)
+SELECT p.id, p.image_id, 1, NOW(), NOW()
+FROM tbl_products p
+LEFT JOIN tbl_product_images pi
+    ON pi.product_id = p.id
+   AND pi.image_id = p.image_id
+WHERE p.image_id IS NOT NULL
+  AND pi.id IS NULL;
+
+-- Ensure each product with images has one primary image.
+UPDATE tbl_product_images pi
+JOIN (
+    SELECT product_id, MIN(id) AS min_id
+    FROM tbl_product_images
+    GROUP BY product_id
+) first_row ON first_row.min_id = pi.id
+LEFT JOIN (
+    SELECT DISTINCT product_id
+    FROM tbl_product_images
+    WHERE is_primary = 1
+) has_primary ON has_primary.product_id = pi.product_id
+SET pi.is_primary = 1,
+    pi.updated_at = NOW()
+WHERE has_primary.product_id IS NULL;
+
+-- ----------------------------------------------------------------------------
 -- 6. tbl_carts
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_carts (
@@ -329,7 +377,21 @@ CREATE TABLE IF NOT EXISTS tbl_layaway_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
--- 16. tbl_activity_logs
+-- 16. tbl_policy_settings
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tbl_policy_settings (
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    policy_type         VARCHAR(50)     NOT NULL,
+    content             LONGTEXT        NOT NULL,
+    is_active           TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at          DATETIME        NOT NULL,
+    updated_at          DATETIME        NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_tbl_policy_settings_type_active (policy_type, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
+-- 17. tbl_activity_logs
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tbl_activity_logs (
     id              INT             NOT NULL AUTO_INCREMENT,
@@ -383,6 +445,75 @@ WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'GCASH
 INSERT INTO tbl_payment_settings (payment_type, account_name, account_number, qr_image_id, is_active, created_at, updated_at)
 SELECT 'BANK_TRANSFER', 'Bank Transfer', '', NULL, 1, NOW(), NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tbl_payment_settings WHERE payment_type = 'BANK_TRANSFER' AND is_active = 1);
+
+INSERT INTO tbl_policy_settings (policy_type, content, is_active, created_at, updated_at)
+SELECT 'TERMS_AND_CONDITIONS',
+       'Welcome to Solteira & Brands. By creating an account, you agree to the following terms:
+
+1. Account Responsibility
+You are responsible for keeping your account credentials confidential and for all activities under your account.
+
+2. Use of the Platform
+You agree not to misuse the website, attempt unauthorized access, or disrupt system functionality.
+
+3. Manual Payment System
+Payments are processed manually via GCash, bank transfer, or meetup. Users are required to upload proof of payment after completing a transaction.
+
+4. Payment Verification
+All submitted payments are subject to admin verification. Orders are only confirmed once payment is validated.
+
+5. Order Cancellation
+Orders that remain unpaid within two (2) to three (3) business days may be cancelled.
+
+6. Pricing and Availability
+Prices and product availability may change without prior notice.
+
+7. Shipping Policy
+Shipping is free of charge for all orders. Delivery timelines may vary depending on location and courier conditions.
+
+8. No Return / No Refund Policy
+All sales are final. No returns, exchanges, or refunds are allowed once payment is verified and approved.
+
+9. Limitation of Liability
+Solteira & Brands is not liable for delays, losses, or damages beyond our control.
+
+10. Modifications
+We may update these Terms at any time. Continued use of the platform means acceptance of updates.',
+       1, NOW(), NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM tbl_policy_settings WHERE policy_type = 'TERMS_AND_CONDITIONS' AND is_active = 1);
+
+INSERT INTO tbl_policy_settings (policy_type, content, is_active, created_at, updated_at)
+SELECT 'PRIVACY_POLICY',
+       'We value your privacy and are committed to protecting your personal data.
+
+1. Information We Collect
+- Name
+- Email address
+- Contact number
+- Shipping address
+- Account credentials
+
+2. How We Use Your Data
+- To process orders
+- To verify payments
+- To provide customer support
+- To improve our services
+
+3. Data Protection
+We implement security measures to protect your data from unauthorized access.
+
+4. Data Sharing
+We only share necessary data with payment providers and delivery services when required.
+
+5. Data Retention
+Your data is stored only as long as necessary for business and legal purposes.
+
+6. Updates
+We may update this policy. Continued use means acceptance of changes.',
+       1, NOW(), NOW()
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM tbl_policy_settings WHERE policy_type = 'PRIVACY_POLICY' AND is_active = 1);
 
 -- Optional: align legacy rows where payment proof implies cash meetup (safe no-op on empty DB)
 UPDATE tbl_orders o

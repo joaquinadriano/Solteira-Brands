@@ -22,8 +22,14 @@ namespace Solteira_Brands.Constants
         public const int ReminderLeadDaysFullPayment = 1;
 
         /// <summary>
-        /// Layaway installment deadlines: same pattern as full payment but with a longer lead.
+        /// Layaway installment deadlines: send reminder 3 days before due date.
         /// </summary>
-        public const int ReminderLeadDaysLayaway = 2;
+        public const int ReminderLeadDaysLayaway = 3;
+
+        /// <summary>
+        /// Rejected-payment resubmission windows always remind 1 day before the active deadline,
+        /// regardless of payment type.
+        /// </summary>
+        public const int ReminderLeadDaysResubmit = 1;
     }
 }

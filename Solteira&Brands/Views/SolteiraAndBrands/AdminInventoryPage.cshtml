@@ -3,6 +3,9 @@
         : (User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml");
 }
 <div class="main-content" ng-init="inventoryDefaultPhotoUrl='@Url.Content("~/Content/img/shared/default-product.svg")'">
+    <datalist id="inventoryStonesSuggest">
+        <option ng-repeat="s in inventoryStonesSuggestions" ng-attr-value="{{s}}"></option>
+    </datalist>
     <div class="container-fluid orders-container px-1">
         <div class="row px-4 pb-0 mb-0 align-items-center">
             <div class="col">
@@ -68,7 +71,7 @@
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" class="form-control delivery-input-field" maxlength="30" placeholder="Many Shape Tennis" ng-model="newProduct.name" />
-                                            <small class="text-muted">Max 30 characters.</small>
+                                            <small class="text-muted">Up to 30 characters.</small>
                                         </div>
                                     </div>
 
@@ -79,8 +82,9 @@
                                         <div class="col-sm-7">
                                             <select class="form-select delivery-input-field"
                                                     ng-model="newProduct.category"
-                                                    ng-options="c for c in productCategories">
-                                                <option value="" disabled selected>Select category</option>
+                                                    ng-change="onNewInventoryCategoryChange()">
+                                                <option value="">Select a Category</option>
+                                                <option ng-repeat="c in productCategories" ng-value="c">{{c}}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -115,8 +119,8 @@
                                             <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" maxlength="50" placeholder="e.g., 5 Total Carat Diamond" ng-model="newProduct.stones">
-                                            <small class="text-muted">Max 50 characters.</small>
+                                            <input type="text" class="form-control delivery-input-field" maxlength="50" list="inventoryStonesSuggest" placeholder="e.g., 5 Total Carat Diamond" ng-model="newProduct.stones">
+                                            <small class="text-muted">Up to 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -125,8 +129,20 @@
                                             <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="text" class="form-control delivery-input-field" maxlength="50" placeholder="e.g., 18K White Gold" ng-model="newProduct.material">
-                                            <small class="text-muted">Max 50 characters.</small>
+                                            <select class="form-select delivery-input-field"
+                                                    ng-model="newProduct.materialSelect"
+                                                    ng-change="onNewInventoryMaterialSelectChange()">
+                                                <option value="">Select a material</option>
+                                                <option ng-repeat="m in inventoryMaterialOptions track by m" ng-value="m">{{m}}</option>
+                                                <option ng-value="inventoryMaterialOtherSentinel">Other...</option>
+                                            </select>
+                                            <input type="text"
+                                                   class="form-control delivery-input-field mt-2"
+                                                   maxlength="50"
+                                                   ng-show="newProduct.materialSelect === inventoryMaterialOtherSentinel"
+                                                   ng-model="newProduct.materialCustom"
+                                                   placeholder="Enter material..." />
+                                            <small class="text-muted" ng-show="newProduct.materialSelect === inventoryMaterialOtherSentinel">Other: up to 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -135,15 +151,9 @@
                                             <label class="delivery-label">Color:</label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <select class="form-control delivery-input-field" ng-model="newProduct.color">
-                                                <option value="">-- Select Color --</option>
-                                                <option value="White">White</option>
-                                                <option value="Gold">Gold</option>
-                                                <option value="Silver">Silver</option>
-                                                <option value="Blue">Blue</option>
-                                                <option value="Green">Green</option>
-                                                <option value="Red">Red</option>
-                                                <option value="Purple">Purple</option>
+                                            <select class="form-select delivery-input-field" ng-model="newProduct.color">
+                                                <option value="">Select a color (optional)</option>
+                                                <option ng-repeat="c in inventoryProductColors" ng-value="c">{{c}}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -153,12 +163,20 @@
                                             <label class="delivery-label">Ring Size (US): <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="number" step="0.5" min="1" max="16"
+                                            <input type="number"
                                                    class="form-control delivery-input-field"
-                                                   placeholder="e.g., 7"
+                                                   ng-class="{'is-invalid': newProductRingSizeFieldError}"
+                                                   min="{{inventoryRingSizeMin}}"
+                                                   max="{{inventoryRingSizeMax}}"
+                                                   step="0.5"
+                                                   inputmode="decimal"
+                                                   placeholder="e.g. 7 or 6.5"
                                                    ng-model="newProduct.ringSize"
-                                                   onkeydown="if(event.key === '-') event.preventDefault();" />
-                                            <small class="text-muted">US ring size (numeric). Required for rings.</small>
+                                                   ng-required="newProduct.category === 'Ring'"
+                                                   ng-blur="validateInventoryRingSizeField('new')"
+                                                   onkeydown="if(event.key === '-' || event.key === 'e' || event.key === 'E' || event.key === '+') event.preventDefault();" />
+                                            <p class="text-danger small mb-1" ng-if="newProductRingSizeFieldError">{{newProductRingSizeFieldError}}</p>
+                                            <small class="text-muted">Half sizes allowed (e.g. 6.5).</small>
                                         </div>
                                     </div>
 
@@ -168,7 +186,7 @@
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" maxlength="50" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 9.6 grams" ng-model="newProduct.weight">
-                                            <small class="text-muted">Max 50 characters.</small>
+                                            <small class="text-muted">Up to 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -178,7 +196,7 @@
                                         </div>
                                         <div class="col-sm-7">
                                             <input type="text" maxlength="50" onkeydown="if(event.key === '-') event.preventDefault();" class="form-control delivery-input-field" placeholder="e.g., 18cm" ng-model="newProduct.length">
-                                            <small class="text-muted">Max 50 characters.</small>
+                                            <small class="text-muted">Up to 50 characters.</small>
                                         </div>
                                     </div>
 
@@ -194,14 +212,25 @@
                                         </div>
                                     </div>
 
-                                    <div class="row mb-4 align-items-center">
+                                    <div class="row mb-4 align-items-start">
                                         <div class="col-sm-5">
-                                            <label class="delivery-label">Photo: <span class="delivery-required">*</span></label>
+                                            <label class="delivery-label">Photos: <span class="delivery-required">*</span></label>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input type="file" id="inventoryAddPhotoInput" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryFileValidationMessage}"
-                                                   onchange="angular.element(this).scope().onInventoryFileSelected(this.files)" />
-                                            <small class="text-muted">PNG or JPG, less than 5MB.</small>
+                                            <input type="file" id="inventoryAddPhotoInput" class="d-none" accept=".jpg,.jpeg,.png" multiple
+                                                   onchange="angular.element(this).scope().onInventoryFilesSelected(this.files, 'new')" />
+                                            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" ng-click="triggerInventoryImagePicker('new')">Add photo(s)</button>
+                                            <small class="text-muted d-block mb-2">JPG or PNG, up to 5 MB each. 1-5 images.</small>
+                                            <div class="inventory-image-grid">
+                                                <div class="inventory-image-card" ng-repeat="img in newProductImages track by img.localId">
+                                                    <img ng-src="{{img.previewUrl}}" alt="Product image preview" class="inventory-image-thumb" />
+                                                    <div class="mt-2 d-flex gap-1 flex-wrap">
+                                                        <button type="button" class="btn btn-outline-dark btn-xs" ng-click="setPrimaryInventoryImage('new', img.localId)" ng-disabled="img.isPrimary">Set Primary</button>
+                                                        <button type="button" class="btn btn-outline-danger btn-xs" ng-click="removeInventoryImage('new', img.localId)">Remove</button>
+                                                    </div>
+                                                    <small class="d-block mt-1" ng-class="img.isPrimary ? 'text-success fw-bold' : 'text-muted'">{{img.isPrimary ? 'Primary' : 'Secondary'}}</small>
+                                                </div>
+                                            </div>
                                             <p class="text-danger small mt-1 mb-0" ng-if="inventoryFileValidationMessage">{{inventoryFileValidationMessage}}</p>
                                         </div>
                                     </div>
@@ -238,21 +267,14 @@
                             <label class="form-label fw-bold small mb-1">Material</label>
                             <select class="form-select form-select-sm" ng-model="inventoryMaterialFilter" ng-change="onInventoryFilterChange()">
                                 <option value="">All Materials</option>
-                                <option value="18K White Gold">18K White Gold</option>
-                                <option value="18K Yellow Gold">18K Yellow Gold</option>
+                                <option ng-repeat="m in inventoryMaterialOptions" ng-value="m">{{m}}</option>
                             </select>
                         </div>
                         <div class="col">
                             <label class="form-label fw-bold small mb-1">Color</label>
                             <select class="form-select form-select-sm" ng-model="inventoryColorFilter" ng-change="onInventoryFilterChange()">
                                 <option value="">All Colors</option>
-                                <option value="White">White</option>
-                                <option value="Gold">Gold</option>
-                                <option value="Silver">Silver</option>
-                                <option value="Blue">Blue</option>
-                                <option value="Green">Green</option>
-                                <option value="Red">Red</option>
-                                <option value="Purple">Purple</option>
+                                <option ng-repeat="c in inventoryProductColors" ng-value="c">{{c}}</option>
                             </select>
                         </div>
                         <div class="col">
@@ -293,6 +315,9 @@
                                 <option value="7">7</option>
                                 <option value="8">8</option>
                                 <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
                             </select>
                         </div>
                     </div>
@@ -396,21 +421,31 @@
 
                             <div class="product-image-section text-center">
                                 <div class="position-relative overflow-hidden" style="border-radius: 18px;">
-                                    <img ng-if="viewPhotoItem.imageUrl"
-                                         ng-src="{{viewPhotoItem.imageUrl}}"
+                                    <img ng-if="viewPhotoItem.activeImageUrl"
+                                         ng-src="{{viewPhotoItem.activeImageUrl}}"
                                          alt="{{viewPhotoItem.name}}"
                                          class="product-view-img product-view-img-enlarge"
-                                         ng-click="viewPhotoItem.imageUrl && openImagePreview(viewPhotoItem.imageUrl); $event.stopPropagation()"
+                                         ng-click="viewPhotoItem.activeImageUrl && openImagePreview(viewPhotoItem.activeImageUrl); $event.stopPropagation()"
                                          role="button"
                                          title="Click to enlarge" />
 
-                                    <img ng-if="!viewPhotoItem.imageUrl"
+                                    <img ng-if="!viewPhotoItem.activeImageUrl"
                                          src="@Url.Content("~/Content/img/shared/default-product.svg")"
                                          alt="No image"
                                          class="product-view-img" />
                                 </div>
 
-                                <div ng-if="!viewPhotoItem.imageUrl && !showArchivedInventory" class="mt-2">
+                                <div class="inventory-detail-thumbs mt-2" ng-if="viewPhotoItem.images && viewPhotoItem.images.length > 1">
+                                    <button type="button"
+                                            class="inventory-detail-thumb-btn"
+                                            ng-repeat="thumb in viewPhotoItem.images track by ($index + '-' + thumb.imageUrl)"
+                                            ng-class="{'is-active': viewPhotoItem.activeImageUrl === thumb.imageUrl}"
+                                            ng-click="setActiveInventoryViewImage(thumb.imageUrl)">
+                                        <img ng-src="{{thumb.imageUrl}}" alt="Product thumbnail {{$index + 1}}" />
+                                    </button>
+                                </div>
+
+                                <div ng-if="!viewPhotoItem.activeImageUrl && !showArchivedInventory" class="mt-2">
                                     <a href="javascript:void(0)" class="text-primary" ng-click="closeViewPhotoAndEdit(viewPhotoItem)">Add Photo</a>
                                 </div>
                             </div>
@@ -847,7 +882,7 @@
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" maxlength="30" ng-model="editProduct.name" />
-                                    <small class="text-muted">Max 30 characters.</small>
+                                    <small class="text-muted">Up to 30 characters.</small>
                                 </div>
                             </div>
 
@@ -858,7 +893,9 @@
                                 <div class="col-sm-7">
                                     <select class="form-select delivery-input-field"
                                             ng-model="editProduct.category"
-                                            ng-options="c for c in productCategories">
+                                            ng-change="onEditInventoryCategoryChange()">
+                                        <option value="">Select a Category</option>
+                                        <option ng-repeat="c in productCategories" ng-value="c">{{c}}</option>
                                     </select>
                                 </div>
                             </div>
@@ -868,7 +905,7 @@
                                     <label class="delivery-label">Selling Price: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="number" step="0.01" class="form-control delivery-input-field" ng-model="editProduct.price">
+                                    <input type="number" step="0.01" min="0" class="form-control delivery-input-field" placeholder="55990.00" ng-model="editProduct.price" onkeydown="if(event.key === '-') event.preventDefault();" />
                                 </div>
                             </div>
 
@@ -892,8 +929,8 @@
                                     <label class="delivery-label">Stones: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.stones">
-                                    <small class="text-muted">Max 50 characters.</small>
+                                    <input type="text" class="form-control delivery-input-field" maxlength="50" list="inventoryStonesSuggest" placeholder="e.g., 5 Total Carat Diamond" ng-model="editProduct.stones">
+                                    <small class="text-muted">Up to 50 characters.</small>
                                 </div>
                             </div>
 
@@ -902,8 +939,20 @@
                                     <label class="delivery-label">Material: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.material">
-                                    <small class="text-muted">Max 50 characters.</small>
+                                    <select class="form-select delivery-input-field"
+                                            ng-model="editProduct.materialSelect"
+                                            ng-change="onEditInventoryMaterialSelectChange()">
+                                        <option value="">Select a material</option>
+                                        <option ng-repeat="m in inventoryMaterialOptions track by m" ng-value="m">{{m}}</option>
+                                        <option ng-value="inventoryMaterialOtherSentinel">Other...</option>
+                                    </select>
+                                    <input type="text"
+                                           class="form-control delivery-input-field mt-2"
+                                           maxlength="50"
+                                           ng-show="editProduct.materialSelect === inventoryMaterialOtherSentinel"
+                                           ng-model="editProduct.materialCustom"
+                                           placeholder="Enter material..." />
+                                    <small class="text-muted" ng-show="editProduct.materialSelect === inventoryMaterialOtherSentinel">Other: up to 50 characters.</small>
                                 </div>
                             </div>
 
@@ -912,15 +961,9 @@
                                     <label class="delivery-label">Color:</label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <select class="form-control delivery-input-field" ng-model="editProduct.color">
-                                        <option value="">-- Select Color --</option>
-                                        <option value="White">White</option>
-                                        <option value="Gold">Gold</option>
-                                        <option value="Silver">Silver</option>
-                                        <option value="Blue">Blue</option>
-                                        <option value="Green">Green</option>
-                                        <option value="Red">Red</option>
-                                        <option value="Purple">Purple</option>
+                                    <select class="form-select delivery-input-field" ng-model="editProduct.color">
+                                        <option value="">Select a color (optional)</option>
+                                        <option ng-repeat="c in inventoryProductColors" ng-value="c">{{c}}</option>
                                     </select>
                                 </div>
                             </div>
@@ -930,12 +973,20 @@
                                     <label class="delivery-label">Ring Size (US): <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="number" step="0.5" min="1" max="16"
+                                    <input type="number"
                                            class="form-control delivery-input-field"
-                                           placeholder="e.g., 7"
+                                           ng-class="{'is-invalid': editProductRingSizeFieldError}"
+                                           min="{{inventoryRingSizeMin}}"
+                                           max="{{inventoryRingSizeMax}}"
+                                           step="0.5"
+                                           inputmode="decimal"
+                                           placeholder="e.g. 7 or 6.5"
                                            ng-model="editProduct.ringSize"
-                                           onkeydown="if(event.key === '-') event.preventDefault();" />
-                                    <small class="text-muted">US ring size (numeric). Required for rings.</small>
+                                           ng-required="editProduct.category === 'Ring'"
+                                           ng-blur="validateInventoryRingSizeField('edit')"
+                                           onkeydown="if(event.key === '-' || event.key === 'e' || event.key === 'E' || event.key === '+') event.preventDefault();" />
+                                    <p class="text-danger small mb-1" ng-if="editProductRingSizeFieldError">{{editProductRingSizeFieldError}}</p>
+                                    <small class="text-muted">Half sizes allowed (e.g. 6.5).</small>
                                 </div>
                             </div>
 
@@ -945,7 +996,7 @@
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.weight">
-                                    <small class="text-muted">Max 50 characters.</small>
+                                    <small class="text-muted">Up to 50 characters.</small>
                                 </div>
                             </div>
 
@@ -955,7 +1006,7 @@
                                 </div>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control delivery-input-field" maxlength="50" ng-model="editProduct.length">
-                                    <small class="text-muted">Max 50 characters.</small>
+                                    <small class="text-muted">Up to 50 characters.</small>
                                 </div>
                             </div>
 
@@ -971,14 +1022,25 @@
                                 </div>
                             </div>
 
-                            <div class="row mb-4 align-items-center">
+                            <div class="row mb-4 align-items-start">
                                 <div class="col-sm-5">
-                                    <label class="delivery-label">Photo:</label>
+                                    <label class="delivery-label">Photos: <span class="delivery-required">*</span></label>
                                 </div>
                                 <div class="col-sm-7">
-                                    <input type="file" class="form-control delivery-input-field" accept=".jpg,.jpeg,.png" ng-class="{'is-invalid': inventoryEditFileValidationMessage}"
-                                           onchange="angular.element(this).scope().onInventoryEditFileSelected(this.files)" />
-                                    <small class="text-muted">PNG or JPG, less than 5MB. Leave empty to keep current.</small>
+                                    <input type="file" id="inventoryEditPhotoInput" class="d-none" accept=".jpg,.jpeg,.png" multiple
+                                           onchange="angular.element(this).scope().onInventoryFilesSelected(this.files, 'edit')" />
+                                    <button type="button" class="btn btn-outline-secondary btn-sm mb-2" ng-click="triggerInventoryImagePicker('edit')">Add photo(s)</button>
+                                    <small class="text-muted d-block mb-2">JPG or PNG, up to 5 MB each. Keep 1-5 images.</small>
+                                    <div class="inventory-image-grid">
+                                        <div class="inventory-image-card" ng-repeat="img in editProductImages track by img.localId">
+                                            <img ng-src="{{img.previewUrl}}" alt="Product image preview" class="inventory-image-thumb" />
+                                            <div class="mt-2 d-flex gap-1 flex-wrap">
+                                                <button type="button" class="btn btn-outline-dark btn-xs" ng-click="setPrimaryInventoryImage('edit', img.localId)" ng-disabled="img.isPrimary">Set Primary</button>
+                                                <button type="button" class="btn btn-outline-danger btn-xs" ng-click="removeInventoryImage('edit', img.localId)">Remove</button>
+                                            </div>
+                                            <small class="d-block mt-1" ng-class="img.isPrimary ? 'text-success fw-bold' : 'text-muted'">{{img.isPrimary ? 'Primary' : 'Secondary'}}</small>
+                                        </div>
+                                    </div>
                                     <p class="text-danger small mt-1 mb-0" ng-if="inventoryEditFileValidationMessage">{{inventoryEditFileValidationMessage}}</p>
                                 </div>
                             </div>

@@ -107,7 +107,7 @@
                                         </div>
                                         <div>
                                             <label class="orderDetails-infoLabel">Contact No</label>
-                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.contactNumber}}</p>
+                                            <p class="orderDetails-infoValue">{{formatPhilippineContactDisplay(selectedOrderDetails.contactNumber)}}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -119,7 +119,7 @@
                                         </h5>
                                         <p class="fw-bold mb-1">{{selectedOrderDetails.customerName}}</p>
                                         <p class="mb-1 text-break">{{selectedOrderDetails.deliveryAddress}}</p>
-                                        <p class="mb-0 text-muted small">Contact: {{selectedOrderDetails.contactNumber}}</p>
+                                        <p class="mb-0 text-muted small">Contact: {{formatPhilippineContactDisplay(selectedOrderDetails.contactNumber)}}</p>
                                     </div>
                                 </div>
                                 <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="selectedOrderDetails.billingAddress && selectedOrderDetails.billingAddress !== selectedOrderDetails.deliveryAddress">

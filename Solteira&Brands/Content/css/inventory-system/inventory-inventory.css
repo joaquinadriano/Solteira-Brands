@@ -8,6 +8,59 @@ html, body {
     object-fit: cover;
 }
 
+.inventory-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.75rem;
+}
+
+.inventory-image-card {
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: #fff;
+}
+
+.inventory-image-thumb {
+    width: 100%;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.btn-xs {
+    font-size: 0.7rem;
+    padding: 0.18rem 0.42rem;
+}
+
+.inventory-detail-thumbs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.inventory-detail-thumb-btn {
+    border: 1px solid #d5d5d5;
+    border-radius: 6px;
+    background: #fff;
+    padding: 0;
+    cursor: pointer;
+}
+
+.inventory-detail-thumb-btn img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    display: block;
+    border-radius: 5px;
+}
+
+.inventory-detail-thumb-btn.is-active {
+    border-color: #87AE73;
+    box-shadow: 0 0 0 1px #87AE73;
+}
+
 .view-prod {
     background-color: white !important;
     border-radius: 0.8vw !important;

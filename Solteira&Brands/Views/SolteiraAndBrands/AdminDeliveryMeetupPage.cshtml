@@ -30,7 +30,7 @@
                             <td data-order="{{o.meetupOutcomeId || 0}}">{{o.meetupOutcomeId ? ('CTM-' + o.meetupOutcomeId) : '-'}}</td>
                             <td data-order="{{o.id || 0}}">{{o.orderNumber}}</td>
                             <td>{{o.customerName}}</td>
-                            <td>{{o.deliveryAddress}}</td>
+                            <td>{{ (o.deliveryAddress || '').indexOf('Cash through meetup') >= 0 ? 'Meetup pickup' : o.deliveryAddress }}</td>
                             <td>&#8369; {{o.totalAmount | number:2}}</td>
                             <td>
                                 <span class="badge"
@@ -39,31 +39,31 @@
                                           'bg-success': o.orderStatus === 'Completed',
                                           'bg-danger': o.orderStatus === 'Cancelled'
                                       }">
-                                    {{o.orderStatus}}
+                                    {{(o.orderStatus === 'Ready for Meetup' && !o.scheduledAtFormatted) ? 'Awaiting Schedule' : o.orderStatus}}
                                 </span>
                             </td>
                             <td>{{o.scheduledAtFormatted || '-'}}</td>
                             <td class="table-col-actions">
                                 <div class="d-flex justify-content-center align-items-center flex-wrap gap-1">
+                                <button type="button" class="btn btn-sm btn-success px-2" title="Schedule meetup"
+                                        ng-click="openScheduleMeetupModal(o)"
+                                        ng-if="o.needsMeetupSchedule">
+                                    <i class="bi bi-calendar-check"></i>
+                                </button>
                                 <button type="button" class="btn btn-sm btn-success"
                                         ng-click="completeMeetupWithReceipt(o.id)"
-                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
+                                        ng-if="(o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled') && o.scheduledAt">
                                     Mark Completed (upload proof)
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                <button type="button" class="btn btn-sm btn-danger"
                                         ng-click="updateMeetupOutcome(o.id, 'NO_SHOW')"
-                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled'">
+                                        ng-if="(o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled') && o.scheduledAt">
                                     Mark No Show
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         ng-click="openRescheduleModal(o)"
-                                        ng-if="o.orderStatus === 'No Show'">
+                                        ng-if="o.orderStatus === 'No Show' || ((o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled') && o.scheduledAt)">
                                     Reschedule
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger"
-                                        ng-click="updateMeetupOutcome(o.id, 'CANCELLED')"
-                                        ng-if="o.orderStatus === 'Ready for Meetup' || o.orderStatus === 'Meetup Rescheduled' || o.orderStatus === 'No Show'">
-                                    Cancel
                                 </button>
                                 </div>
                             </td>
@@ -97,11 +97,15 @@
                                     <div class="card-body p-4">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <h4 class="fw-bold mb-0">Order {{meetupDetail.orderSummary.orderNumber}}</h4>
-                                            <span class="orderDetails-badgeNew">{{meetupDetail.orderSummary.orderStatus}}</span>
+                                            <span class="orderDetails-badgeNew">{{(meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' && !meetupDetail.scheduledAtFormatted) ? 'Awaiting Schedule' : meetupDetail.orderSummary.orderStatus}}</span>
                                         </div>
                                         <div class="mt-2" ng-if="meetupDetail.scheduledAtFormatted">
                                             <label class="orderDetails-infoLabel">Scheduled</label>
                                             <p class="orderDetails-infoValue mb-0">{{meetupDetail.scheduledAtFormatted}}</p>
+                                        </div>
+                                        <div class="mt-2" ng-if="meetupDetail.orderCancellationReason && meetupDetail.orderSummary.orderStatus === 'Cancelled'">
+                                            <label class="orderDetails-infoLabel">Cancellation / No show reason</label>
+                                            <p class="orderDetails-infoValue mb-0 text-danger small">{{meetupDetail.orderCancellationReason}}</p>
                                         </div>
                                         <div class="mt-3" ng-if="meetupDetail.meetupOutcomeStatus">
                                             <label class="orderDetails-infoLabel">Latest outcome</label>
@@ -135,7 +139,7 @@
                                         </div>
                                         <div>
                                             <label class="orderDetails-infoLabel">Contact No</label>
-                                            <p class="orderDetails-infoValue">{{meetupDetail.orderSummary.contactNumber}}</p>
+                                            <p class="orderDetails-infoValue">{{formatPhilippineContactDisplay(meetupDetail.orderSummary.contactNumber)}}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -184,6 +188,68 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4"
+                                     ng-if="meetupDetail.installmentSchedule && meetupDetail.installmentSchedule.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-credit-card me-2 orderDetails-icon"></i>Payment Summary</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom">
+                                                    <tr class="text-muted small text-uppercase">
+                                                        <th>Payment</th>
+                                                        <th>Due Date</th>
+                                                        <th class="text-end">Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Proof</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="row in meetupDetail.installmentSchedule">
+                                                        <td class="fw-bold py-3">{{row.label}}</td>
+                                                        <td>{{row.dueDate}}</td>
+                                                        <td class="text-end">&#8369; {{row.amount | number:2}}</td>
+                                                        <td><span class="badge" ng-class="{'bg-success': row.status === 'Paid', 'bg-danger': row.status === 'Rejected' || row.status === 'Rejected - Please Resubmit' || row.status === 'Overdue', 'bg-warning text-dark': row.status === 'Awaiting Verification', 'bg-secondary': row.status === 'Pending'}">{{row.status}}</span></td>
+                                                        <td>
+                                                            <a ng-if="row.proofImageUrl" ng-href="{{row.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
+                                                            <span ng-if="!row.proofImageUrl" class="text-muted">No data available</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4"
+                                     ng-if="meetupDetail.paymentHistory && meetupDetail.paymentHistory.length">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold mb-3"><i class="bi bi-cash-stack me-2 orderDetails-icon"></i>Payment History</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-borderless align-middle mb-0">
+                                                <thead class="border-bottom">
+                                                    <tr class="text-muted small text-uppercase">
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Reference</th>
+                                                        <th>Proof</th>
+                                                        <th>Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="border-bottom" ng-repeat="p in meetupDetail.paymentHistory">
+                                                        <td class="fw-bold">&#8369; {{p.amount | number:2}}</td>
+                                                        <td><span class="badge" ng-class="getPaymentStatusBadgeClass(p.paymentStatus)">{{getPaymentStatusDisplayText(p.paymentStatus, p)}}</span></td>
+                                                        <td>{{p.referenceNumber || '-'}}</td>
+                                                        <td>
+                                                            <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
+                                                            <span ng-if="!p.proofImageUrl" class="text-muted">No data available</span>
+                                                        </td>
+                                                        <td>{{p.verifiedAt || p.createdAt}}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="card border-0 shadow-sm rounded-4">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3"><i class="bi bi-credit-card me-2 orderDetails-icon"></i>Order Summary</h5>
@@ -198,24 +264,25 @@
                     </div>
                     <div class="modal-footer border-0 p-4 flex-wrap"
                          ng-if="meetupDetail.orderSummary.orderStatus !== 'Completed' && meetupDetail.orderSummary.orderStatus !== 'Cancelled'">
+                        <button type="button" class="btn btn-success me-2 px-3" title="Schedule meetup"
+                                ng-click="closeMeetupViewModal(); openScheduleMeetupModal({ id: meetupDetail.orderSummary.id, needsMeetupSchedule: true });"
+                                ng-if="meetupDetail.scheduledAtFormatted == null && (meetupDetail.orderSummary.orderStatus === 'Ready for Meetup')">
+                            <i class="bi bi-calendar-check"></i>
+                        </button>
                         <button type="button" class="btn btn-success me-2"
                                 ng-click="completeMeetupWithReceipt(meetupDetail.orderSummary.id); closeMeetupViewModal();"
-                                ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">
+                                ng-if="(meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled') && meetupDetail.scheduledAtFormatted">
                             Mark Completed (upload proof)
                         </button>
-                        <button type="button" class="btn btn-outline-secondary me-2"
+                        <button type="button" class="btn btn-danger me-2"
                                 ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'NO_SHOW'); closeMeetupViewModal();"
-                                ng-if="meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled'">
+                                ng-if="(meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled') && meetupDetail.scheduledAtFormatted">
                             Mark No Show
                         </button>
                         <button type="button" class="btn btn-outline-primary me-2"
                                 ng-click="closeMeetupViewModal(); openRescheduleModal({ id: meetupDetail.orderSummary.id });"
-                                ng-if="meetupDetail.orderSummary.orderStatus === 'No Show'">
+                                ng-if="meetupDetail.orderSummary.orderStatus === 'No Show' || ((meetupDetail.orderSummary.orderStatus === 'Ready for Meetup' || meetupDetail.orderSummary.orderStatus === 'Meetup Rescheduled') && meetupDetail.scheduledAtFormatted)">
                             Reschedule
-                        </button>
-                        <button type="button" class="btn btn-danger me-2"
-                                ng-click="updateMeetupOutcome(meetupDetail.orderSummary.id, 'CANCELLED'); closeMeetupViewModal();">
-                            Cancel
                         </button>
                     </div>
                 </div>
@@ -252,9 +319,30 @@
                         <input type="date" class="form-control form-control-sm mb-2" ng-model="rescheduleDate" min="{{getMinMeetupDateReschedule()}}" ng-change="onRescheduleDateChange()" />
                         <label class="form-label">Time</label>
                         <select class="form-select form-select-sm" ng-model="rescheduleTime" ng-options="t for t in rescheduleTimeOptions"></select>
-                        <small class="text-muted">Business hours 10:00 AM - 5:00 PM.</small>
+                        <small class="text-muted">Business hours 8:00 AM - 7:00 PM.</small>
                         <div class="d-flex justify-content-end gap-2 mt-3">
                             <button type="button" class="delivery-btn-add" ng-click="confirmReschedule()">Reschedule</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @* Modal: First-time schedule (admin sets date/time for buyer) *@
+        <div class="modal fade" id="scheduleMeetupModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content delivery-form-box">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">Schedule meetup</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" ng-click="closeScheduleMeetupModal()"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control form-control-sm mb-2" ng-model="scheduleDate" min="{{getMinMeetupDateReschedule()}}" ng-change="onScheduleDateChange()" />
+                        <label class="form-label">Time</label>
+                        <select class="form-select form-select-sm" ng-model="scheduleTime" ng-options="t for t in scheduleTimeOptions"></select>
+                        <small class="text-muted">Business hours 8:00 AM - 7:00 PM.</small>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="delivery-btn-add" ng-click="confirmScheduleMeetup()">Save schedule</button>
                         </div>
                     </div>
                 </div>

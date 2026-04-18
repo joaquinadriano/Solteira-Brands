@@ -9,6 +9,13 @@ app.service("SolteiraAndBrandsService", function ($http) {
         });
     };
 
+    this.getInventoryDistinctMaterials = function () {
+        return $http({
+            method: "GET",
+            url: "/SolteiraAndBrands/GetInventoryDistinctMaterials"
+        });
+    };
+
     this.createProduct = function (productData) {
         return $http({
             method: "POST",
@@ -123,8 +130,11 @@ app.service("SolteiraAndBrandsService", function ($http) {
         return $http({ method: "POST", url: "/SolteiraAndBrands/CreateDelivery", params: params });
     };
 
-    this.updateDeliveryStatus = function (deliveryId, status) {
-        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateDeliveryStatus", params: { deliveryId: deliveryId, status: status } });
+    this.updateDeliveryStatus = function (deliveryId, status, failureReason, restoreStock) {
+        var params = { deliveryId: deliveryId, status: status };
+        if (failureReason != null && failureReason !== '') params.failureReason = failureReason;
+        if (typeof restoreStock === 'boolean') params.restoreStock = restoreStock;
+        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateDeliveryStatus", params: params });
     };
 
     this.getDeliveryDetailForAdmin = function (deliveryId) {
@@ -190,6 +200,10 @@ app.service("SolteiraAndBrandsService", function ($http) {
 
     this.rescheduleMeetup = function (orderId, meetupDate, meetupTime) {
         return $http({ method: "POST", url: "/SolteiraAndBrands/RescheduleMeetup", params: { orderId: orderId, meetupDate: meetupDate, meetupTime: meetupTime } });
+    };
+
+    this.scheduleMeetup = function (orderId, meetupDate, meetupTime) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/ScheduleMeetup", params: { orderId: orderId, meetupDate: meetupDate, meetupTime: meetupTime } });
     };
 
     this.markReadyForMeetup = function (orderId) {
@@ -296,7 +310,13 @@ app.service("SolteiraAndBrandsService", function ($http) {
     this.getLayawaySettingsForAdmin = function () {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetLayawaySettingsForAdmin" });
     };
-    this.updateLayawaySettings = function (downpaymentPercentage, monthsAllowed) {
-        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateLayawaySettings", params: { downpaymentPercentage: downpaymentPercentage, monthsAllowed: monthsAllowed } });
+    this.updateLayawaySettings = function (downpaymentPercentage) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdateLayawaySettings", params: { downpaymentPercentage: downpaymentPercentage } });
+    };
+    this.getPolicySettingsForAdmin = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetPolicySettingsForAdmin" });
+    };
+    this.updatePolicySetting = function (policyType, content) {
+        return $http({ method: "POST", url: "/SolteiraAndBrands/UpdatePolicySetting", params: { policyType: policyType, content: content || "" } });
     };
 });

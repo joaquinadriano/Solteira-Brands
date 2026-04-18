@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace Solteira_Brands.Models
 {
@@ -34,6 +35,8 @@ namespace Solteira_Brands.Models
         public string Length { get; set; }
         public int StockQuantity { get; set; }
         public int? ImageId { get; set; }
+        public List<int> ImageIds { get; set; }
+        public int? PrimaryImageId { get; set; }
         public bool IsBestSeller { get; set; }
         public bool IsFeatured { get; set; }
     }

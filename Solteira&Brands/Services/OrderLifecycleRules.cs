@@ -92,14 +92,17 @@ namespace Solteira_Brands.Services
                 case OrderStatus.ReadyForMeetup:
                     return target == OrderStatus.Completed
                         || target == OrderStatus.NoShow
+                        || target == OrderStatus.MeetupRescheduled
                         || target == OrderStatus.Cancelled;
 
                 case OrderStatus.NoShow:
-                    return target == OrderStatus.MeetupRescheduled;
+                    return target == OrderStatus.MeetupRescheduled
+                        || target == OrderStatus.Cancelled;
 
                 case OrderStatus.MeetupRescheduled:
                     return target == OrderStatus.Completed
                         || target == OrderStatus.NoShow
+                        || target == OrderStatus.MeetupRescheduled
                         || target == OrderStatus.Cancelled;
 
                 // Terminal states: no automatic transitions out.

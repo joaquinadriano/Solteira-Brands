@@ -41,14 +41,14 @@
                 <form name="loginForm" ng-submit="login()" class="d-flex flex-column align-items-center">
 
                     <div class="text-start mb-4 w-100">
-                        <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
+                        <label for="username" class="form-label">Email or username <span class="text-danger">*</span></label>
                         <input type="text" class="form-control custom-input"
-                               maxlength="14" pattern="^[^\s]{1,14}$"
+                               maxlength="150" autocomplete="username"
                                ng-class="{'is-invalid': loginErrors.username}"
                                id="username" ng-model="loginData.username"
                                ng-attr-title="{{loginErrors.username || undefined}}"
                                ng-change="onLoginFieldChange('username')"
-                               placeholder="Enter username" required />
+                               placeholder="Enter email or username" required />
                         <small class="error-text" ng-if="loginErrors.username">{{loginErrors.username}}</small>
                     </div>
 

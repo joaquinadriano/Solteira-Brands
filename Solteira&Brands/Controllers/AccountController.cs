@@ -124,12 +124,97 @@ namespace Solteira_Brands.Controllers
 
         private const string TokenTypeEmailVerification = "EmailVerification";
         private const string TokenTypePasswordReset = "PasswordReset";
+        /// <summary>How long emailed OTP codes remain valid (registration, forgot password, resend).</summary>
+        private const int OtpValiditySeconds = 60;
+        /// <summary>Max successful Resend OTP emails per browser session before a cooldown lock.</summary>
+        private const int MaxOtpResendEmailsPerSession = 5;
+        /// <summary>Cooldown after hitting <see cref="MaxOtpResendEmailsPerSession"/> resends.</summary>
+        private const int OtpResendLockMinutes = 15;
         private const string SessionPasswordResetEmail = "PasswordResetEmail";
         private const string SessionPasswordResetExpiry = "PasswordResetExpiry";
 
         /// <summary>
         /// Generate a cryptographically random 6-digit OTP and its SHA256 hash for storage.
         /// </summary>
+        private static string OtpResendRateBaseKey(string emailTrim, bool isForgot)
+        {
+            return "sb_otpresend_" + (isForgot ? "f_" : "r_") + (emailTrim ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private void ClearOtpResendRateLimitState(string emailTrim, bool isForgot)
+        {
+            if (Session == null || string.IsNullOrWhiteSpace(emailTrim)) return;
+            var baseKey = OtpResendRateBaseKey(emailTrim, isForgot);
+            Session.Remove(baseKey + "_count");
+            Session.Remove(baseKey + "_lock");
+        }
+
+        /// <summary>Returns false and sets errorMessage if resend is blocked (session lock or max resends).</summary>
+        private bool EnsureOtpResendAllowed(string emailTrim, bool isForgot, out string errorMessage)
+        {
+            errorMessage = null;
+            if (Session == null)
+            {
+                errorMessage = "Your browser must allow cookies to resend codes.";
+                return false;
+            }
+            var nowUtc = DateTime.UtcNow;
+            var baseKey = OtpResendRateBaseKey(emailTrim, isForgot);
+            var lockKey = baseKey + "_lock";
+            var countKey = baseKey + "_count";
+
+            if (Session[lockKey] is DateTime lockUntil)
+            {
+                if (lockUntil > nowUtc)
+                {
+                    var secs = (int)Math.Ceiling((lockUntil - nowUtc).TotalSeconds);
+                    var mins = secs / 60;
+                    if (mins >= 1)
+                        errorMessage = "Too many code emails. Please wait " + mins + " minute(s) before trying again.";
+                    else
+                        errorMessage = "Too many code emails. Please wait " + secs + " seconds before trying again.";
+                    return false;
+                }
+                Session.Remove(lockKey);
+                Session.Remove(countKey);
+            }
+
+            var cnt = 0;
+            try
+            {
+                cnt = Convert.ToInt32(Session[countKey] ?? 0);
+            }
+            catch
+            {
+                cnt = 0;
+            }
+
+            if (cnt >= MaxOtpResendEmailsPerSession)
+            {
+                Session[lockKey] = nowUtc.AddMinutes(OtpResendLockMinutes);
+                errorMessage = "Too many code emails. Please wait " + OtpResendLockMinutes + " minutes, then you can request codes again.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void RecordOtpResendSuccess(string emailTrim, bool isForgot)
+        {
+            if (Session == null || string.IsNullOrWhiteSpace(emailTrim)) return;
+            var countKey = OtpResendRateBaseKey(emailTrim, isForgot) + "_count";
+            var cnt = 0;
+            try
+            {
+                cnt = Convert.ToInt32(Session[countKey] ?? 0);
+            }
+            catch
+            {
+                cnt = 0;
+            }
+            Session[countKey] = cnt + 1;
+        }
+
         private static (string otpPlain, string otpHash) GenerateOtp()
         {
             var bytes = new byte[4];
@@ -148,27 +233,41 @@ namespace Solteira_Brands.Controllers
         }
 
         /// <summary>
-        /// POST: Validate username/password, create Forms auth cookie with role, return redirect URL.
+        /// POST: Validate email or username plus password, create Forms auth cookie with role, return redirect URL.
         /// </summary>
         [HttpPost]
         public ActionResult Login(string username, string password, bool rememberMe = false)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
             {
-                return Json(new { success = false, message = "Username and password are required." });
+                return Json(new { success = false, message = "Email or username and password are required." });
             }
-            var loginUsername = username.Trim();
-            if (loginUsername.Length > 14)
+            var loginId = username.Trim();
+            // Username registration max 14; email column max 150 (see tbl_users.email).
+            if (loginId.IndexOf('@') >= 0)
+            {
+                if (loginId.Length > 150)
+                    return Json(new { success = false, message = "Email must not exceed 150 characters." });
+            }
+            else if (loginId.Length > 14)
+            {
                 return Json(new { success = false, message = "Username must not exceed 14 characters." });
+            }
 
             using (var db = new SolteiraBrandsContext())
             {
                 var user = db.tbl_users
                     .Include("Role")
-                    .FirstOrDefault(u => u.Username == loginUsername && u.IsActive);
+                    .FirstOrDefault(u => u.Username == loginId && u.IsActive);
+                if (user == null && loginId.IndexOf('@') >= 0)
+                {
+                    user = db.tbl_users
+                        .Include("Role")
+                        .FirstOrDefault(u => u.Email == loginId && u.IsActive);
+                }
                 if (user == null)
                 {
-                    return Json(new { success = false, message = "Invalid username or password." });
+                    return Json(new { success = false, message = "Invalid email, username, or password." });
                 }
                 if (user.PasswordHash == "SEEDME" || string.IsNullOrEmpty(user.PasswordSalt))
                 {
@@ -176,7 +275,7 @@ namespace Solteira_Brands.Controllers
                 }
                 if (!PasswordHasher.Verify(password, user.PasswordHash, user.PasswordSalt))
                 {
-                    return Json(new { success = false, message = "Invalid username or password." });
+                    return Json(new { success = false, message = "Invalid email, username, or password." });
                 }
 
                 var roleName = user.Role?.Name ?? "BUYER";
@@ -217,7 +316,7 @@ namespace Solteira_Brands.Controllers
                     var log = new tblActivityLogModel
                     {
                         UserId = user.Id,
-                        Username = user.Username ?? loginUsername,
+                        Username = user.Username ?? loginId,
                         RoleName = roleName,
                         Action = "Login",
                         Module = "Auth",
@@ -291,6 +390,43 @@ namespace Solteira_Brands.Controllers
                 var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && u.IsActive);
                 if (user == null || user.IsVerified)
                     return RedirectToAction("SolteiraBrandsLogin", "SolteiraAndBrands");
+
+                // Unverified buyers hitting /verify after login never received a fresh code from this page alone
+                // (only Resend did). Issue a new OTP when there is no current unused, unexpired email-verification token.
+                var nowUtc = DateTime.UtcNow;
+                var hasFreshToken = db.tbl_verification_tokens.Any(t =>
+                    t.UserId == user.Id
+                    && t.TokenType == TokenTypeEmailVerification
+                    && !t.IsUsed
+                    && t.ExpiresAt > nowUtc);
+
+                if (!hasFreshToken)
+                {
+                    var (otpPlain, otpHash) = GenerateOtp();
+                    var expiresAt = nowUtc.AddSeconds(OtpValiditySeconds);
+                    var token = new tblVerificationTokenModel
+                    {
+                        UserId = user.Id,
+                        TokenValue = otpHash,
+                        TokenType = TokenTypeEmailVerification,
+                        ExpiresAt = expiresAt,
+                        IsUsed = false,
+                        CreatedAt = nowUtc
+                    };
+                    db.tbl_verification_tokens.Add(token);
+                    db.SaveChanges();
+
+                    var sent = EmailHelper.SendEmail(
+                        user.Email,
+                        "Verify your Solteira & Brands account",
+                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.FirstName),
+                        isBodyHtml: true);
+                    ViewBag.VerifyEmailSent = sent;
+                }
+                else
+                {
+                    ViewBag.VerifyEmailSent = true;
+                }
             }
 
             ViewBag.Email = emailTrim;
@@ -432,7 +568,7 @@ namespace Solteira_Brands.Controllers
                         }
 
                         if (db.tbl_users.Any(u => u.Username == trimmed && u.Id != user.Id))
-                            return Json(new { success = false, message = "Username already taken." });
+                            return Json(new { success = false, message = "Username already taken. Please try logging in." });
                         user.Username = trimmed;
                         if (isChangingUsername)
                             user.UsernameChangedAt = DateTime.UtcNow;
@@ -557,7 +693,7 @@ namespace Solteira_Brands.Controllers
                 }
                 if (db.tbl_users.Any(u => u.Username == (username ?? "").Trim()))
                 {
-                    errors["username"] = "Username already taken.";
+                    errors["username"] = "Username is already taken. Please choose another.";
                 }
 
                 if (errors.Count > 0)
@@ -595,8 +731,10 @@ namespace Solteira_Brands.Controllers
                 db.tbl_users.Add(user);
                 db.SaveChanges();
 
+                ClearOtpResendRateLimitState(user.Email, false);
+
                 var (otpPlain, otpHash) = GenerateOtp();
-                var expiresAt = DateTime.UtcNow.AddSeconds(30);
+                var expiresAt = DateTime.UtcNow.AddSeconds(OtpValiditySeconds);
                 var token = new tblVerificationTokenModel
                 {
                     UserId = user.Id,
@@ -612,7 +750,7 @@ namespace Solteira_Brands.Controllers
                 emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Verify your Solteira & Brands account",
-                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.FirstName),
                     isBodyHtml: true);
             }
 
@@ -665,7 +803,12 @@ namespace Solteira_Brands.Controllers
                 token.IsUsed = true;
                 user.IsVerified = true;
                 db.SaveChanges();
+
+                var welcomeBody = EmailHelper.BuildAccountCreatedEmailHtml(user.FirstName, user.Username, user.Email);
+                EmailHelper.SendEmail(user.Email, "Welcome to Solteira & Brands", welcomeBody, isBodyHtml: true);
             }
+
+            ClearOtpResendRateLimitState(emailTrim, false);
 
             return Json(new { success = true, message = "Email verified. You can now sign in." });
         }
@@ -689,7 +832,7 @@ namespace Solteira_Brands.Controllers
 
                 var (otpPlain, otpHash) = GenerateOtp();
                 var nowUtc = DateTime.UtcNow;
-                var expiresAt = nowUtc.AddSeconds(30);
+                var expiresAt = nowUtc.AddSeconds(OtpValiditySeconds);
                 var token = new tblVerificationTokenModel
                 {
                     UserId = user.Id,
@@ -705,16 +848,17 @@ namespace Solteira_Brands.Controllers
                 var emailSent = EmailHelper.SendEmail(
                     user.Email,
                     "Reset your Solteira & Brands password",
-                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                    EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.FirstName),
                     isBodyHtml: true);
                 if (!emailSent)
                     return Json(new { success = false, message = "We could not send the email. Please try again later." });
             }
+            ClearOtpResendRateLimitState(emailTrim, true);
             return Json(new { success = true, message = "Check your email for the verification code.", email = emailTrim });
         }
 
         /// <summary>
-        /// POST: Resend OTP. Accepts email and mode ("forgot" = password reset, otherwise email verification). Generates new OTP with 30-second expiry and sends email.
+        /// POST: Resend OTP. Accepts email and mode ("forgot" = password reset, otherwise email verification). Generates new OTP and sends email.
         /// </summary>
         [HttpPost]
         [AllowAnonymous]
@@ -725,6 +869,11 @@ namespace Solteira_Brands.Controllers
                 return Json(new { success = false, message = "Email is required." });
             var emailTrim = email.Trim();
             var isForgot = string.Equals(mode ?? "", "forgot", StringComparison.OrdinalIgnoreCase);
+
+            if (!EnsureOtpResendAllowed(emailTrim, isForgot, out var resendDenyMessage))
+                return Json(new { success = false, message = resendDenyMessage });
+
+            bool emailSent = false;
             using (var db = new SolteiraBrandsContext())
             {
                 var user = db.tbl_users.FirstOrDefault(u => u.Email == emailTrim && (isForgot ? u.IsActive : true));
@@ -733,7 +882,7 @@ namespace Solteira_Brands.Controllers
 
                 var (otpPlain, otpHash) = GenerateOtp();
                 var nowUtc = DateTime.UtcNow;
-                var expiresAt = nowUtc.AddSeconds(30);
+                var expiresAt = nowUtc.AddSeconds(OtpValiditySeconds);
                 var tokenType = isForgot ? TokenTypePasswordReset : TokenTypeEmailVerification;
                 var token = new tblVerificationTokenModel
                 {
@@ -747,13 +896,12 @@ namespace Solteira_Brands.Controllers
                 db.tbl_verification_tokens.Add(token);
                 db.SaveChanges();
 
-                bool emailSent;
                 if (isForgot)
                 {
                     emailSent = EmailHelper.SendEmail(
                         user.Email,
                         "Reset your Solteira & Brands password",
-                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.FirstName),
                         isBodyHtml: true);
                 }
                 else
@@ -761,13 +909,15 @@ namespace Solteira_Brands.Controllers
                     emailSent = EmailHelper.SendEmail(
                         user.Email,
                         "Verify your Solteira & Brands account",
-                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.Username),
+                        EmailHelper.BuildOtpEmailHtml(otpPlain, "Your One-Time Password is here!", user.FirstName),
                         isBodyHtml: true);
                 }
-                if (!emailSent)
-                    return Json(new { success = false, message = "We could not send the email. Please try again later." });
             }
-            return Json(new { success = true, message = "A new code has been sent to your email. It expires in 30 seconds.", email = emailTrim });
+            if (!emailSent)
+                return Json(new { success = false, message = "We could not send the email. Please try again later." });
+
+            RecordOtpResendSuccess(emailTrim, isForgot);
+            return Json(new { success = true, message = "A new code has been sent to your email. It expires in " + OtpValiditySeconds + " seconds.", email = emailTrim });
         }
 
         /// <summary>
@@ -811,6 +961,7 @@ namespace Solteira_Brands.Controllers
                 Session[SessionPasswordResetEmail] = emailTrim;
                 Session[SessionPasswordResetExpiry] = nowUtc.AddMinutes(10);
             }
+            ClearOtpResendRateLimitState(emailTrim, true);
             return Json(new { success = true, message = "Code verified. You can now set a new password.", email = emailTrim });
         }
 

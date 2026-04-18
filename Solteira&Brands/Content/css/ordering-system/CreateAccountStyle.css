@@ -33,6 +33,79 @@ body {
     padding: 2vw;
 }
 
+.register-form.position-relative {
+    position: relative;
+}
+
+.register-form-fieldset {
+    min-width: 0;
+    width: 100%;
+}
+
+.register-form-fieldset[disabled],
+.register-form-fieldset:disabled {
+    opacity: 1;
+}
+
+.register-form-fieldset[disabled] .custom-input,
+.register-form-fieldset[disabled] .form-check-input,
+.register-form-fieldset[disabled] .create-btn {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.register-busy-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(1px);
+}
+
+.register-busy-inner {
+    text-align: center;
+    padding: 1rem;
+}
+
+.register-busy-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0 auto 0.65rem auto;
+    border: 3px solid rgba(135, 174, 115, 0.25);
+    border-top-color: #87AE73;
+    border-radius: 50%;
+    animation: registerBusySpin 0.75s linear infinite;
+}
+
+.register-busy-caption {
+    font-family: "Nunito", sans-serif;
+    font-size: 0.95rem;
+    color: #333;
+    margin: 0;
+}
+
+@keyframes registerBusySpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.create-btn-loading {
+    cursor: progress;
+    opacity: 0.92;
+}
+
+.create-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
 .register-text {
     font-family: "Kaisei Tokumin";
     font-weight: bold;

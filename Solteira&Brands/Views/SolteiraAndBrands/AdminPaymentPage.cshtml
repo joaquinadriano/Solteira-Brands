@@ -60,7 +60,7 @@
 
     @* View Payment modal - Order Details style layout *@
     <div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-labelledby="paymentDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered payment-admin-detail-modal">
             <div class="modal-content orderDetails-modal-custom" style="background-color: #f8f9fa;" ng-if="paymentDetail">
 
                 <div class="modal-header border-0 px-4 pt-4 pb-0">
@@ -114,7 +114,7 @@
                                     </div>
                                     <div>
                                         <label class="orderDetails-infoLabel">Contact No</label>
-                                        <p class="orderDetails-infoValue">{{paymentDetail.orderSummary.contactNumber}}</p>
+                                        <p class="orderDetails-infoValue">{{formatPhilippineContactDisplay(paymentDetail.orderSummary.contactNumber)}}</p>
                                     </div>
                                 </div>
                             </div>
@@ -127,7 +127,7 @@
                                     </h5>
                                     <p class="fw-bold mb-1">{{paymentDetail.orderSummary.customerName}}</p>
                                     <p class="mb-1">{{paymentDetail.orderSummary.deliveryAddress}}</p>
-                                    <p class="mb-0 text-muted small">Contact: {{paymentDetail.orderSummary.contactNumber}}</p>
+                                    <p class="mb-0 text-muted small">Contact: {{formatPhilippineContactDisplay(paymentDetail.orderSummary.contactNumber)}}</p>
                                 </div>
                             </div>
                             <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="paymentDetail.orderSummary.billingAddress && paymentDetail.orderSummary.billingAddress !== paymentDetail.orderSummary.deliveryAddress">
@@ -140,7 +140,7 @@
                                 </div>
                             </div>
 
-                            <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="paymentDetail.deliveryInfo">
+                            <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="paymentDetail.deliveryInfo && paymentDetail.paymentOverview.paymentStatus !== 'REJECTED'">
                                 <div class="card-body p-4">
                                     <h5 class="fw-bold mb-3">
                                         <i class="bi bi-truck me-2 orderDetails-icon"></i>
@@ -189,8 +189,8 @@
                                         <i class="bi bi-calendar-check me-2 orderDetails-icon"></i>
                                         Installment Schedule
                                     </h5>
-                                    <div class="table-responsive">
-                                        <table class="table table-borderless align-middle mb-0">
+                                    <div class="table-responsive payment-admin-wide-table-wrap">
+                                        <table class="table table-borderless align-middle mb-0 payment-admin-detail-table">
                                             <thead class="border-bottom">
                                                 <tr class="text-muted small text-uppercase">
                                                     <th>Installment #</th>
@@ -204,9 +204,9 @@
                                             <tbody>
                                                 <tr class="border-bottom" ng-repeat="row in paymentDetail.installmentSchedule">
                                                     <td class="fw-bold py-3">{{row.label || ('Month ' + row.installmentNumber)}}</td>
-                                                    <td>{{row.dueDate}}</td>
-                                                    <td class="text-end">&#8369; {{row.amount | number:2}}</td>
-                                                    <td><span class="badge" ng-class="{'bg-success': row.status === 'Paid', 'bg-danger': row.status === 'Overdue', 'bg-secondary': row.status === 'Pending'}">{{row.status}}</span></td>
+                                                    <td class="text-nowrap">{{row.dueDate}}</td>
+                                                    <td class="text-end text-nowrap">&#8369; {{row.amount | number:2}}</td>
+                                                    <td><span class="badge" ng-class="{'bg-success': row.status === 'Paid', 'bg-danger': row.status === 'Overdue' || row.status === 'Rejected' || row.status === 'Rejected - Please Resubmit', 'bg-warning text-dark': row.status === 'Awaiting Verification', 'bg-secondary': row.status === 'Pending'}">{{row.status}}</span></td>
                                                     <td>
                                                         <a ng-if="row.proofImageUrl" ng-href="{{row.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
                                                         <span ng-if="!row.proofImageUrl" class="text-muted">No data available</span>
@@ -240,8 +240,8 @@
                                         <i class="bi bi-cash-stack me-2 orderDetails-icon"></i>
                                         Payment History
                                     </h5>
-                                    <div class="table-responsive">
-                                        <table class="table table-borderless align-middle mb-0">
+                                    <div class="table-responsive payment-admin-wide-table-wrap">
+                                        <table class="table table-borderless align-middle mb-0 payment-admin-detail-table">
                                             <thead class="border-bottom">
                                                 <tr class="text-muted small text-uppercase">
                                                     <th>Amount</th>
@@ -254,14 +254,14 @@
                                             </thead>
                                             <tbody>
                                                 <tr class="border-bottom" ng-repeat="p in paymentDetail.paymentHistory">
-                                                    <td class="fw-bold">&#8369; {{p.amount | number:2}}</td>
-                                                    <td><span class="badge" ng-class="getPaymentStatusBadgeClass(p.paymentStatus)">{{getPaymentStatusDisplayText(p.paymentStatus, p)}}</span></td>
+                                                    <td class="fw-bold text-nowrap">&#8369; {{p.amount | number:2}}</td>
+                                                    <td><span class="badge text-nowrap" ng-class="getPaymentStatusBadgeClass(p.paymentStatus)">{{getPaymentStatusDisplayText(p.paymentStatus, p)}}</span></td>
                                                     <td>{{p.referenceNumber || '-'}}</td>
                                                     <td>
                                                         <a ng-if="p.proofImageUrl" ng-href="{{p.proofImageUrl}}" target="_blank" class="btn btn-sm btn-outline-secondary">View proof</a>
                                                         <span ng-if="!p.proofImageUrl" class="text-muted">No data available</span>
                                                     </td>
-                                                    <td class="small">{{p.verifiedAt || p.createdAt}}</td>
+                                                    <td class="small text-nowrap">{{p.verifiedAt || p.createdAt}}</td>
                                                     <td class="small" ng-class="{'text-danger fw-bold': p.rejectionReason}">{{p.rejectionReason || '-'}}</td>
                                                 </tr>
                                             </tbody>
@@ -394,10 +394,6 @@
                             <div class="col-md-6">
                                 <label class="form-label small mb-0">Downpayment %</label>
                                 <input type="number" class="form-control form-control-sm" ng-model="paymentSettingsForm.downpaymentPercentage" min="1" max="100" step="0.01" placeholder="30" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small mb-0">Months allowed</label>
-                                <input type="number" class="form-control form-control-sm" ng-model="paymentSettingsForm.monthsAllowed" min="1" max="24" placeholder="3" />
                             </div>
                         </div>
                         <button type="button" class="btn btn-success btn-sm mt-2" ng-click="saveLayawaySettings()">Save Layaway</button>

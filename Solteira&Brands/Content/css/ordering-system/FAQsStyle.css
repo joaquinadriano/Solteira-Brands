@@ -63,6 +63,25 @@
     line-height: 1.5;
 }
 
+/* Bold inline link matching FAQ body color, not default hyperlink blue */
+.faq-container .content a.faq-instagram-link,
+.faq-container .content a.faq-instagram-link:visited {
+    color: #1e1e1e;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+}
+
+.faq-container .content a.faq-instagram-link:hover {
+    color: #1e1e1e;
+    text-decoration: underline;
+}
+
+.faq-container .content a.faq-instagram-link:focus-visible {
+    outline: 2px solid #87ae73;
+    outline-offset: 2px;
+}
+
 .faq-container .table {
     border-color: #87ae73;
     width: fit-content;

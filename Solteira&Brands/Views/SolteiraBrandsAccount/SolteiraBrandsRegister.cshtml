@@ -5,6 +5,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>Create Account | Solteira & Brands</title>
     <link rel="icon" type="image/png" href="@Url.Content("~/Content/img/shared/Solteira&BrandsMainLogo.png")" />
@@ -28,12 +29,13 @@
 
         <div class="register-details d-flex align-items-center justify-content-center">
 
-            <div class="register-form">
+            <div class="register-form position-relative">
 
                 <p class="register-text">Step into the Solteira & Brands world defined by elegance.</p>
 
                 <form name="registerForm" class="d-flex flex-column align-items-center" ng-submit="register(registerForm)">
                     @Html.AntiForgeryToken()
+                    <fieldset class="register-form-fieldset w-100 border-0 p-0 m-0 d-flex flex-column align-items-center" ng-disabled="registerSubmitting">
                     <div class="text-start mb-4 w-100">
                         <label for="email" class="form-label">
                             Email <span class="text-danger">*</span>
@@ -194,11 +196,21 @@
 
                     <button type="submit"
                             class="create-btn w-35"
-                            ng-disabled="registerErrors.email || registerErrors.username || registerErrors.firstName || registerErrors.lastName || registerErrors.password || registerErrors.verifyPassword || registerErrors.acceptedTerms || !registerData.acceptedTerms || !registerData.firstName || !registerData.lastName">
-                        CREATE
+                            ng-class="{'create-btn-loading': registerSubmitting}"
+                            ng-disabled="registerSubmitting || registerErrors.email || registerErrors.username || registerErrors.firstName || registerErrors.lastName || registerErrors.password || registerErrors.verifyPassword || registerErrors.acceptedTerms || !registerData.acceptedTerms || !registerData.firstName || !registerData.lastName">
+                        <span ng-hide="registerSubmitting">CREATE</span>
+                        <span ng-show="registerSubmitting">CREATING...</span>
                     </button>
+                    </fieldset>
 
                 </form>
+
+                <div class="register-busy-overlay" ng-show="registerSubmitting" ng-attr-aria-busy="{{ registerSubmitting ? 'true' : 'false' }}" aria-live="polite">
+                    <div class="register-busy-inner">
+                        <div class="register-busy-spinner" role="status"></div>
+                        <p class="register-busy-caption">Creating your account...</p>
+                    </div>
+                </div>
 
                 <!-- Terms & Conditions Modal -->
                 <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
@@ -209,64 +221,7 @@
                             </div>
                             <div class="modal-body">
                                 <div class="sb-policy-scroll" id="termsPolicyScroll">
-                                    <p class="mb-3">Welcome to Solteira &amp; Brands. By creating an account, you agree to the following terms:</p>
-                                    <ol class="mb-0">
-                                        <li>
-                                            Account Responsibility
-                                            <br />
-                                            You are responsible for maintaining the confidentiality of your account credentials and all activities under your account.
-                                        </li>
-                                        <li>
-                                            Use of the Platform
-                                            <br />
-                                            You agree not to misuse the website, attempt unauthorized access, or disrupt system functionality.
-                                        </li>
-                                        <li>
-                                            Manual Payment System
-                                            <br />
-                                            All payments are processed manually via GCash, bank transfer, or meetup.
-                                            Users are required to upload proof of payment after completing a transaction.
-                                        </li>
-                                        <li>
-                                            Payment Verification
-                                            <br />
-                                            All submitted payments are subject to admin verification.
-                                            Orders will only be confirmed once payment is validated.
-                                            We reserve the right to reject invalid or suspicious proof of payment.
-                                        </li>
-                                        <li>
-                                            Order Cancellation
-                                            <br />
-                                            Orders that remain unpaid within two (2) to three (3) business days may be cancelled.
-                                        </li>
-                                        <li>
-                                            Pricing and Availability
-                                            <br />
-                                            Prices and product availability may change without prior notice.
-                                        </li>
-                                        <li>
-                                            Shipping Policy
-                                            <br />
-                                            Shipping is free of charge for all orders.
-                                            Delivery timelines may vary depending on location and courier conditions.
-                                        </li>
-                                        <li>
-                                            No Return / No Refund Policy
-                                            <br />
-                                            All sales are final.
-                                            No returns, exchanges, or refunds are allowed once payment is verified and approved.
-                                        </li>
-                                        <li>
-                                            Limitation of Liability
-                                            <br />
-                                            Solteira &amp; Brands is not liable for delays, losses, or damages beyond our control.
-                                        </li>
-                                        <li>
-                                            Modifications
-                                            <br />
-                                            We may update these Terms at any time. Continued use of the platform means acceptance of updates.
-                                        </li>
-                                    </ol>
+                                    <div style="white-space: pre-line;" ng-bind="publicPolicies.termsAndConditions"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -286,36 +241,7 @@
                             </div>
                             <div class="modal-body">
                                 <div class="sb-policy-scroll" id="privacyPolicyScroll">
-                                    <p class="mb-3">We value your privacy and are committed to protecting your personal data.</p>
-
-                                    <h6 class="sb-policy-subtitle">1. Information We Collect</h6>
-                                    <ul class="mb-3">
-                                        <li>Name</li>
-                                        <li>Email address</li>
-                                        <li>Contact number</li>
-                                        <li>Shipping address</li>
-                                        <li>Account credentials</li>
-                                    </ul>
-
-                                    <h6 class="sb-policy-subtitle">2. How We Use Your Data</h6>
-                                    <ul class="mb-3">
-                                        <li>To process orders</li>
-                                        <li>To verify payments</li>
-                                        <li>To provide customer support</li>
-                                        <li>To improve our services</li>
-                                    </ul>
-
-                                    <h6 class="sb-policy-subtitle">3. Data Protection</h6>
-                                    <p class="mb-3">We implement security measures to protect your data from unauthorized access.</p>
-
-                                    <h6 class="sb-policy-subtitle">4. Data Sharing</h6>
-                                    <p class="mb-3">We only share necessary data with payment providers and delivery services when required.</p>
-
-                                    <h6 class="sb-policy-subtitle">5. Data Retention</h6>
-                                    <p class="mb-0">Your data is stored only as long as necessary for business and legal purposes.</p>
-
-                                    <h6 class="sb-policy-subtitle">6. Updates</h6>
-                                    <p class="mb-0">We may update this policy. Continued use means acceptance of changes.</p>
+                                    <div style="white-space: pre-line;" ng-bind="publicPolicies.privacyPolicy"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">

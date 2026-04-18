@@ -1,0 +1,433 @@
+--------------------------------------------------
+SYSTEM OVERVIEW
+--------------------------------------------------
+Solteira & Brands is an ASP.NET MVC + Entity Framework 6 storefront backed by MySQL/MariaDB (`SolteiraBrandsConnection`). Buyers browse `tbl_products`, manage a per-user `tbl_carts` / `tbl_cart_items`, and place orders into `tbl_orders` with snapshot line items in `tbl_order_items`. Stock is decremented when an order is created. Staff roles (ADMIN, MANAGER, STAFF) approve or reject orders, verify bank/GCash payment proofs in `tbl_payments`, manage courier shipments via `tbl_deliveries`, and record cash-meetup outcomes in `tbl_meetup_outcomes`. Layaway uses `tbl_orders.payment_type = LAYAWAY`, `tbl_layaway_settings`, multiple verified payments, and monthly `payment_deadline` anchors from order creation. Payment deadlines and reminder emails are enforced by `OrderDeadlineService` (timer job). Audit entries go to `tbl_activity_logs`. Authentication is Forms Authentication with roles embedded in the ticket; buyers must complete email OTP verification (`tbl_verification_tokens`) before login succeeds.
+
+--------------------------------------------------
+ENTITIES (ACTUAL DATABASE STRUCTURE)
+--------------------------------------------------
+Source of truth: EF6 entity classes under `Solteira&Brands/Models`, column mappings under `Models/Maps`, and `Scripts/SQL/CreateTables_And_Seed.sql` for physical MySQL constraints. Below: logical table name = EF `ToTable` name; attributes use C# property names with SQL column names in parentheses where they differ.
+
+Table Name: tbl_roles
+Description: Named security roles for the application.
+Attributes:
+    - Id (int, id) – primary key
+    - Name (string, name) – e.g. ADMIN, MANAGER, STAFF, BUYER
+    - Description (string, description)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: (none)
+
+Table Name: tbl_users
+Description: Accounts; buyers self-register; staff/admin seeded or managed separately.
+Attributes:
+    - Id (int, id)
+    - RoleId (int, role_id)
+    - Email (string, email)
+    - FirstName (string, first_name)
+    - LastName (string, last_name)
+    - Username (string, username)
+    - PasswordHash (string, password_hash)
+    - PasswordSalt (string, password_salt)
+    - IsVerified (bool, is_verified)
+    - IsActive (bool, is_active)
+    - MustChangePassword (bool, must_change_password)
+    - CreatedAt (DateTime, created_at)
+    - UsernameChangedAt (DateTime?, username_changed_at) – 30-day username change cooldown
+    - AcceptedTerms (bool, accepted_terms)
+    - AcceptedAt (DateTime?, accepted_at)
+    - AvatarImageId (int?, avatar_image_id)
+Primary Key: id
+Foreign Keys: role_id → tbl_roles.id (RESTRICT delete); avatar_image_id → tbl_images.id (optional, SET NULL on image delete in SQL)
+
+Note: SQL migration script adds auth_provider (LOCAL default) for future OAuth; this column is not mapped on `tblUsersModel` and is ignored by EF.
+
+Table Name: tbl_verification_tokens
+Description: Hashed OTP / token storage for email verification and password reset.
+Attributes:
+    - Id (int, id)
+    - UserId (int, user_id)
+    - TokenValue (string, token_value) – SHA256 hash of OTP, not plaintext
+    - TokenType (string, token_type) – e.g. EmailVerification, PasswordReset
+    - ExpiresAt (DateTime, expires_at)
+    - IsUsed (bool, is_used)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: user_id → tbl_users.id (CASCADE in SQL / EF)
+
+Table Name: tbl_images
+Description: Stored file metadata for avatars, product images, QR codes, payment proofs, meetup receipts.
+Attributes:
+    - Id (int, id)
+    - ImagePath (string, image_path) – URL path prefix
+    - ImageFileName (string, image_file_name)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime, updated_at)
+Primary Key: id
+Foreign Keys: (none)
+
+Table Name: tbl_products
+Description: Jewelry/catalog items; category is a string field, not a normalized category table.
+Attributes:
+    - Id (int, id)
+    - Name (string, name) – max 30 (`ProductFieldConstraints.MaxNameLength`)
+    - Category (string, category)
+    - Description (string, description)
+    - Price (decimal, price)
+    - Material, Stones, Weight, Length (string, material/stones/weight/length) – max 50 each
+    - StockQuantity (int, stock_quantity)
+    - InitialStock (int?, initial_stock)
+    - ImageId (int?, image_id)
+    - IsBestSeller (bool, is_best_seller)
+    - IsFeatured (bool, is_featured)
+    - IsArchived (bool, is_archived)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime, updated_at)
+Primary Key: id
+Foreign Keys: SQL defines image_id → tbl_images.id (SET NULL); EF does not configure a navigation property on the product entity.
+
+Table Name: tbl_carts
+Description: One active cart per buyer (`IsActive`); created on demand.
+Attributes:
+    - Id (int, id)
+    - UserId (int, user_id)
+    - IsActive (bool, is_active)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime?, updated_at)
+Primary Key: id
+Foreign Keys: SQL: user_id → tbl_users.id (CASCADE); EF map has no `User` navigation.
+
+Table Name: tbl_cart_items
+Description: Product lines inside a cart; unique (cart_id, product_id) in SQL.
+Attributes:
+    - Id (int, id)
+    - CartId (int, cart_id)
+    - ProductId (int, product_id)
+    - Quantity (int, quantity)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime?, updated_at)
+Primary Key: id
+Foreign Keys: SQL: cart_id → tbl_carts.id (CASCADE), product_id → tbl_products.id (RESTRICT); EF map has no navigations.
+
+Table Name: tbl_orders
+Description: Buyer checkout order header; drives payment, delivery, and meetup state machines.
+Attributes:
+    - Id (int, id)
+    - UserId (int, user_id)
+    - OrderNumber (string, order_number) – assigned ORD-{Id} after insert
+    - CustomerName (string, customer_name)
+    - ContactNumber (string, contact_number)
+    - DeliveryAddress (string, delivery_address) – max 100
+    - PaymentMethod (string, payment_method) – display label from checkout
+    - PaymentType (string, payment_type) – FULL, LAYAWAY, or CASH_MEETUP (derived at create)
+    - TotalAmount (decimal, total_amount)
+    - RemainingBalance (decimal, remaining_balance)
+    - OrderStatus (string, order_status) – see OrderStatus constants
+    - PaymentDeadline (DateTime?, payment_deadline) – UTC; null when not enforcing
+    - PaymentDeadlineReminderSentFor (DateTime?, payment_deadline_reminder_sent_for)
+    - PaymentDeadlineReminderSentAt (DateTime?, payment_deadline_reminder_sent_at)
+    - CancellationReason (string, cancellation_reason)
+    - InventoryReleased (bool, inventory_released) – prevents double stock restore
+    - IsLayaway (bool, is_layaway)
+    - DeliveryType (string, delivery_type) – COURIER or MEETUP
+    - MeetupDatetime (DateTime?, meetup_datetime)
+    - RejectionReason (string, rejection_reason)
+    - CreatedAt (DateTime, created_at)
+    - LastStatusUpdateAt (DateTime?, last_status_update_at)
+    - IsArchived (bool, is_archived)
+Primary Key: id
+Foreign Keys: user_id → tbl_users.id (RESTRICT)
+
+Table Name: tbl_order_items
+Description: Snapshot of ordered products (denormalized name/price/image URL).
+Attributes:
+    - Id (int, id)
+    - OrderId (int, order_id)
+    - ProductId (int?, product_id)
+    - ProductName (string, product_name)
+    - Quantity (int, quantity)
+    - UnitPrice (decimal, unit_price)
+    - ImageUrl (string, image_url)
+Primary Key: id
+Foreign Keys: order_id → tbl_orders.id (CASCADE); SQL optional FK product_id → tbl_products.id (SET NULL); EF has no Product navigation.
+
+Table Name: tbl_payments
+Description: One row per buyer submission; staff verifies or rejects.
+Attributes:
+    - Id (int, id)
+    - OrderId (int, order_id)
+    - Amount (decimal, amount)
+    - PaymentStatus (string, payment_status) – see PaymentStatus constants (stored upper-case)
+    - RejectionReason (string, rejection_reason)
+    - ProofImageId (int?, proof_image_id)
+    - ReferenceNumber (string, reference_number)
+    - MeetupDatetime (DateTime?, meetup_datetime)
+    - PaymentChannel (string, payment_channel)
+    - VerifiedByUserId (int?, verified_by_user_id)
+    - CreatedAt (DateTime, created_at)
+    - VerifiedAt (DateTime?, verified_at)
+    - AllowResubmit (int, allow_resubmit) – 0 final reject, 1 may resubmit
+Primary Key: id
+Foreign Keys: order_id → tbl_orders.id (CASCADE); proof_image_id → tbl_images.id (optional); verified_by_user_id → tbl_users.id (optional)
+
+Table Name: tbl_deliveries
+Description: Shipment tracking rows for courier orders; meetup rows may exist for operational listing.
+Attributes:
+    - Id (int, id)
+    - OrderId (int, order_id)
+    - DeliveryType (string, delivery_type)
+    - Courier (string, courier)
+    - DispatchDate (DateTime?, dispatch_date)
+    - Eta (DateTime?, eta)
+    - TrackingNumber (string, tracking_number)
+    - TrackingLink (string, tracking_link)
+    - MeetupDatetime (DateTime?, meetup_datetime)
+    - DeliveryStatus (string, delivery_status)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime, updated_at)
+Primary Key: id
+Foreign Keys: order_id → tbl_orders.id (CASCADE)
+
+Table Name: tbl_meetup_outcomes
+Description: Append-only-style outcomes for meetup flow (ready, completed, no-show, cancelled).
+Attributes:
+    - Id (int, id)
+    - OrderId (int, order_id)
+    - Status (string, status) – e.g. READY_FOR_MEETUP, COMPLETED, NO_SHOW, CANCELLED
+    - ReceiptImageId (int?, receipt_image_id)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: order_id → tbl_orders.id (CASCADE); receipt_image_id → tbl_images.id (optional). EF does not expose a collection on `tblOrdersModel` for outcomes.
+
+Table Name: tbl_payment_settings
+Description: Active GCash / bank transfer display details for buyers.
+Attributes:
+    - Id (int, id)
+    - PaymentType (string, payment_type) – GCASH, BANK_TRANSFER
+    - AccountName (string, account_name)
+    - AccountNumber (string, account_number)
+    - QrImageId (int?, qr_image_id)
+    - IsActive (bool, is_active)
+    - CreatedAt (DateTime, created_at)
+    - UpdatedAt (DateTime, updated_at)
+Primary Key: id
+Foreign Keys: qr_image_id → tbl_images.id (optional)
+
+Table Name: tbl_meetup_settings
+Description: Configurable default meetup location text.
+Attributes:
+    - Id (int, id)
+    - LocationName (string, location_name)
+    - Address (string, address)
+    - IsActive (bool, is_active)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: (none)
+
+Table Name: tbl_layaway_settings
+Description: Business rules for layaway down payment percent, term length, optional grace/resubmit columns.
+Attributes:
+    - Id (int, id)
+    - DownpaymentPercentage (decimal, downpayment_percentage) – precision 5,2 in EF map
+    - MonthsAllowed (int, months_allowed)
+    - ResubmitWindowDays (int?, resubmit_window_days)
+    - GracePeriodDays (int?, grace_period_days)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: (none)
+
+Table Name: tbl_activity_logs
+Description: Audit trail for staff actions and some system events.
+Attributes:
+    - Id (int, id)
+    - UserId (int, user_id)
+    - Username (string, username)
+    - RoleName (string, role_name)
+    - Action (string, action)
+    - Module (string, module)
+    - EntityId (int?, entity_id)
+    - Details (string, details)
+    - CreatedAt (DateTime, created_at)
+Primary Key: id
+Foreign Keys: SQL: user_id → tbl_users.id (CASCADE); EF has no `User` navigation.
+
+--------------------------------------------------
+RELATIONSHIPS
+--------------------------------------------------
+- tbl_roles → tbl_users (1:M) via role_id
+- tbl_users → tbl_orders (1:M) via user_id
+- tbl_users → tbl_verification_tokens (1:M) via user_id
+- tbl_users → tbl_carts (1:M) via user_id (logical; enforced in SQL, not in EF navigations)
+- tbl_users → tbl_activity_logs (1:M) via user_id (SQL FK; no EF navigation)
+- tbl_users → tbl_payments as verifier (1:M) via verified_by_user_id (optional)
+- tbl_images → tbl_users (1:M) optional avatar via avatar_image_id
+- tbl_images → tbl_payment_settings (1:M) optional QR via qr_image_id
+- tbl_images → tbl_payments (1:M) optional proof via proof_image_id
+- tbl_images → tbl_meetup_outcomes (1:M) optional receipt via receipt_image_id
+- tbl_products → tbl_order_items (1:M) optional via product_id (nullable snapshot link)
+- tbl_products → tbl_cart_items (1:M) via product_id (SQL)
+- tbl_carts → tbl_cart_items (1:M) via cart_id (SQL)
+- tbl_orders → tbl_order_items (1:M) via order_id (CASCADE)
+- tbl_orders → tbl_payments (1:M) via order_id (CASCADE)
+- tbl_orders → tbl_deliveries (1:M) via order_id (CASCADE)
+- tbl_orders → tbl_meetup_outcomes (1:M) via order_id (CASCADE)
+- Product “category”: M:1 category table does not exist; `tbl_products.category` is a string attribute (denormalized).
+
+--------------------------------------------------
+SYSTEM WORKFLOWS
+--------------------------------------------------
+
+1. User Authentication Flow
+- Registration (`AccountController.Register`): Validates terms, email uniqueness, username rules (max 14, no spaces), password policy (`PasswordValidation`), first/last name. Creates `tbl_users` with BUYER role, `IsVerified = false`, hashes password (`PasswordHasher`). Inserts `tbl_verification_tokens` with `TokenType = EmailVerification` and hashed 6-digit OTP; emails OTP.
+- Verify (`VerifyAccount`): Validates OTP hash, marks token used, sets `IsVerified = true`.
+- Login (`AccountController.Login`): Checks active user, password, blocks buyers with `IsVerified == false` (returns redirect to verify). Issues FormsAuthentication ticket with `userData = username|ROLE`. Staff with `MustChangePassword` redirect to change-password page (`ForcePasswordChangeFilterAttribute`).
+- Logout: Signs out and clears session.
+- Profile: `GetMyProfile` / `UpdateProfile` / `UploadProfileImage`; username change sets `UsernameChangedAt` for 30-day cooldown.
+- Password reset uses `TokenTypePasswordReset` tokens (same table).
+
+2. Shopping Cart Flow
+- `GetOrCreateActiveCart` ensures one `tbl_carts` row with `IsActive` for the user.
+- `AddToCart` / `SetCartItemQuantity` / `RemoveFromCart` (and related): Enforce non-archived product, stock limits, merge quantities per product.
+- `GetMyCart` prunes archived/out-of-stock lines and caps quantities to `StockQuantity`.
+- `CreateOrder` does not clear `tbl_cart_items` in the controller code path shown; clearing is left to the client or a separate step (no server-side cart wipe in `CreateOrder`).
+
+3. Order Processing Flow
+- Buyer posts `CreateOrderRequest` with items and checkout fields. Server validates stock, sets `OrderStatus = Pending Approval` (`OrderStatus.PendingApproval`), `PaymentType` from payment method string (Layaway → LAYAWAY; meetup in method → CASH_MEETUP; else FULL), `DeliveryType` MEETUP vs COURIER, decrements `tbl_products.stock_quantity` per line, creates `tbl_order_items`.
+- Admin/staff `UpdateOrderStatus`: Pending Approval → Approved (sets `PaymentDeadline` for non-meetup to UTC now + `PaymentDeadlineSettings.DaysToPayAfterApprovalOrResubmit` days; meetup orders get null deadline), or Rejected/Cancelled with optional stock restore via `InventoryReleased`.
+- `RevokeApproval`: Approved → Pending Approval only if no payments exist.
+
+4. Payment Flow (including layaway logic)
+- Buyer uploads proof → `UploadPaymentProof` → `tbl_images`. `SubmitPayment` creates `tbl_payments` with `PaymentStatus = SUBMITTED`, sets order to `Awaiting Payment Verification`, clears `PaymentDeadline` until admin acts. Meetup scheduling validates date/time window; layaway cannot use meetup cash channel.
+- Admin `UpdatePaymentStatus`:
+  - REJECTED: stores reason, `AllowResubmit`; if resubmit allowed, resets `PaymentDeadline` (non-layaway: now + days; layaway with verified installments: monthly anchor from `order.CreatedAt` + grace). Order status intentionally stays `Awaiting Payment Verification` for buyer resubmit UX.
+  - VERIFIED: Sums VERIFIED payment amounts. Meetup-like orders (`DeliveryType` MEETUP, `PaymentType` CASH_MEETUP, or any verified payment with `MeetupDatetime`): set `RemainingBalance = 0`, `OrderStatus = Ready for Meetup`, insert `tbl_meetup_outcomes` with `READY_FOR_MEETUP` if none. Otherwise: update `RemainingBalance`; if zero → `Paid`, else → `Layaway Active` and for LAYAWAY set next `PaymentDeadline` to `CreatedAt` (as UTC) + verifiedCount months.
+- Multiple payments per order are expected for layaway (and theoretically partial full pay paths).
+- `OrderDeadlineService.EnforcePaymentDeadlines`: Cancels overdue orders in specific statuses, restores stock once via `InventoryReleased`. Sends reminder emails (full vs layaway lead times from `PaymentDeadlineSettings`).
+- UI/admin listing may display order as Cancelled when latest REJECTED has `AllowResubmit = 0` and no newer SUBMITTED payment (display logic in `GetOrders`).
+
+5. Delivery Flow
+- Courier: Staff creates/updates `tbl_deliveries` with `DeliveryStatus` PENDING → IN_TRANSIT → DELIVERED (`DeliveryStatus` constants). Order status moves to `In Delivery` / `Completed` per controller rules (e.g. delivered completes order).
+- Meetup: After payment verification, order is `Ready for Meetup`; staff may mark meetup outcomes `COMPLETED` (proof required), `NO_SHOW`, or `CANCELLED` via `UpdateMeetupOutcome`; `RescheduleMeetup` from `No Show` to `Meetup Rescheduled`. Additional `tbl_meetup_outcomes` rows and `LogActivity` calls record actions.
+
+6. Admin/Staff Actions
+- Role gating: `[Authorize(Roles = "...")]` uses ADMIN, MANAGER, STAFF; storefront buyer actions use `[BuyerAuthorize]` (BUYER only).
+- Inventory: Add/edit/archive/feature products (`LogActivity` on Inventory module).
+- Settings: Admin updates `tbl_payment_settings`, `tbl_meetup_settings`, `tbl_layaway_settings`.
+- Orders/payments/deliveries/meetups: status transitions as above; activity log for logins (staff), order/payment/delivery/meetup actions.
+- `GetActivityLogs` (ADMIN) reads `tbl_activity_logs`.
+
+--------------------------------------------------
+ENUMERATIONS / CONSTANTS
+--------------------------------------------------
+
+OrderStatus (`Solteira&Brands/Constants/OrderStatus.cs`) – stored as exact strings in `tbl_orders.order_status`:
+- Pending
+- Pending Approval
+- Pending Payment
+- Pending Downpayment
+- Approved
+- Awaiting Payment Verification
+- Awaiting Meetup
+- Layaway Active
+- Paid
+- In Delivery
+- Ready for Meetup
+- No Show
+- Meetup Rescheduled
+- Completed
+- Rejected
+- Cancelled
+
+PaymentStatus (`Constants/PaymentStatus.cs`) – intended for `tbl_payments.payment_status` (upper-case in DB):
+- PENDING
+- AWAITING_VERIFICATION
+- SUBMITTED
+- VERIFIED
+- REJECTED
+- EXPIRED
+Note: New payments are created as SUBMITTED in `SubmitPayment`; PENDING/AWAITING_VERIFICATION/EXPIRED are defined for transitions but creation path uses SUBMITTED.
+
+DeliveryStatus (`Constants/DeliveryStatus.cs`) – `tbl_deliveries.delivery_status`:
+- PENDING
+- IN_TRANSIT
+- DELIVERED
+
+Roles (seeded in SQL; used in `[Authorize]` and cookies):
+- ADMIN, MANAGER, STAFF, BUYER
+
+tbl_orders.payment_type (string, not enum class):
+- FULL
+- LAYAWAY
+- CASH_MEETUP
+
+tbl_orders.delivery_type:
+- COURIER
+- MEETUP
+
+tbl_payment_settings.payment_type:
+- GCASH
+- BANK_TRANSFER
+
+Verification token types (`AccountController` private constants):
+- EmailVerification
+- PasswordReset
+
+tbl_meetup_outcomes.status (observed values in code):
+- READY_FOR_MEETUP
+- COMPLETED
+- NO_SHOW
+- CANCELLED
+
+Payment deadline tuning (`PaymentDeadlineSettings`):
+- DaysToPayAfterApprovalOrResubmit = 3
+- LayawayResubmitGraceDaysAfterMonthlyDue = 3
+- ReminderLeadDaysFullPayment = 1
+- ReminderLeadDaysLayaway = 2
+
+--------------------------------------------------
+STEP 3: DETECT INCONSISTENCIES
+--------------------------------------------------
+- Documentation vs code – `OrderStatus.AwaitingMeetup` exists in constants but no assignment found in C#; meetup path uses `Ready for Meetup` instead.
+- `OrderLifecycleRules` allows transitions to `Pending Payment` / `Pending Downpayment` from `Awaiting Payment Verification`, but `UpdatePaymentStatus` on REJECTED keeps order status as `Awaiting Payment Verification`; those pending states appear only in deadline/UI checks unless legacy data exists.
+- SQL `CreateTables_And_Seed.sql` header/comments list shorter order/payment status sets than `OrderStatus` / actual controller behavior.
+- `tbl_users.auth_provider` exists in SQL (LOCAL | GOOGLE) but is not on `tblUsersModel`; EF will not read/write it unless mapped.
+- `tbl_products.image_id` has SQL FK; EF `tblProductsMap` does not define `HasOptional` to `tbl_images` (no navigation on product).
+- `tbl_carts` / `tbl_cart_items` / `tbl_activity_logs` have SQL FKs to users (and carts) but EF maps omit navigations; relationship diagrams should still show DB FKs.
+- `CreateOrder` does not clear the buyer’s cart server-side; docs often assume checkout empties cart.
+- `tbl_order_items.product_id` is nullable with ON DELETE SET NULL in SQL; line items can orphan from product while retaining snapshot fields.
+- `PaymentStatus.Pending` vs payment rows defaulting to SUBMITTED in SQL script vs always SUBMITTED on submit in app – align dictionary with actual insert path.
+- `tblMeetupOutcomeMap` uses `WillCascadeOnDelete(true)` on order; multiple outcome rows per order are allowed by schema—documentation should reflect 1:M history, not 1:1.
+- Redundant/overlapping concepts: `order.IsLayaway` vs `payment_type == LAYAWAY`; `order.MeetupDatetime` vs `tbl_payments.meetup_datetime`; meetup detection also uses payment flags in verification.
+
+--------------------------------------------------
+STEP 4: SUGGEST REVISIONS FOR DOCUMENTS
+--------------------------------------------------
+
+A. ER DIAGRAM FIXES
+- Include all tables from `SolteiraBrandsContext` (roles, users, verification_tokens, images, products, carts, cart_items, orders, order_items, payments, deliveries, meetup_outcomes, payment_settings, meetup_settings, layaway_settings, activity_logs).
+- Do not model `tbl_products.category` as a separate entity unless you introduce a real category table in the future.
+- Draw FK from `tbl_products.image_id` → `tbl_images` to match MySQL; optionally note “not modeled in EF navigation.”
+- Draw `tbl_carts.user_id` and `tbl_cart_items` FKs explicitly.
+- Show `tbl_orders` 1:M `tbl_payments`, `tbl_deliveries`, `tbl_order_items`, `tbl_meetup_outcomes`.
+- Mark `auth_provider` as physical column only if documenting the database, with footnote “not in EF model.”
+
+B. CLASS DIAGRAM FIXES
+- Update `tblUsersModel` with FirstName, LastName, MustChangePassword, UsernameChangedAt, AcceptedTerms, AcceptedAt (replace outdated inventories that omit them).
+- Add service/controller operation notes: `OrderLifecycleRules`, `OrderDeadlineService`, `SolteiraAndBrandsController` JSON endpoints as application-layer “methods” if the diagram covers the API layer.
+- Add `tblCartsModel` / `tblCartItemsModel` and their relationships to buyer and product at the logical level.
+- Add `tblMeetupOutcomeModel` linked to `tblOrdersModel` (association from outcome side; order side has no collection in code).
+- Remove or mark unused `AwaitingMeetup` if documenting only active states, or document it as reserved/unused.
+
+C. DATA DICTIONARY FIXES
+- Use exact `order_status` literals from `OrderStatus` constants.
+- Document `payment_status` primary flow: SUBMITTED → VERIFIED | REJECTED | EXPIRED; note SUBMITTED is the creation default in app.
+- Document `tbl_payments.allow_resubmit` as integer 0/1 with semantic meaning.
+- Add all `tbl_orders` columns through `is_archived` including reminder and inventory fields.
+- Document `tbl_meetup_outcomes.status` codes: READY_FOR_MEETUP, COMPLETED, NO_SHOW, CANCELLED.
+- Add `auth_provider` to dictionary for DB-only accuracy, or note “column present in SQL migrations, not exposed in application model.”
+- Clarify UTC vs local for `payment_deadline` (service uses `DateTime.UtcNow` for enforcement; some UI formatting uses helper `PaymentDeadlineTime`).
+
+--------------------------------------------------
+IMPORTANT RULES
+--------------------------------------------------
+This file was derived from the current C# models, EF Fluent mappings, `SolteiraAndBrandsController`, `AccountController`, `OrderLifecycleRules`, `OrderDeadlineService`, constants, and `Scripts/SQL/CreateTables_And_Seed.sql`. Features not present in those artifacts were not included.

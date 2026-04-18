@@ -85,21 +85,18 @@ namespace Solteira_Brands.Services
         private static void SendPaymentDeadlineReminders(SolteiraBrandsContext db, DateTime nowUtc)
         {
             // Send reminders only once per exact payment_deadline value (see tbl_orders.payment_deadline_reminder_sent_for).
-            // Non-layaway: email when ~ReminderLeadDaysFullPayment day(s) of time remain (not "calendar date").
-            // Layaway: email when ~ReminderLeadDaysLayaway day(s) remain.
             var leadDaysFull = PaymentDeadlineSettings.ReminderLeadDaysFullPayment;
             var leadDaysLayaway = PaymentDeadlineSettings.ReminderLeadDaysLayaway;
+            var leadDaysResubmit = PaymentDeadlineSettings.ReminderLeadDaysResubmit;
 
             // Remind close to the target "remaining time" with a small tolerance window (job runs every 5 minutes).
-            // (Using "date" boundaries can cause earlier-than-24h reminders depending on job runtime.)
             var reminderTolerance = TimeSpan.FromMinutes(30);
-            var fullTargetCenter = nowUtc.AddDays(leadDaysFull);
-            var fullTargetStart = fullTargetCenter - reminderTolerance;
-            var fullTargetEnd = fullTargetCenter + reminderTolerance;
-
-            var layawayTargetCenter = nowUtc.AddDays(leadDaysLayaway);
-            var layawayTargetStart = layawayTargetCenter - reminderTolerance;
-            var layawayTargetEnd = layawayTargetCenter + reminderTolerance;
+            var maxLeadDays = new[] { leadDaysFull, leadDaysLayaway, leadDaysResubmit }.Max();
+            var maxTargetCenter = nowUtc.AddDays(maxLeadDays);
+            var maxTargetEnd = maxTargetCenter + reminderTolerance;
+            var minLeadDays = Math.Min(Math.Min(leadDaysFull, leadDaysLayaway), leadDaysResubmit);
+            var minTargetCenter = nowUtc.AddDays(minLeadDays);
+            var minTargetStart = minTargetCenter - reminderTolerance;
 
             var pendingStatuses = new[]
             {
@@ -116,38 +113,22 @@ namespace Solteira_Brands.Services
 
             var layawayRow = db.tbl_layaway_settings.OrderByDescending(x => x.Id).FirstOrDefault();
             var downpaymentPct = layawayRow != null ? layawayRow.DownpaymentPercentage : 30m;
-            var monthsAllowed = layawayRow != null ? layawayRow.MonthsAllowed : 3;
 
             var myOrdersUrl = "https://localhost:44327/SolteiraAndBrands/SolteiraBrandsMyOrders";
 
-            var fullCandidates = db.tbl_orders
+            var candidates = db.tbl_orders
                 .Include("User")
                 .Include("Payments")
                 .Where(o =>
                     !o.IsArchived
                     && o.PaymentDeadline.HasValue
-                    && o.PaymentDeadline.Value >= fullTargetStart
-                    && o.PaymentDeadline.Value < fullTargetEnd
+                    && o.PaymentDeadline.Value >= minTargetStart
+                    && o.PaymentDeadline.Value < maxTargetEnd
                     && statuses.Contains(o.OrderStatus)
-                    && !string.Equals(o.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase)
                 )
                 .ToList();
 
-            var layawayCandidates = db.tbl_orders
-                .Include("User")
-                .Include("Payments")
-                .Where(o =>
-                    !o.IsArchived
-                    && o.PaymentDeadline.HasValue
-                    && o.PaymentDeadline.Value >= layawayTargetStart
-                    && o.PaymentDeadline.Value < layawayTargetEnd
-                    && statuses.Contains(o.OrderStatus)
-                    && string.Equals(o.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase)
-                )
-                .ToList();
-
-            // FULL reminders
-            foreach (var order in fullCandidates)
+            foreach (var order in candidates)
             {
                 if (order.PaymentDeadlineReminderSentFor.HasValue && order.PaymentDeadlineReminderSentFor.Value == order.PaymentDeadline.Value)
                     continue;
@@ -156,70 +137,60 @@ namespace Solteira_Brands.Services
                     continue;
 
                 var paymentsList = order.Payments ?? new List<tblPaymentsModel>();
-                var verifiedPayments = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).ToList();
+                var latestRejected = paymentsList
+                    .Where(p => string.Equals(p.PaymentStatus, PaymentStatus.Rejected, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault();
+                var hasNewerSubmittedAfterLatestRejected = latestRejected != null && paymentsList.Any(p =>
+                    string.Equals(p.PaymentStatus, PaymentStatus.Submitted, StringComparison.OrdinalIgnoreCase)
+                    && p.CreatedAt > latestRejected.CreatedAt);
+
+                var isResubmitWindow = latestRejected != null
+                    && latestRejected.AllowResubmit != 0
+                    && !hasNewerSubmittedAfterLatestRejected;
+                var isLayaway = string.Equals(order.PaymentType ?? "", "LAYAWAY", StringComparison.OrdinalIgnoreCase);
+                var leadDays = isResubmitWindow ? leadDaysResubmit : (isLayaway ? leadDaysLayaway : leadDaysFull);
+
+                var targetCenter = nowUtc.AddDays(leadDays);
+                var targetStart = targetCenter - reminderTolerance;
+                var targetEnd = targetCenter + reminderTolerance;
+                if (order.PaymentDeadline.Value < targetStart || order.PaymentDeadline.Value >= targetEnd)
+                    continue;
+
+                var verifiedPayments = paymentsList.Where(p => string.Equals(p.PaymentStatus, PaymentStatus.Verified, StringComparison.OrdinalIgnoreCase)).ToList();
                 var totalPaidVerified = verifiedPayments.Sum(p => p.Amount);
                 var amountDue = order.TotalAmount - totalPaidVerified;
                 if (amountDue < 0) amountDue = 0;
 
                 if (amountDue <= 0) continue;
 
-                var deadlineDate = order.PaymentDeadline.HasValue
-                    ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy")
-                    : null;
-                var username = order.User.Username ?? "User";
-                var orderNumber = order.OrderNumber ?? order.Id.ToString();
-                var subject = username + ", payment due soon for order #" + orderNumber;
-                var body = EmailHelper.BuildPaymentDeadlineReminderFullEmailHtml(username, orderNumber, amountDue, deadlineDate, myOrdersUrl);
-
-                var sent = false;
-                try
+                if (isLayaway)
                 {
-                    sent = EmailHelper.SendEmail(order.User.Email.Trim(), subject, body, isBodyHtml: true);
+                    var verifiedCount = verifiedPayments.Count;
+                    var remainingBalanceRecalc = order.TotalAmount - totalPaidVerified;
+                    if (remainingBalanceRecalc < 0) remainingBalanceRecalc = 0;
+
+                    // New layaway flow no longer depends on a fixed months plan.
+                    // Reminder amount is downpayment before first verification, then current remaining balance.
+                    amountDue = verifiedCount == 0
+                        ? Math.Round(order.TotalAmount * (downpaymentPct / 100m), 2)
+                        : remainingBalanceRecalc;
+                    if (amountDue <= 0) continue;
                 }
-                catch { sent = false; }
-
-                if (sent)
-                {
-                    order.PaymentDeadlineReminderSentFor = order.PaymentDeadline.Value;
-                    order.PaymentDeadlineReminderSentAt = nowUtc;
-                }
-            }
-
-            // LAYAWAY reminders
-            foreach (var order in layawayCandidates)
-            {
-                if (order.PaymentDeadlineReminderSentFor.HasValue && order.PaymentDeadlineReminderSentFor.Value == order.PaymentDeadline.Value)
-                    continue;
-
-                if (order.User == null || string.IsNullOrWhiteSpace(order.User.Email))
-                    continue;
-
-                var paymentsList = order.Payments ?? new List<tblPaymentsModel>();
-                var verifiedPayments = paymentsList.Where(p => string.Equals(p.PaymentStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase)).ToList();
-                var verifiedCount = verifiedPayments.Count;
-                var totalPaidVerified = verifiedPayments.Sum(p => p.Amount);
-                var remainingBalanceRecalc = order.TotalAmount - totalPaidVerified;
-                if (remainingBalanceRecalc < 0) remainingBalanceRecalc = 0;
-
-                var totalInstallments = 1 + monthsAllowed;
-                var installmentsRemaining = totalInstallments - verifiedCount;
-                if (installmentsRemaining < 0) installmentsRemaining = 0;
-
-                decimal amountDue;
-                if (verifiedCount == 0)
-                    amountDue = Math.Round(order.TotalAmount * (downpaymentPct / 100m), 2);
-                else
-                    amountDue = installmentsRemaining > 0 ? Math.Round(remainingBalanceRecalc / installmentsRemaining, 2) : remainingBalanceRecalc;
-
-                if (amountDue <= 0) continue;
 
                 var deadlineDate = order.PaymentDeadline.HasValue
                     ? PaymentDeadlineTime.FormatDeadlineLocal(order.PaymentDeadline.Value, "MM/dd/yyyy")
                     : null;
-                var username = order.User.Username ?? "User";
+                var nameForSubject = !string.IsNullOrWhiteSpace(order.User.FirstName)
+                    ? order.User.FirstName.Trim()
+                    : (order.User.Username ?? "Customer");
                 var orderNumber = order.OrderNumber ?? order.Id.ToString();
-                var subject = username + ", your layaway installment is due soon for order #" + orderNumber;
-                var body = EmailHelper.BuildPaymentDeadlineReminderLayawayEmailHtml(username, orderNumber, amountDue, deadlineDate, myOrdersUrl);
+                var subject = isLayaway
+                    ? nameForSubject + ", your layaway installment is due soon for order #" + orderNumber
+                    : nameForSubject + ", payment due soon for order #" + orderNumber;
+                var body = isLayaway
+                    ? EmailHelper.BuildPaymentDeadlineReminderLayawayEmailHtml(order.User.FirstName ?? "", orderNumber, amountDue, deadlineDate, myOrdersUrl)
+                    : EmailHelper.BuildPaymentDeadlineReminderFullEmailHtml(order.User.FirstName ?? "", orderNumber, amountDue, deadlineDate, myOrdersUrl);
 
                 var sent = false;
                 try

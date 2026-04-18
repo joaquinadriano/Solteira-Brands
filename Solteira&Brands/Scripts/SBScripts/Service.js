@@ -271,6 +271,9 @@ app.service("SolteiraBrandsService", function ($http) {
     this.getLayawaySettings = function () {
         return $http({ method: "GET", url: "/SolteiraAndBrands/GetLayawaySettings" });
     };
+    this.getPublicPolicies = function () {
+        return $http({ method: "GET", url: "/SolteiraAndBrands/GetPublicPolicies" });
+    };
     // Same pattern as avatar/QR: upload proof first (UploadPaymentProof), then submit with proofImageId in body.
     this.submitPayment = function (orderId, amount, proofImageId, referenceNumber, meetupDate, meetupTime, paymentChannel) {
         var form = new URLSearchParams();

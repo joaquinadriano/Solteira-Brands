@@ -9,6 +9,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.jewelries = [];
     $scope.defaultProductImageUrl = SolteiraBrandsService.defaultProductImageUrl;
+    var hoverImageIntervalsByProductId = {};
+
+    function stopAllHoverIntervals() {
+        angular.forEach(hoverImageIntervalsByProductId, function (timer, key) {
+            if (timer) $interval.cancel(timer);
+            delete hoverImageIntervalsByProductId[key];
+        });
+    }
 
     /** Jewelries page: open detail when URL has ?id= after catalog has loaded (init ran too early before). */
     function tryOpenProductFromUrl() {
@@ -18,6 +26,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!productId) return;
         var product = ($scope.jewelries || []).find(function (j) { return j.id === productId; });
         if (!product) return;
+        if (!product.activeImageUrl) {
+            product.activeImageUrl = product.img || $scope.defaultProductImageUrl;
+        }
         $scope.selectedProduct = product;
         $scope.qty = 1;
         $scope.detailQtyExceedsStockMessage = '';
@@ -37,7 +48,17 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.loadStorefrontProducts = function () {
         SolteiraBrandsService.getStorefrontProducts().then(function (res) {
             if (res.data && res.data.success && angular.isArray(res.data.data)) {
-                $scope.jewelries = res.data.data;
+                $scope.jewelries = (res.data.data || []).map(function (p) {
+                    p.images = angular.isArray(p.images) ? p.images : [];
+                    p.images.sort(function (a, b) {
+                        return (b && b.isPrimary ? 1 : 0) - (a && a.isPrimary ? 1 : 0);
+                    });
+                    p.activeImageUrl = p.img || $scope.defaultProductImageUrl;
+                    p.hoverImageUrl = p.activeImageUrl;
+                    p.hoverImageIndex = 0;
+                    p.hoverTransitionClass = '';
+                    return p;
+                });
                 $scope.buildFeaturedSlides();
                 tryOpenProductFromUrl();
                 $timeout(function () {
@@ -53,6 +74,37 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             $scope.jewelries = [];
             $scope.featuredCarouselSlides = [];
         });
+    };
+
+    $scope.setActiveProductImage = function (product, imageUrl) {
+        if (!product || !imageUrl) return;
+        product.activeImageUrl = imageUrl;
+    };
+
+    $scope.startProductHoverCarousel = function (item) {
+        if (!item || !item.id || !angular.isArray(item.images) || item.images.length <= 1) return;
+        if (hoverImageIntervalsByProductId[item.id]) return;
+        hoverImageIntervalsByProductId[item.id] = $interval(function () {
+            var list = item.images || [];
+            if (list.length <= 1) return;
+            item.hoverImageIndex = ((item.hoverImageIndex || 0) + 1) % list.length;
+            item.hoverImageUrl = list[item.hoverImageIndex].imageUrl || item.img || $scope.defaultProductImageUrl;
+            item.hoverTransitionClass = 'hover-slide-right';
+            $timeout(function () {
+                item.hoverTransitionClass = '';
+            }, 360);
+        }, 3000);
+    };
+
+    $scope.stopProductHoverCarousel = function (item) {
+        if (!item || !item.id) return;
+        if (hoverImageIntervalsByProductId[item.id]) {
+            $interval.cancel(hoverImageIntervalsByProductId[item.id]);
+            delete hoverImageIntervalsByProductId[item.id];
+        }
+        item.hoverImageIndex = 0;
+        item.hoverImageUrl = item.img || $scope.defaultProductImageUrl;
+        item.hoverTransitionClass = '';
     };
 
     $scope.featuredCarouselSlides = [];
@@ -159,6 +211,9 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }).then(() => {
             $timeout(() => {
                 $scope.selectedProduct = item;
+                if (!$scope.selectedProduct.activeImageUrl) {
+                    $scope.selectedProduct.activeImageUrl = $scope.selectedProduct.img || $scope.defaultProductImageUrl;
+                }
                 $scope.qty = 1;
                 $scope.detailQtyExceedsStockMessage = '';
                 $scope.viewMode = 'detail';
@@ -342,6 +397,21 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.currentMode = 'registration';
+    $scope.publicPolicies = {
+        termsAndConditions: 'Loading terms and conditions...',
+        privacyPolicy: 'Loading privacy policy...',
+        paymentConditions: 'Loading payment conditions...'
+    };
+
+    function loadPublicPolicies() {
+        SolteiraBrandsService.getPublicPolicies().then(function (res) {
+            if (res.data && res.data.success) {
+                $scope.publicPolicies.termsAndConditions = res.data.termsAndConditions || '';
+                $scope.publicPolicies.privacyPolicy = res.data.privacyPolicy || '';
+                $scope.publicPolicies.paymentConditions = res.data.paymentConditions || '';
+            }
+        });
+    }
 
     $scope.init = function () {
         const urlParams = new URLSearchParams(window.location.search);
@@ -359,6 +429,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (emailParam) {
             $scope.verificationEmail = decodeURIComponent(emailParam);
         }
+        loadPublicPolicies();
     };
 
     $scope.init();
@@ -390,6 +461,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.registerErrors = { email: '', username: '', firstName: '', lastName: '', password: '', verifyPassword: '', acceptedTerms: '' };
+    $scope.registerSubmitting = false;
 
     function validateEmailFormat(email) {
         if (!email) return "Email is required.";
@@ -452,7 +524,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         // Check database for uniqueness when format is valid
         SolteiraBrandsService.isUsernameAvailable(u, false).then(function (r) {
             if (r.data && r.data.available === false) {
-                $scope.registerErrors.username = "Username already taken.";
+                $scope.registerErrors.username = "Username is already taken. Please choose another.";
             }
         });
     };
@@ -554,6 +626,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
         var token = tokenEl ? tokenEl.value : '';
+        $scope.registerSubmitting = true;
         SolteiraBrandsService.register($scope.registerData, token).then(function (r) {
             if (r.data && r.data.success) {
                 if (r.data.requireVerification && r.data.email) {
@@ -587,6 +660,8 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }, function (err) {
             var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Registration failed. Please try again.';
             Swal.fire({ icon: 'error', title: 'Registration failed', text: msg });
+        })['finally'](function () {
+            $scope.registerSubmitting = false;
         });
     };
 
@@ -607,8 +682,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
 
     $scope.login = function () {
         $scope.loginErrors = { username: '', password: '' };
-        if (!$scope.loginData || !$scope.loginData.username) {
-            $scope.loginErrors.username = 'Username is required.';
+        var idRaw = ($scope.loginData && $scope.loginData.username) ? String($scope.loginData.username).trim() : '';
+        if (!idRaw) {
+            $scope.loginErrors.username = 'Email or username is required.';
+        } else if (idRaw.indexOf('@') >= 0) {
+            if (idRaw.length > 150) {
+                $scope.loginErrors.username = 'Email must not exceed 150 characters.';
+            }
+        } else if (idRaw.length > 14) {
+            $scope.loginErrors.username = 'Username must not exceed 14 characters.';
         }
         if (!$scope.loginData || !$scope.loginData.password) {
             $scope.loginErrors.password = 'Password is required.';
@@ -616,20 +698,20 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if ($scope.loginErrors.username || $scope.loginErrors.password) {
             return;
         }
-        SolteiraBrandsService.login($scope.loginData.username, $scope.loginData.password, !!$scope.loginData.rememberMe).then(function (r) {
+        SolteiraBrandsService.login(idRaw, $scope.loginData.password, !!$scope.loginData.rememberMe).then(function (r) {
             if (r.data && r.data.redirectUrl) {
                 // Replace history entry so Back doesn't return to the login page (avoids confusion).
                 window.location.replace(r.data.redirectUrl);
                 return;
             } else {
-                $scope.loginErrors.username = 'Invalid username or password.';
-                $scope.loginErrors.password = 'Invalid username or password.';
-                Swal.fire({ icon: 'error', title: 'Login failed', text: (r.data && r.data.message) || 'Invalid username or password.' });
+                $scope.loginErrors.username = 'Invalid email, username, or password.';
+                $scope.loginErrors.password = 'Invalid email, username, or password.';
+                Swal.fire({ icon: 'error', title: 'Login failed', text: (r.data && r.data.message) || 'Invalid email, username, or password.' });
             }
         }, function (err) {
-            var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Invalid username or password.';
-            $scope.loginErrors.username = 'Invalid username or password.';
-            $scope.loginErrors.password = 'Invalid username or password.';
+            var msg = (err.data && err.data.message) || (err.data && err.data.Message) || 'Invalid email, username, or password.';
+            $scope.loginErrors.username = 'Invalid email, username, or password.';
+            $scope.loginErrors.password = 'Invalid email, username, or password.';
             Swal.fire({ icon: 'error', title: 'Login failed', text: msg });
         });
     };
@@ -642,18 +724,25 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         $scope.showVerifyPassword = !$scope.showVerifyPassword;
     };
 
-    $scope.timeLeft = 30;
-    $scope.timerVisible = true;
+    /** Keep in sync with AccountController.OtpValiditySeconds (60): cooldown after each Resend OTP. */
+    var otpResendCooldownSeconds = 60;
+
+    $scope.timeLeft = 0;
+    $scope.timerVisible = false;
     let timerInterval;
 
-    $scope.startTimer = function () {
-        $scope.timeLeft = 30;
-        $scope.timerVisible = true;
-
+    $scope.startTimer = function (cooldownSeconds) {
+        var sec = typeof cooldownSeconds === 'number' ? cooldownSeconds : otpResendCooldownSeconds;
         if (angular.isDefined(timerInterval)) {
             $interval.cancel(timerInterval);
         }
-
+        if (sec <= 0) {
+            $scope.timeLeft = 0;
+            $scope.timerVisible = false;
+            return;
+        }
+        $scope.timeLeft = sec;
+        $scope.timerVisible = true;
         timerInterval = $interval(function () {
             if ($scope.timeLeft > 0) {
                 $scope.timeLeft--;
@@ -664,14 +753,23 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         }, 1000);
     };
 
-    $scope.startTimer();
+    // Same 60s as server: wait until countdown ends before Resend OTP (matches first implementation).
+    $scope.startTimer(otpResendCooldownSeconds);
+
+    $scope.resendOtpInProgress = false;
 
     $scope.resendOtp = function () {
+        if ($scope.resendOtpInProgress) {
+            return;
+        }
         // If currently locked due to too many failures, do not resend.
         if ($scope.otpLockedUntil && Date.now() < $scope.otpLockedUntil) {
             var remainingMs = $scope.otpLockedUntil - Date.now();
             var remainingSec = Math.ceil(remainingMs / 1000);
             $scope.otpError = 'Too many invalid codes. Please wait ' + remainingSec + 's before requesting a new code.';
+            return;
+        }
+        if ($scope.timerVisible) {
             return;
         }
         var email = ($scope.verificationEmail || '').trim();
@@ -683,29 +781,34 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
         var token = tokenEl ? tokenEl.value : '';
         $scope.otpError = '';
+        $scope.resendOtpInProgress = true;
         SolteiraBrandsService.resendOtp(email, mode, token).then(function (r) {
             if (r.data && r.data.success) {
                 Swal.fire({
                     toast: true,
                     position: 'top-end',
                     icon: 'success',
-                    title: 'New OTP sent to email!',
+                    title: 'New code sent',
+                    text: r.data.message || 'Check your inbox (and spam).',
                     showConfirmButton: false,
-                    timer: 2500,
+                    timer: 2800,
                     timerProgressBar: true
                 });
                 $scope.otpAttempts = 0;
                 $scope.otpLockedUntil = null;
-                $scope.startTimer();
+                $scope.startTimer(otpResendCooldownSeconds);
             } else {
                 $scope.otpError = (r.data && r.data.message) || 'Could not send a new code. Please try again.';
             }
         }, function (err) {
             $scope.otpError = (err.data && err.data.message) || 'Could not send a new code. Please try again.';
+        })['finally'](function () {
+            $scope.resendOtpInProgress = false;
         });
     };
 
     $scope.$on('$destroy', function () {
+        stopAllHoverIntervals();
         if (angular.isDefined(timerInterval)) {
             $interval.cancel(timerInterval);
         }
@@ -1534,21 +1637,79 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return selected.reduce(function (total, item) { return total + (item.price * item.qty); }, 0);
     };
 
-    // Checkout gating helpers.
-    // NOTE: Your checkout checkbox ng-model isn't syncing reliably, so we read the checkbox's DOM checked state.
+    // Checkout gating: prefer ng-model; also read DOM so the ORDER button updates even if digest lags one tick behind the native checkbox.
     $scope.isCheckoutTermsAccepted = function () {
+        if ($scope.agreeTerms) return true;
         try {
             var el = document.getElementById('agreeFull');
-            if (el) return !!el.checked;
+            if (el && el.checked) return true;
         } catch (e) { }
-        return !!$scope.agreeTerms;
+        return false;
     };
 
     var CHECKOUT_NAME_MAX_LEN = 30;
     var CHECKOUT_ADDRESS_MAX_LEN = 500;
+    var CHECKOUT_MOBILE_NATIONAL_PATTERN = /^9\d{9}$/;
     $scope.checkoutContactNamePattern = /^[a-zA-Z\s'.\-]{1,30}$/;
+    $scope.checkoutMobileNationalPattern = CHECKOUT_MOBILE_NATIONAL_PATTERN;
 
     $scope.billingSameAsDelivery = true;
+    $scope.checkoutMeetupSettings = { locationName: '', address: '' };
+
+    /** Display +63 9XX XXX XXXX from stored 09…, +639…, or 9XXXXXXXXX. */
+    $scope.formatPhilippineContactDisplay = function (raw) {
+        if (raw == null) return '';
+        var s = String(raw).replace(/\s/g, '');
+        if (!s) return '';
+        var d = s.replace(/\D/g, '');
+        if (d.length === 11 && d.charAt(0) === '0' && d.charAt(1) === '9') {
+            d = '63' + d.substring(1);
+        } else if (d.length === 10 && d.charAt(0) === '9') {
+            d = '63' + d;
+        } else if (d.length === 12 && d.indexOf('63') === 0) {
+            /* already 63 + 10 */
+        } else {
+            return String(raw);
+        }
+        var rest = d.length >= 12 ? d.substring(2) : '';
+        if (rest.length !== 10) return String(raw);
+        return '+63 ' + rest;
+    };
+
+    $scope.onCheckoutPaymentMethodChange = function () {
+        $scope.agreeTerms = false;
+        if (($scope.paymentMethod || '').trim() === 'Cash through meetup') {
+            SolteiraBrandsService.getMeetupSettings().then(function (r) {
+                if (r.data) {
+                    $scope.checkoutMeetupSettings = {
+                        locationName: r.data.locationName || '',
+                        address: r.data.address || ''
+                    };
+                }
+            });
+        }
+    };
+
+    $scope.sanitizeCheckoutMobileDigits = function () {
+        var v = ($scope.contactNumber || '').replace(/\D/g, '');
+        if (v.length >= 12 && v.indexOf('63') === 0 && v.charAt(2) === '9') {
+            v = v.substring(2);
+        } else if (v.length >= 11 && v.charAt(0) === '0' && v.charAt(1) === '9') {
+            v = v.substring(1);
+        }
+        if (v.length > 10) v = v.substring(0, 10);
+        if (($scope.contactNumber || '') !== v) $scope.contactNumber = v;
+    };
+
+    $scope.sanitizeCheckoutZip = function (which) {
+        if (which === 'delivery') {
+            var z = ($scope.deliveryZip || '').replace(/\D/g, '').substring(0, 10);
+            if (($scope.deliveryZip || '') !== z) $scope.deliveryZip = z;
+        } else if (which === 'billing') {
+            var b = ($scope.billingZip || '').replace(/\D/g, '').substring(0, 10);
+            if (($scope.billingZip || '') !== b) $scope.billingZip = b;
+        }
+    };
 
     function isBillingSameChecked() {
         try {
@@ -1601,9 +1762,10 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var name = ($scope.customerName || '').trim();
         var nameOk = isValidCheckoutContactName(name);
         var contact = ($scope.contactNumber || '').trim();
-        var contactOk = /^\d{11}$/.test(contact);
-        var deliveryOk = isDeliveryAddressComplete();
-        var billingOk = isBillingAddressComplete();
+        var contactOk = CHECKOUT_MOBILE_NATIONAL_PATTERN.test(contact);
+        var isCashMeetup = (($scope.paymentMethod || '').trim() === 'Cash through meetup');
+        var deliveryOk = isCashMeetup ? true : isDeliveryAddressComplete();
+        var billingOk = isCashMeetup ? true : isBillingAddressComplete();
         var paymentOk = !!(($scope.paymentMethod || '').trim());
         var termsOk = $scope.isCheckoutTermsAccepted();
         return nameOk && contactOk && deliveryOk && billingOk && paymentOk && termsOk;
@@ -1667,7 +1829,25 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (!isBuyer) return;
         SolteiraBrandsService.getMyOrders().then(function (r) {
             if (r.data && r.data.success && angular.isArray(r.data.data)) {
-                $scope.orders = r.data.data;
+                // Clone and normalize keys so ng-repeat keeps each card stable.
+                $scope.orders = (r.data.data || []).map(function (o) {
+                    o = o || {};
+                    if (o.orderId == null && o.id != null) o.orderId = o.id;
+                    if (!angular.isArray(o.items)) o.items = [];
+                    return angular.copy(o);
+                }).sort(function (a, b) {
+                    var aId = parseInt(a.orderId || a.id, 10);
+                    var bId = parseInt(b.orderId || b.id, 10);
+                    if (!isNaN(aId) && !isNaN(bId) && aId !== bId) return bId - aId;
+
+                    var aNum = parseInt(String(a.orderNumber || '').replace(/[^\d]/g, ''), 10);
+                    var bNum = parseInt(String(b.orderNumber || '').replace(/[^\d]/g, ''), 10);
+                    if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) return bNum - aNum;
+
+                    var aDate = new Date(a.orderDate || a.createdAt || 0).getTime();
+                    var bDate = new Date(b.orderDate || b.createdAt || 0).getTime();
+                    return (isNaN(bDate) ? 0 : bDate) - (isNaN(aDate) ? 0 : aDate);
+                });
             } else {
                 $scope.orders = [];
             }
@@ -1733,7 +1913,14 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var statusLower = status.toLowerCase().replace(/\s+/g, ' ');
         var deliveryStatus = (order.deliveryStatus || order.DeliveryStatus || '').toLowerCase();
 
-        if (statusLower === 'cancelled') return 'Cancelled';
+        if (statusLower === 'cancelled') {
+            var cr0 = ((order.cancellationReason || order.CancellationReason || '') + '').toLowerCase();
+            if (cr0.indexOf('delivery failed') >= 0) return 'Order Cancelled - Delivery Failed';
+            if (cr0.indexOf('no show') >= 0 || cr0.indexOf('noshow') >= 0) return 'Order Cancelled - No Show';
+            var mo = ((order.meetupOutcomeStatus || order.MeetupOutcomeStatus || '') + '').toUpperCase();
+            if (mo === 'NO_SHOW') return 'Order Cancelled - No Show';
+            return 'Cancelled';
+        }
         if (statusLower === 'completed') return 'Completed';
         // If delivery is already in transit or delivered, surface that on the buyer side
         // even if the underlying order_status has not yet been updated from "Paid".
@@ -1770,26 +1957,165 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         return 'Approved';
     };
 
+    /**
+     * CASH_MEETUP: order is Ready for Meetup in DB after verified down payment, but admin has not set meetup date/time yet.
+     * Buyers see a shorter neutral label (getBuyerOrderStatusLabel) so it is not confused with "you have a slot now".
+     */
+    $scope.buyerCashMeetupAwaitingSchedule = function (order) {
+        if (!order) return false;
+        var pt = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (pt !== 'CASH_MEETUP') return false;
+        var status = (order.status || order.Status || '').trim().toLowerCase();
+        if (status !== 'ready for meetup') return false;
+        var sched = order.meetupScheduledAtFormatted || order.MeetupScheduledAtFormatted;
+        return sched == null || String(sched).trim() === '';
+    };
+
+    /** Text for status badges/headers on My Orders (pipeline rules still use getOverallStatus). */
+    $scope.getBuyerOrderStatusLabel = function (order) {
+        if ($scope.buyerCashMeetupAwaitingSchedule(order)) return 'Awaiting schedule';
+        return $scope.getOverallStatus(order);
+    };
+
     $scope.getOverallStatusTooltip = function (order) {
         if (!order) return '';
+        if ($scope.buyerCashMeetupAwaitingSchedule(order)) {
+            return 'Your down payment is verified. Admin will set your meetup date and time.';
+        }
         var status = (order.status || order.Status || '').toLowerCase();
         if (status === 'rejected') return 'Order was rejected by admin.';
         if (status === 'pending approval') return 'Waiting for admin to approve your order.';
-        if (status === 'cancelled') return 'Order permanently closed.';
+        if (status === 'cancelled') {
+            var cr1 = (order.cancellationReason || order.CancellationReason || '');
+            if (cr1) return cr1;
+            return 'Order permanently closed.';
+        }
         if (status === 'no show') return 'You did not attend the meetup. Admin may reschedule.';
         if (status === 'meetup rescheduled') return 'Meetup was rescheduled. See new date and time below.';
         return '';
     };
-    /** Order status badge class. */
+
+    /** Rows for order-summary payment table: layaway installments or a single completed full-payment row. */
+    $scope.buyerPaymentScheduleRows = function (order) {
+        if (!order) return [];
+        var pt = (order.paymentType || order.PaymentType || 'FULL').toString().toUpperCase();
+        if (pt === 'LAYAWAY' && order.installmentSchedule && order.installmentSchedule.length) {
+            // Hide installment table while waiting for shipment (same as previous buyer UI).
+            if ($scope.getOverallStatus(order) === 'Paid - Waiting for Shipment') return [];
+            return order.installmentSchedule;
+        }
+        if ((pt === 'FULL' || pt === 'CASH_MEETUP') && order.fullPaymentSchedule && order.fullPaymentSchedule.length) return order.fullPaymentSchedule;
+        return [];
+    };
+    $scope.buyerPaymentScheduleHeading = function (order) {
+        if (!order) return 'Payment';
+        var pt = (order.paymentType || order.PaymentType || 'FULL').toString().toUpperCase();
+        return pt === 'LAYAWAY' ? 'Layaway Progress' : 'Payment';
+    };
+    $scope.buyerShowPaymentScheduleSection = function (order) {
+        return $scope.buyerPaymentScheduleRows(order).length > 0;
+    };
+
+    /** Hide payment deadline row in order summary (terminal / post-payment states). */
+    $scope.buyerHidePaymentDeadlineInSummary = function (order) {
+        if (!order) return true;
+        var s = $scope.getOverallStatus(order);
+        return s === 'Cancelled' || s === 'Order Cancelled - Delivery Failed' || s === 'Order Cancelled - No Show'
+            || s === 'Order Rejected' || s === 'Completed' || s === 'In Delivery' || s === 'Delivered'
+            || s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'No Show'
+            || s === 'Paid - Waiting for Shipment';
+    };
+
+    /** Show courier/tracking block when shipment context exists (including cancelled-after-shipment). */
+    $scope.buyerShowOrderSummaryDelivery = function (order) {
+        if (!order || !(order.courier || order.trackingNumber)) return false;
+        var s = $scope.getOverallStatus(order);
+        return s === 'In Delivery' || s === 'Completed' || s === 'Delivered' || s === 'Order Cancelled - Delivery Failed';
+    };
+
+    /** Show meetup place / date lines for active meetup flow, rescheduled, no-show, terminal no-show cancel, or completed cash-meetup. */
+    $scope.buyerShowMeetupContextInSummary = function (order) {
+        if (!order) return false;
+        var s = $scope.getOverallStatus(order);
+        var pt = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (pt === 'CASH_MEETUP' && s === 'Completed') return true;
+        return s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'No Show' || s === 'Order Cancelled - No Show';
+    };
+
+    /** FULL order summary line: paid in full (completed, meetup pipeline, shipment, or paid-then-closed cancel). */
+    $scope.buyerShowPaidFullPaymentSubtitle = function (order) {
+        if (!order) return false;
+        var pt = (order.paymentType || order.PaymentType || 'FULL').toString().toUpperCase();
+        if (pt !== 'FULL') return false;
+        var s = $scope.getOverallStatus(order);
+        var vc = Number(order.verifiedPaymentsCount || order.VerifiedPaymentsCount || 0);
+        if (s === 'Completed') return true;
+        if (s === 'Cancelled' && vc > 0) return true;
+        if ((s === 'Order Cancelled - Delivery Failed' || s === 'Order Cancelled - No Show') && vc > 0) return true;
+        if (vc > 0 && (s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'No Show'
+            || s === 'Paid - Waiting for Shipment' || s === 'In Delivery' || s === 'Delivered')) return true;
+        return false;
+    };
+
+    /** CASH_MEETUP: verified online down payment (meetup pipeline, completed, shipment, or closed after verified pay). */
+    $scope.buyerShowCashMeetupDownpaymentPaidSubtitle = function (order) {
+        if (!order) return false;
+        var pt = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (pt !== 'CASH_MEETUP') return false;
+        var s = $scope.getOverallStatus(order);
+        var vc = Number(order.verifiedPaymentsCount || order.VerifiedPaymentsCount || 0);
+        if (s === 'Completed' && vc > 0) return true;
+        if (s === 'Cancelled' && vc > 0) return true;
+        if ((s === 'Order Cancelled - Delivery Failed' || s === 'Order Cancelled - No Show') && vc > 0) return true;
+        if (vc > 0 && (s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'No Show'
+            || s === 'Paid - Waiting for Shipment' || s === 'In Delivery' || s === 'Delivered')) return true;
+        return false;
+    };
+
+    /** FULL / CASH_MEETUP single-row table with rejected or other non-"paid in full" subtitle (excludes meetup paid line). */
+    $scope.buyerShowSingleRowPaymentRejectedSubtitle = function (order) {
+        if (!order || !$scope.buyerShowPaymentScheduleSection(order)) return false;
+        var pt = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (pt !== 'FULL' && pt !== 'CASH_MEETUP') return false;
+        if ($scope.buyerShowPaidFullPaymentSubtitle(order)) return false;
+        if ($scope.buyerShowCashMeetupDownpaymentPaidSubtitle(order)) return false;
+        return true;
+    };
+
+    /** My Orders card header: human-readable payment plan label. */
+    $scope.buyerOrderPaymentTypeBadgeLabel = function (order) {
+        if (!order) return 'Full payment';
+        var p = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (p === 'LAYAWAY') return 'Layaway';
+        if (p === 'CASH_MEETUP') return 'Cash through meetup';
+        return 'Full payment';
+    };
+
+    /** Order summary meta: uppercase payment type for display. */
+    $scope.buyerOrderPaymentTypeDisplay = function (order) {
+        if (!order) return 'FULL';
+        var p = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+        if (p === 'LAYAWAY') return 'LAYAWAY';
+        if (p === 'CASH_MEETUP') return 'CASH THROUGH MEETUP';
+        return 'FULL';
+    };
+
+    /** Order status badge class (My Orders + order summary): green success, red failures, grey neutral pipeline. */
     $scope.getOrderStatusBadgeClass = function (order) {
         if (!order) return 'order-status-gray';
+        if ($scope.buyerCashMeetupAwaitingSchedule(order)) return 'order-status-gray';
         var s = $scope.getOverallStatus(order);
-        if (s === 'Pending Approval' || s === 'Pending Payment' || s === 'Pending Downpayment' || s === 'Approved') return 'order-status-gray';
-        if (s === 'Awaiting Verification') return 'order-status-yellow';
+        if (s === 'Pending Approval' || s === 'Pending Payment' || s === 'Pending Downpayment'
+            || s === 'Approved' || s === 'Awaiting Payment Verification' || s === 'Resubmit Payment Required') {
+            return 'order-status-gray';
+        }
         if (s === 'Layaway Active') return 'order-status-blue';
-        if (s === 'Paid - Waiting for Shipment' || s === 'Ready for Meetup' || s === 'Meetup Rescheduled' || s === 'In Delivery' || s === 'Completed') return 'order-status-green';
+        if (s === 'Paid - Waiting for Shipment' || s === 'Ready for Meetup' || s === 'Meetup Rescheduled'
+            || s === 'In Delivery' || s === 'Completed' || s === 'Delivered') return 'order-status-green';
         if (s === 'No Show') return 'order-status-yellow';
-        if (s === 'Order Rejected' || s === 'Cancelled') return 'order-status-muted';
+        if (s === 'Order Rejected' || s === 'Cancelled' || s === 'Order Cancelled - No Show' || s === 'Order Cancelled - Delivery Failed') {
+            return 'order-status-red';
+        }
         return 'order-status-gray';
     };
 
@@ -1807,9 +2133,13 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (displayStatus === 'Resubmit Payment Required') return 'Pay Now';
         if (displayStatus === 'Pending Payment') return 'Pay Now';
         if (displayStatus === 'Pending Downpayment') return 'Pay Downpayment';
-        if (displayStatus === 'Paid - Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled') return 'View Details';
-        if (displayStatus === 'Layaway Active') return 'Pay Installment';
-        if (displayStatus === 'Approved') return (order.paymentType || order.PaymentType || '').toUpperCase() === 'LAYAWAY' ? 'Pay Downpayment' : 'Pay Now';
+        if (displayStatus === 'Paid - Waiting for Shipment' || displayStatus === 'Ready for Meetup' || displayStatus === 'Meetup Rescheduled' || displayStatus === 'No Show' || displayStatus === 'In Delivery' || displayStatus === 'Completed' || displayStatus === 'Cancelled' || displayStatus === 'Order Cancelled - No Show' || displayStatus === 'Order Cancelled - Delivery Failed') return 'View Details';
+        if (displayStatus === 'Layaway Active') return 'Pay Remaining Balance';
+        if (displayStatus === 'Approved') {
+            var ptt = (order.paymentType || order.PaymentType || '').toString().toUpperCase();
+            if (ptt === 'LAYAWAY' || ptt === 'CASH_MEETUP') return 'Pay Downpayment';
+            return 'Pay Now';
+        }
         return 'View Details';
     };
 
@@ -1884,12 +2214,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         // If a specific installment row is provided, use its proof/payment details.
         if (proofRow && proofRow.proofImageUrl) {
             $scope.selectedOrderForProof = order || null;
+            var ar = proofRow.allowResubmit;
             $scope.selectedPaymentForProof = {
                 proofImageUrl: proofRow.proofImageUrl,
                 paymentStatus: proofRow.proofPaymentStatus,
                 amount: proofRow.proofAmount,
                 createdAt: proofRow.proofCreatedAt,
-                referenceNumber: proofRow.proofReferenceNumber
+                referenceNumber: proofRow.proofReferenceNumber,
+                rejectionReason: proofRow.rejectionReason,
+                allowResubmit: !(ar === false || ar === 0)
             };
         } else {
             // Otherwise fall back to the order-level latest payment proof (non-layaway / footer button).
@@ -1919,7 +2252,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     $scope.handleOrderAction = function (order) {
         if (!order) return;
         var label = $scope.getOrderActionLabel(order);
-        if (label === 'Pay Now' || label === 'Pay Installment' || label === 'Pay Downpayment') {
+        if (label === 'Pay Now' || label === 'Pay Remaining Balance' || label === 'Pay Downpayment') {
             $scope.goToPayment(order.orderId);
         } else if (label === 'Track Now') {
             $scope.goToTracking(order.trackingNumber, order.trackingLink, order.courier);
@@ -2106,9 +2439,30 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
     };
 
     $scope.isMeetupChannel = function () {
+        if ($scope.paymentOrder && ($scope.paymentOrder.paymentType === 'CASH_MEETUP' || ($scope.paymentOrder.paymentType || '').toUpperCase() === 'CASH_MEETUP'))
+            return false;
         var c = (($scope.paymentFormData && $scope.paymentFormData.channel) || '').toString().toUpperCase();
         return c.indexOf('MEETUP') >= 0;
     };
+
+    function syncMeetupSettingsForCashMeetupPaymentOrder() {
+        var po = $scope.paymentOrder;
+        if (!po || (po.paymentType || '').toUpperCase() !== 'CASH_MEETUP') return;
+        var ml = po.meetupLocationName || po.MeetupLocationName || '';
+        var ma = po.meetupAddress || po.MeetupAddress || '';
+        if (ml || ma) {
+            $scope.meetupSettings = { locationName: ml, address: ma };
+            return;
+        }
+        SolteiraBrandsService.getMeetupSettings().then(function (r) {
+            if (r.data) {
+                $scope.meetupSettings = {
+                    locationName: r.data.locationName || '',
+                    address: r.data.address || ''
+                };
+            }
+        });
+    }
 
     $scope.initPaymentPage = function () {
         var params = new URLSearchParams(window.location.search);
@@ -2123,23 +2477,34 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             }
         });
         SolteiraBrandsService.getMeetupSettings().then(function (r) {
+            var ptMeet = ($scope.paymentOrder && ($scope.paymentOrder.paymentType || '').toUpperCase()) || '';
+            if (ptMeet === 'CASH_MEETUP') return;
             if (r.data && (r.data.locationName || r.data.address)) {
                 $scope.meetupSettings = { locationName: r.data.locationName || '', address: r.data.address || '' };
             } else {
                 $scope.meetupSettings = { locationName: '', address: '' };
             }
         }).catch(function () {
-            $scope.meetupSettings = { locationName: '', address: '' };
+            var ptMeet2 = ($scope.paymentOrder && ($scope.paymentOrder.paymentType || '').toUpperCase()) || '';
+            if (ptMeet2 !== 'CASH_MEETUP') {
+                $scope.meetupSettings = { locationName: '', address: '' };
+            }
         });
         SolteiraBrandsService.getOrderForPayment(orderId).then(function (r) {
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
                 $scope.initPaymentDeadlineCountdownsForPaymentPage();
-                $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
-                if ($scope.paymentOrder.paymentType === 'LAYAWAY') {
+                var pt = ($scope.paymentOrder.paymentType || '').toUpperCase();
+                if (pt === 'LAYAWAY') $scope.paymentMode = 'Layaway';
+                else if (pt === 'CASH_MEETUP') $scope.paymentMode = 'Cash through meetup';
+                else $scope.paymentMode = 'Full Payment';
+                if (pt === 'LAYAWAY' || pt === 'CASH_MEETUP') {
                     if ($scope.paymentFormData.channel === 'Cash through Meetup' || !$scope.paymentFormData.channel) {
                         $scope.paymentFormData.channel = 'GCash';
                     }
+                }
+                if (pt === 'CASH_MEETUP') {
+                    syncMeetupSettingsForCashMeetupPaymentOrder();
                 }
                 // For resubmit scenario, fix channel to the last rejected payment's channel if available.
                 var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
@@ -2171,9 +2536,15 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             if (r.data && r.data.success && r.data.data) {
                 $scope.paymentOrder = r.data.data;
                 $scope.initPaymentDeadlineCountdownsForPaymentPage();
-                $scope.paymentMode = ($scope.paymentOrder.paymentType === 'LAYAWAY') ? 'Layaway' : 'Full Payment';
-                if ($scope.paymentOrder.paymentType === 'LAYAWAY' && ($scope.paymentFormData.channel === 'Cash through Meetup' || !$scope.paymentFormData.channel)) {
+                var pt2 = ($scope.paymentOrder.paymentType || '').toUpperCase();
+                if (pt2 === 'LAYAWAY') $scope.paymentMode = 'Layaway';
+                else if (pt2 === 'CASH_MEETUP') $scope.paymentMode = 'Cash through meetup';
+                else $scope.paymentMode = 'Full Payment';
+                if ((pt2 === 'LAYAWAY' || pt2 === 'CASH_MEETUP') && ($scope.paymentFormData.channel === 'Cash through Meetup' || !$scope.paymentFormData.channel)) {
                     $scope.paymentFormData.channel = 'GCash';
+                }
+                if (pt2 === 'CASH_MEETUP') {
+                    syncMeetupSettingsForCashMeetupPaymentOrder();
                 }
             }
         });
@@ -2252,6 +2623,54 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         if (statusU !== 'APPROVED') return false;
         if (latest && (latest.paymentStatus || latest.PaymentStatus) === 'REJECTED' && !latest.allowResubmit) return false;
         return true;
+    };
+
+    /** Buyer payment page: order was rejected by admin or cancelled (e.g. no show, delivery failed) — hide payment/order pricing UI. */
+    $scope.isPaymentOrderTerminalClosed = function () {
+        if (!$scope.paymentOrder) return false;
+        var s = (($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '').toUpperCase().replace(/\s+/g, ' ');
+        return s === 'REJECTED' || s === 'CANCELLED';
+    };
+    /** Latest payment rejected with resubmit disabled — read-only summary instead of pay form. */
+    $scope.isPaymentBlockedNoResubmit = function () {
+        if (!$scope.paymentOrder) return false;
+        if ($scope.isPaymentOrderTerminalClosed()) return false;
+        var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
+        if (!latest) return false;
+        var ps = (latest.paymentStatus != null ? latest.paymentStatus : latest.PaymentStatus || '').toString().toUpperCase();
+        if (ps !== 'REJECTED') return false;
+        var ar = latest.allowResubmit;
+        return ar === false || ar === 0;
+    };
+    /** Terminal order or final payment rejection: show order + payment summary only (no delivery / no pay form). */
+    $scope.isPaymentPageSummaryOnly = function () {
+        return !!($scope.paymentOrder && ($scope.isPaymentOrderTerminalClosed() || $scope.isPaymentBlockedNoResubmit()));
+    };
+    $scope.paymentTerminalTitle = function () {
+        if (!$scope.paymentOrder) return '';
+        var s = (($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '').toUpperCase().replace(/\s+/g, ' ');
+        if (s === 'REJECTED') return 'Order rejected';
+        if (s === 'CANCELLED') return 'Order cancelled';
+        if ($scope.isPaymentBlockedNoResubmit()) return 'Payment rejected';
+        return '';
+    };
+    $scope.paymentTerminalReason = function () {
+        if (!$scope.paymentOrder) return '';
+        var s = (($scope.paymentOrder.order_status != null ? $scope.paymentOrder.order_status : $scope.paymentOrder.orderStatus) || '').toUpperCase().replace(/\s+/g, ' ');
+        if (s === 'REJECTED') {
+            var rr = $scope.paymentOrder.orderRejectionReason || $scope.paymentOrder.OrderRejectionReason || $scope.paymentOrder.rejectionReason || '';
+            return (rr && String(rr).trim()) ? String(rr).trim() : 'No reason was provided.';
+        }
+        if (s === 'CANCELLED') {
+            var cr = $scope.paymentOrder.cancellationReason || $scope.paymentOrder.CancellationReason || '';
+            return (cr && String(cr).trim()) ? String(cr).trim() : 'This order was cancelled.';
+        }
+        if ($scope.isPaymentBlockedNoResubmit()) {
+            var latest = $scope.paymentOrder.latestPaymentForProof || $scope.paymentOrder.LatestPaymentForProof;
+            var pr = latest && (latest.rejectionReason || latest.RejectionReason) ? String(latest.rejectionReason || latest.RejectionReason).trim() : '';
+            return pr || 'This payment was rejected and cannot be resubmitted.';
+        }
+        return '';
     };
 
     $scope.openViewPaymentProofModal = function () {
@@ -2456,7 +2875,7 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
         var name = ($scope.customerName || '').trim();
         var contact = ($scope.contactNumber || '').trim();
         var payment = ($scope.paymentMethod || '').trim();
-        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact name.' }); return; }
+        if (!name) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your full name.' }); return; }
         if (name.length > CHECKOUT_NAME_MAX_LEN) { Swal.fire({ icon: 'warning', title: 'Name too long', text: 'Contact name must be ' + CHECKOUT_NAME_MAX_LEN + ' characters or fewer.' }); return; }
         if (!isValidCheckoutContactName(name)) {
             Swal.fire({
@@ -2466,16 +2885,28 @@ app.controller("SolteiraBrandsController", function ($scope, SolteiraBrandsServi
             });
             return;
         }
-        if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your contact number.' }); return; }
-        if (!isDeliveryAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all delivery address fields.' }); return; }
-        if (!isBillingAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all billing address fields.' }); return; }
+        if (!contact) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter your mobile number.' }); return; }
+        if (!CHECKOUT_MOBILE_NATIONAL_PATTERN.test(contact)) {
+            Swal.fire({ icon: 'warning', title: 'Invalid mobile', text: 'Enter 10 digits after +63, starting with 9 (e.g. 9171234567).' });
+            return;
+        }
+        contact = '0' + contact;
+        var isCashMeetupCheckout = (payment === 'Cash through meetup');
+        if (!isCashMeetupCheckout) {
+            if (!isDeliveryAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all delivery address fields.' }); return; }
+            if (!isBillingAddressComplete()) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Please complete all billing address fields.' }); return; }
+        }
         if (!payment) { Swal.fire({ icon: 'warning', title: 'Required', text: 'Select a payment option.' }); return; }
         if (!$scope.isCheckoutTermsAccepted()) { Swal.fire({ icon: 'warning', title: 'Terms required', text: 'Please acknowledge the payment Terms & Conditions before placing the order.' }); return; }
 
-        var deliveryAddress = buildConcatenatedAddress($scope.deliveryLine1, $scope.deliveryLine2, $scope.deliveryCity, $scope.deliveryProvince, $scope.deliveryZip);
-        var billingAddress = isBillingSameChecked()
+        var deliveryAddress = isCashMeetupCheckout
+            ? 'Cash through meetup - seller-assigned meetup (no delivery address).'
+            : buildConcatenatedAddress($scope.deliveryLine1, $scope.deliveryLine2, $scope.deliveryCity, $scope.deliveryProvince, $scope.deliveryZip);
+        var billingAddress = isCashMeetupCheckout
             ? deliveryAddress
-            : buildConcatenatedAddress($scope.billingLine1, $scope.billingLine2, $scope.billingCity, $scope.billingProvince, $scope.billingZip);
+            : (isBillingSameChecked()
+                ? deliveryAddress
+                : buildConcatenatedAddress($scope.billingLine1, $scope.billingLine2, $scope.billingCity, $scope.billingProvince, $scope.billingZip));
 
         var payload = {
             CustomerName: name,

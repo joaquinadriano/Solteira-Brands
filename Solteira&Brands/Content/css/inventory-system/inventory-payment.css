@@ -2,6 +2,21 @@ html, body {
     overflow-x: hidden;
 }
 
+/* Admin Payment Details modal: wider dialog, single-line dates/amounts in history tables */
+.payment-admin-detail-modal {
+    max-width: min(96vw, 1480px);
+    width: 100%;
+}
+
+.payment-admin-wide-table-wrap {
+    overflow-x: auto;
+}
+
+.payment-admin-detail-table th,
+.payment-admin-detail-table td {
+    vertical-align: middle;
+}
+
 
 .inventory-title {
     font-family: 'Inter';

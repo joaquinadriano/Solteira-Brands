@@ -6,6 +6,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>Verify Email | Solteira & Brands</title>
     <link rel="icon" type="image/png" href="@Url.Content("~/Content/img/shared/Solteira&BrandsMainLogo.png")" />
@@ -31,6 +32,11 @@
             {
                 <p class="text-muted small">Code sent to: <strong>@email</strong></p>
             }
+            <p class="text-muted small otp-hint">Codes are valid for 60 seconds. Wait for the timer before using Resend OTP. Check spam if needed.</p>
+            @if (ViewBag.VerifyEmailSent != null && (bool)ViewBag.VerifyEmailSent == false)
+            {
+                <p class="text-warning small">We could not send the verification email just now. Wait for the timer, then try Resend OTP, or check spam and your inbox settings.</p>
+            }
 
             <form id="otpForm" ng-submit="submitOtp($event)">
                 @Html.AntiForgeryToken()
@@ -45,7 +51,7 @@
                            placeholder="000000"
                            ng-disabled="otpVerifying"
                            ng-change="onOtpInputChange()" />
-                    <span id="timerText" ng-show="timerVisible">{{timeLeft}}s</span>
+                    <span id="timerText" class="timer-label" ng-show="timerVisible && timeLeft > 0">{{timeLeft}}s</span>
                 </div>
 
                 <div class="error-text" ng-show="otpError">{{otpError}}</div>
@@ -53,19 +59,28 @@
                 <div class="resend-container">
                     <a href="javascript:void(0)"
                        id="resendLink"
-                       ng-click="timerVisible ? null : resendOtp()"
-                       ng-class="{'disabled-link': timerVisible}">
-                        Resend OTP
+                       ng-click="(timerVisible || resendOtpInProgress) ? null : resendOtp()"
+                       ng-class="{'disabled-link': timerVisible || resendOtpInProgress}">
+                        <span ng-hide="resendOtpInProgress">Resend OTP</span>
+                        <span ng-show="resendOtpInProgress">Sending...</span>
                     </a>
                 </div>
 
                 <div class="text-center mt-3">
-                    <button type="submit" class="submit-btn" id="submitBtn" ng-disabled="otpVerifying">
+                    <button type="submit" class="submit-btn" id="submitBtn" ng-disabled="otpVerifying || resendOtpInProgress" ng-class="{'submit-btn-loading': otpVerifying}">
                         <span ng-show="!otpVerifying">VERIFY</span>
                         <span ng-show="otpVerifying">VERIFYING...</span>
                     </button>
                 </div>
             </form>
+
+            <div class="otp-busy-overlay" ng-show="otpVerifying || resendOtpInProgress" ng-attr-aria-busy="{{ (otpVerifying || resendOtpInProgress) ? 'true' : 'false' }}" aria-live="polite">
+                <div class="otp-busy-inner">
+                    <div class="otp-busy-spinner" role="status"></div>
+                    <p class="otp-busy-caption" ng-show="otpVerifying">Verifying...</p>
+                    <p class="otp-busy-caption" ng-show="resendOtpInProgress && !otpVerifying">Sending new code...</p>
+                </div>
+            </div>
         </div>
     </div>
 

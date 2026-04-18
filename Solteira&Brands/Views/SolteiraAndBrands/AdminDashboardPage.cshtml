@@ -1,6 +1,7 @@
 @{
     Layout = User.IsInRole("ADMIN") ? "~/Views/Shared/_AdminLayout.cshtml"
         : (User.IsInRole("STAFF") ? "~/Views/Shared/_StaffLayout.cshtml" : "~/Views/Shared/_OperationsLayout.cshtml");
+    var canManagePolicies = User.IsInRole("ADMIN") || User.IsInRole("MANAGER");
 }
 <div class="main-content" ng-init="loadDashboardData()">
     <div class="container-fluid dashboard-container">
@@ -51,6 +52,18 @@
             </div>
             <div class="col">
                 <p class="h1 h4 ps-0 ms-0 text-end">{{dashboardDate}}</p>
+                @if (canManagePolicies)
+                {
+                    <div class="d-flex justify-content-end flex-wrap gap-2" style="margin-top: 0.65rem;">
+                        <button type="button"
+                                class="btn btn-success btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#policySettingsModal"
+                                ng-click="openPolicySettingsModal('termsAndConditionsEditor')">
+                            <i class="bi bi-file-earmark-text me-1"></i>Manage Terms &amp; Conditions
+                        </button>
+                    </div>
+                }
             </div>
         </div>
         <div class="row px-5">
@@ -182,3 +195,46 @@
         @*----------Table end----------*@
     </div>
 </div>
+@if (canManagePolicies)
+{
+    <div class="modal fade" id="policySettingsModal" tabindex="-1" aria-labelledby="policySettingsModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title fw-bold" id="policySettingsModalLabel">Manage Terms, Privacy, and Payment Conditions</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">Only managers and system admins can update these storefront policies.</p>
+
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="fw-bold mb-2">1. Terms &amp; Conditions (Registration)</h6>
+                        <textarea id="termsAndConditionsEditor"
+                                  class="form-control form-control-sm"
+                                  rows="8"
+                                  maxlength="12000"
+                                  ng-model="policySettingsForm.termsAndConditions"
+                                  placeholder="Enter terms and conditions text"></textarea>
+                        <div class="text-end mt-2">
+                            <button type="button" class="btn btn-success btn-sm" ng-click="savePolicySetting('TERMS_AND_CONDITIONS', 'termsAndConditions')">Save Terms</button>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="fw-bold mb-2">2. Privacy Policy (Registration)</h6>
+                        <textarea id="privacyPolicyEditor"
+                                  class="form-control form-control-sm"
+                                  rows="8"
+                                  maxlength="12000"
+                                  ng-model="policySettingsForm.privacyPolicy"
+                                  placeholder="Enter privacy policy text"></textarea>
+                        <div class="text-end mt-2">
+                            <button type="button" class="btn btn-success btn-sm" ng-click="savePolicySetting('PRIVACY_POLICY', 'privacyPolicy')">Save Privacy Policy</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}

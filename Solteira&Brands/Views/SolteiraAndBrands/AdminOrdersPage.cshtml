@@ -185,7 +185,7 @@
                                         </div>
                                         <div>
                                             <label class="orderDetails-infoLabel">Contact No</label>
-                                            <p class="orderDetails-infoValue">{{selectedOrderDetails.contactNumber}}</p>
+                                            <p class="orderDetails-infoValue">{{formatPhilippineContactDisplay(selectedOrderDetails.contactNumber)}}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -198,7 +198,7 @@
                                         </h5>
                                         <p class="fw-bold mb-1">{{selectedOrderDetails.customerName}}</p>
                                         <p class="mb-1 text-break">{{selectedOrderDetails.deliveryAddress}}</p>
-                                        <p class="mb-0 text-muted small">Contact: {{selectedOrderDetails.contactNumber}}</p>
+                                        <p class="mb-0 text-muted small">Contact: {{formatPhilippineContactDisplay(selectedOrderDetails.contactNumber)}}</p>
                                     </div>
                                 </div>
                                 <div class="card border-0 shadow-sm rounded-4 mb-2" ng-if="selectedOrderDetails.billingAddress && selectedOrderDetails.billingAddress !== selectedOrderDetails.deliveryAddress">
@@ -240,7 +240,7 @@
                                     </div>
                                 </div>
 
-                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="selectedOrderDetails.payments && selectedOrderDetails.payments.length">
+                                <div class="card border-0 shadow-sm rounded-4 mb-4" ng-if="selectedOrderDetails.orderStatus !== 'Rejected' && selectedOrderDetails.payments && selectedOrderDetails.payments.length">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
                                             <i class="bi bi-cash-stack me-2 orderDetails-icon"></i>
@@ -275,7 +275,7 @@
                                     </div>
                                 </div>
 
-                                <div class="card border-0 shadow-sm rounded-4">
+                                <div class="card border-0 shadow-sm rounded-4" ng-if="selectedOrderDetails.orderStatus !== 'Rejected' && selectedOrderDetails.orderStatus !== 'Cancelled'">
                                     <div class="card-body p-4">
                                         <h5 class="fw-bold mb-3">
                                             <i class="bi bi-credit-card me-2 orderDetails-icon"></i>

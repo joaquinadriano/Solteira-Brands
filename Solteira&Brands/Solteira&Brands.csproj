@@ -157,6 +157,7 @@
     <Compile Include="Controllers\SolteiraAndBrandsController.cs" />
     <Compile Include="Models\Context\SolteiraBrandsContext.cs" />
     <Compile Include="Models\Maps\tblImagesMap.cs" />
+    <Compile Include="Models\Maps\tblProductImagesMap.cs" />
     <Compile Include="Models\Maps\tblOrderItemsMap.cs" />
     <Compile Include="Models\Maps\tblOrdersMap.cs" />
     <Compile Include="Models\Maps\tblPaymentsMap.cs" />
@@ -167,6 +168,7 @@
     <Compile Include="Models\Maps\tblActivityLogMap.cs" />
     <Compile Include="Models\Maps\tblLayawaySettingsMap.cs" />
     <Compile Include="Models\Maps\tblMeetupSettingsMap.cs" />
+    <Compile Include="Models\Maps\tblPolicySettingsMap.cs" />
     <Compile Include="Models\Maps\tblPaymentSettingsMap.cs" />
     <Compile Include="Models\Maps\tblMeetupOutcomeMap.cs" />
     <Compile Include="Models\Maps\tblVerificationTokenMap.cs" />
@@ -177,6 +179,7 @@
     <Compile Include="Models\ProductSaveRequest.cs" />
     <Compile Include="Models\SubmitPaymentRequest.cs" />
     <Compile Include="Models\tblImagesModel.cs" />
+    <Compile Include="Models\tblProductImagesModel.cs" />
     <Compile Include="Models\tblOrderItemsModel.cs" />
     <Compile Include="Models\tblOrdersModel.cs" />
     <Compile Include="Models\tblPaymentsModel.cs" />
@@ -191,6 +194,7 @@
     <Compile Include="Models\tblCartsModel.cs" />
     <Compile Include="Models\tblCartItemsModel.cs" />
     <Compile Include="Models\tblMeetupSettingsModel.cs" />
+    <Compile Include="Models\tblPolicySettingsModel.cs" />
     <Compile Include="Models\tblPaymentSettingsModel.cs" />
     <Compile Include="Security\BuyerAuthorizeAttribute.cs" />
     <Compile Include="Security\ForcePasswordChangeFilterAttribute.cs" />
@@ -1200,8 +1204,10 @@
     <Content Include="Scripts\jquery-3.7.0.min.map" />
   </ItemGroup>
   <PropertyGroup>
-    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">17.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <VSToolsPath Condition="!Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets') and Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\v17.0')">C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VisualStudio\v17.0</VSToolsPath>
+    <VSToolsPath Condition="!Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets') and Exists('C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VisualStudio\v17.0')">C:\Program Files\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VisualStudio\v17.0</VSToolsPath>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />

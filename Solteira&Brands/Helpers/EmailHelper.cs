@@ -53,9 +53,14 @@ namespace Solteira_Brands.Helpers
             }
         }
 
-        public static string BuildOrderApprovedEmailHtml(string username, string orderNumber, string payNowUrl)
+        private static string GreetingFirstName(string firstName)
         {
-            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            return string.IsNullOrWhiteSpace(firstName) ? "Customer" : firstName.Trim();
+        }
+
+        public static string BuildOrderApprovedEmailHtml(string firstName, string orderNumber, string payNowUrl)
+        {
+            var safeName = GreetingFirstName(firstName);
             var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
             var safeUrl = string.IsNullOrWhiteSpace(payNowUrl) ? "#" : payNowUrl.Trim();
 
@@ -134,9 +139,9 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
-        public static string BuildPaymentConfirmedEmailHtml(string username, string orderNumber, string myOrdersUrl)
+        public static string BuildPaymentConfirmedEmailHtml(string firstName, string orderNumber, string myOrdersUrl)
         {
-            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeName = GreetingFirstName(firstName);
             var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
             var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
 
@@ -219,9 +224,9 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
-        public static string BuildPaymentRejectedEmailHtml(string username, string orderNumber, string myOrdersUrl, string rejectionReason)
+        public static string BuildPaymentRejectedEmailHtml(string firstName, string orderNumber, string myOrdersUrl, string rejectionReason)
         {
-            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeName = GreetingFirstName(firstName);
             var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
             var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
             var safeReason = string.IsNullOrWhiteSpace(rejectionReason) ? null : rejectionReason.Trim();
@@ -310,9 +315,9 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
-        public static string BuildPaymentDeadlineReminderFullEmailHtml(string username, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
+        public static string BuildPaymentDeadlineReminderFullEmailHtml(string firstName, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
         {
-            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeName = GreetingFirstName(firstName);
             var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
             var safeDeadline = string.IsNullOrWhiteSpace(deadlineDate) ? "your payment deadline" : deadlineDate.Trim();
             var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
@@ -404,9 +409,9 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
-        public static string BuildPaymentDeadlineReminderLayawayEmailHtml(string username, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
+        public static string BuildPaymentDeadlineReminderLayawayEmailHtml(string firstName, string orderNumber, decimal amountDue, string deadlineDate, string myOrdersUrl)
         {
-            var safeName = string.IsNullOrWhiteSpace(username) ? "Customer" : username.Trim();
+            var safeName = GreetingFirstName(firstName);
             var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "—" : orderNumber.Trim();
             var safeDeadline = string.IsNullOrWhiteSpace(deadlineDate) ? "your payment deadline" : deadlineDate.Trim();
             var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
@@ -494,11 +499,56 @@ namespace Solteira_Brands.Helpers
 </html>";
         }
 
-        public static string BuildOtpEmailHtml(string otp, string purposeTitle, string recipientLabel)
+        public static string BuildOrderStatusUpdateEmailHtml(string firstName, string orderNumber, string statusTitle, string message, string myOrdersUrl)
+        {
+            var safeName = GreetingFirstName(firstName);
+            var safeOrder = string.IsNullOrWhiteSpace(orderNumber) ? "-" : orderNumber.Trim();
+            var safeStatus = string.IsNullOrWhiteSpace(statusTitle) ? "Order update" : statusTitle.Trim();
+            var safeMessage = string.IsNullOrWhiteSpace(message) ? "There is an update on your order status." : message.Trim();
+            var safeUrl = string.IsNullOrWhiteSpace(myOrdersUrl) ? "#" : myOrdersUrl.Trim();
+            var logoUrl = "https://i.imgur.com/gHQJtBc.png";
+
+            return
+@"<!doctype html>
+<html>
+  <head>
+    <meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" />
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+    <title>" + System.Net.WebUtility.HtmlEncode(safeStatus) + @"</title>
+  </head>
+  <body style=""margin:0; padding:0; background-color:#87ae73;"">
+    <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color:#87ae73;"">
+      <tr>
+        <td align=""center"" style=""padding:24px 12px 24px 12px;"">
+          <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""600"" style=""width:600px; max-width:600px;"">
+            <tr>
+              <td align=""center"" bgcolor=""#87ae73"" style=""background-color:#87ae73; padding:30px 0 30px 0;"">
+                <img src=""" + logoUrl + @""" alt=""Solteira &amp; Brands"" style=""max-width:190px; height:auto; display:block; margin:0 auto; border:0;"" />
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor=""#ffffff"" style=""background-color:#ffffff; padding:28px 32px 32px 32px;"">
+                <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                  <div style=""margin-bottom:10px;"">Dear " + System.Net.WebUtility.HtmlEncode(safeName) + @",</div>
+                  <div style=""margin-bottom:10px;"">Order <strong>#" + System.Net.WebUtility.HtmlEncode(safeOrder) + @"</strong> update: <strong>" + System.Net.WebUtility.HtmlEncode(safeStatus) + @"</strong>.</div>
+                  <div style=""margin-bottom:18px;"">" + System.Net.WebUtility.HtmlEncode(safeMessage) + @"</div>
+                  <a href=""" + System.Net.WebUtility.HtmlEncode(safeUrl) + @""" target=""_blank"" style=""background-color:#87ae73; color:#ffffff; text-decoration:none; padding:12px 24px; border-radius:4px; font-weight:600; display:inline-block;"">View my orders</a>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+        }
+
+        public static string BuildOtpEmailHtml(string otp, string purposeTitle, string recipientFirstName)
         {
             var safeOtp = (otp ?? "").Trim();
             var safePurpose = string.IsNullOrWhiteSpace(purposeTitle) ? "Your One-Time Password is here!" : purposeTitle.Trim();
-            var safeRecipient = string.IsNullOrWhiteSpace(recipientLabel) ? "User" : recipientLabel.Trim();
+            var safeRecipient = GreetingFirstName(recipientFirstName);
 
             var logoUrl = "https://i.imgur.com/gHQJtBc.png"; // transparent PNG logo
             var lockIconUrl = "https://img.icons8.com/ios-filled/50/87ae73/lock.png"; // padlock icon
@@ -559,6 +609,81 @@ namespace Solteira_Brands.Helpers
                     <td align=""center"" style=""padding:8px 32px 0 32px;"">
                       <div style=""font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#666666; line-height:18px;"">
                         If you did not request this code, you can safely ignore this email.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align=""center"" style=""padding:14px 10px 0 10px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#f3f7f1;"">
+                © " + DateTime.Now.Year + @" Solteira &amp; Brands
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>";
+        }
+
+        /// <summary>Welcome email after email verification; matches OTP template chrome, uses first name in salutation.</summary>
+        public static string BuildAccountCreatedEmailHtml(string firstName, string username, string email)
+        {
+            var safeHi = GreetingFirstName(firstName);
+            var safeUser = string.IsNullOrWhiteSpace(username) ? "—" : username.Trim();
+            var safeEmail = string.IsNullOrWhiteSpace(email) ? "—" : email.Trim();
+            var title = "Your account is ready";
+            var logoUrl = "https://i.imgur.com/gHQJtBc.png";
+
+            return
+@"<!doctype html>
+<html>
+  <head>
+    <meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" />
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+    <title>" + System.Net.WebUtility.HtmlEncode(title) + @"</title>
+  </head>
+  <body style=""margin:0; padding:0; background-color:#87ae73;"">
+    <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"" style=""background-color:#87ae73;"">
+      <tr>
+        <td align=""center"" style=""padding:24px 12px 24px 12px;"">
+          <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""600"" style=""width:600px; max-width:600px;"">
+            <tr>
+              <td align=""center"" bgcolor=""#87ae73"" style=""background-color:#87ae73; padding:30px 0 30px 0;"">
+                <img src=""" + logoUrl + @""" alt=""Solteira &amp; Brands"" style=""max-width:190px; height:auto; display:block; margin:0 auto; border:0;"" />
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor=""#ffffff"" style=""background-color:#ffffff; padding:28px 32px 32px 32px;"">
+                <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"">
+                  <tr>
+                    <td align=""center"" style=""padding:0 0 16px 0;"">
+                      <div style=""font-family:Georgia, 'Times New Roman', serif; font-size:26px; line-height:32px; color:#87ae73; font-weight:600;"">"
+                        + System.Net.WebUtility.HtmlEncode(title) +
+@"</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align=""left"" style=""padding:0 16px 0 16px;"">
+                      <div style=""font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#333333; line-height:22px;"">
+                        <div style=""margin-bottom:10px;"">Hi " + System.Net.WebUtility.HtmlEncode(safeHi) + @",</div>
+                        <div style=""color:#444444; margin-bottom:14px;"">
+                          Your account has been successfully created.
+                        </div>
+                        <div style=""color:#444444; margin-bottom:8px;"">
+                          You can now log in using:
+                        </div>
+                        <div style=""color:#444444; margin:0 0 6px 18px;"">
+                          &bull; Username: <strong>" + System.Net.WebUtility.HtmlEncode(safeUser) + @"</strong>
+                        </div>
+                        <div style=""color:#444444; margin:0 0 14px 18px;"">
+                          &bull; Email: <strong>" + System.Net.WebUtility.HtmlEncode(safeEmail) + @"</strong>
+                        </div>
+                        <div style=""color:#444444;"">
+                          You may use either your username or email to sign in.
+                        </div>
                       </div>
                     </td>
                   </tr>

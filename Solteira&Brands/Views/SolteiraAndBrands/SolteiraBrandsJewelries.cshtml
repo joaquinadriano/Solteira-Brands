@@ -15,24 +15,20 @@
 <div ng-controller="SolteiraBrandsController">
 
     <div class="nav-jewelry" ng-show="viewMode === 'list'">
-        <div class="category-container">
-            <div class="category-btn">
-                <span class="btn-content">CATEGORY <i class="bi bi-grid fs-5"></i></span>
+        <div class="nav-jewelry-left">
+            <div class="category-container">
+                <div class="category-btn">
+                    <span class="btn-content">CATEGORY <i class="bi bi-grid fs-5"></i></span>
+                </div>
+                <div class="category-dropdown">
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === ''}" ng-click="setJewelriesCategory('')">ALL</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Bracelet'}" ng-click="setJewelriesCategory('Bracelet')">BRACELET</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Earring'}" ng-click="setJewelriesCategory('Earring')">EARRING</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Necklace'}" ng-click="setJewelriesCategory('Necklace')">NECKLACE</div>
+                    <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Ring'}" ng-click="setJewelriesCategory('Ring')">RING</div>
+                </div>
             </div>
-            <div class="category-dropdown">
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === ''}" ng-click="setJewelriesCategory('')">ALL</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Bracelet'}" ng-click="setJewelriesCategory('Bracelet')">BRACELET</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Earring'}" ng-click="setJewelriesCategory('Earring')">EARRING</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Necklace'}" ng-click="setJewelriesCategory('Necklace')">NECKLACE</div>
-                <div class="filter-item" ng-class="{'filter-item-active': jewelriesCategory === 'Ring'}" ng-click="setJewelriesCategory('Ring')">RING</div>
-            </div>
-        </div>
 
-        <div class="jewelry-label">
-            <span>JEWELRIES</span>
-        </div>
-
-        <div class="nav-jewelry-right">
             <div class="filter-container">
                 <div class="filter-btn">
                     <span class="btn-content">SORT BY <i class="bi bi-filter fs-5"></i></span>
@@ -44,7 +40,13 @@
                     <div class="filter-item" ng-class="{'filter-item-active': jewelriesSort === 'price_hl'}" ng-click="setJewelriesSort('price_hl')">PRICE: HIGH TO LOW</div>
                 </div>
             </div>
+        </div>
 
+        <div class="jewelry-label">
+            <span>JEWELRIES</span>
+        </div>
+
+        <div class="nav-jewelry-right">
             <div class="search-container">
                 <div class="search-wrapper">
                     <div class="search-btn">
@@ -64,9 +66,15 @@
         <div class="jewelry-grid-container" ng-show="viewMode === 'list'">
 
             <div class="products-grid" ng-show="filteredJewelries.length > 0">
-                <div class="product-card" ng-repeat="item in filteredJewelries = (getFilteredJewelries())" ng-click="selectProduct(item, $event)">
+                <div class="product-card"
+                     ng-repeat="item in filteredJewelries = (getFilteredJewelries())"
+                     ng-click="selectProduct(item, $event)"
+                     ng-mouseenter="startProductHoverCarousel(item)"
+                     ng-mouseleave="stopProductHoverCarousel(item)">
                     <div class="image-wrapper">
-                        <img ng-src="{{item.img || defaultProductImageUrl}}" alt="{{item.name}}">
+                        <img ng-src="{{item.hoverImageUrl || item.img || defaultProductImageUrl}}"
+                             ng-class="item.hoverTransitionClass"
+                             alt="{{item.name}}">
                         <div class="sold-out-badge" ng-show="(item.stockQuantity || 0) === 0">SOLD OUT</div>
                                 @if (showAddToCartUi)
                                 {
@@ -103,8 +111,21 @@
             </div>
 
             <div class="product-card-detail">
-                <div class="main-image-container">
-                    <img ng-src="{{selectedProduct.img || defaultProductImageUrl}}" alt="{{selectedProduct.name}}">
+                <div class="product-gallery-layout"
+                     ng-class="{'has-thumbnails': selectedProduct.images && selectedProduct.images.length > 1, 'no-thumbnails': !selectedProduct.images || selectedProduct.images.length <= 1}">
+                    <div class="product-thumbnails product-thumbnails-vertical" ng-if="selectedProduct.images && selectedProduct.images.length > 1">
+                        <button type="button"
+                                class="thumbnail-btn"
+                                ng-repeat="thumb in selectedProduct.images track by ($index + '-' + thumb.imageUrl)"
+                                ng-class="{'is-active': (selectedProduct.activeImageUrl || selectedProduct.img) === thumb.imageUrl}"
+                                ng-click="setActiveProductImage(selectedProduct, thumb.imageUrl)">
+                            <img ng-src="{{thumb.imageUrl}}" alt="Product thumbnail {{$index + 1}}" />
+                        </button>
+                    </div>
+
+                    <div class="main-image-container">
+                        <img ng-src="{{(selectedProduct.activeImageUrl || selectedProduct.img) || defaultProductImageUrl}}" alt="{{selectedProduct.name}}">
+                    </div>
                 </div>
 
                 <div class="product-info-column">

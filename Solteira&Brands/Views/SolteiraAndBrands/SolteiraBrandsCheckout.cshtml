@@ -53,9 +53,9 @@
             <h3>CHECKOUT</h3>
 
             <form name="checkoutForm" novalidate>
-            <div class="form-group">
-                <label>Contact Name <span class="text-danger">*</span></label>
-                <input type="text" name="customerName" placeholder="e.g. Juan dela Cruz"
+            <div class="form-group checkout-form-group-compact">
+                <label>Full Name <span class="text-danger">*</span></label>
+                <input type="text" name="customerName" class="checkout-input-control" placeholder="e.g. Juan Dela Cruz"
                        ng-model="customerName" required ng-maxlength="30" maxlength="30" autocomplete="name"
                        ng-pattern="checkoutContactNamePattern" />
                 <span class="validation-error" ng-show="checkoutForm.customerName.$error.required && (checkoutForm.customerName.$dirty || checkoutForm.customerName.$touched)">This field is required.</span>
@@ -63,85 +63,95 @@
                 <span class="validation-error" ng-show="checkoutForm.customerName.$error.pattern && (checkoutForm.customerName.$dirty || checkoutForm.customerName.$touched)">Use letters only, with spaces or apostrophes, periods, or hyphens as needed. No numbers.</span>
             </div>
 
-            <div class="form-group">
-                <label>Contact Number <span class="text-danger">*</span></label>
-                <input type="text" name="contactNumber" placeholder="09XXXXXXXXX"
-                       ng-model="contactNumber" required maxlength="11" ng-pattern="/^\d{11}$/" />
+            <div class="form-group checkout-form-group-compact">
+                <label>Mobile Number <span class="text-danger">*</span></label>
+                <div class="checkout-mobile-row">
+                    <span class="checkout-mobile-prefix" aria-hidden="true">+63</span>
+                    <input type="text" name="contactNumber" class="checkout-input-control checkout-mobile-input"
+                           inputmode="numeric" autocomplete="tel-national"
+                           placeholder="9171234567"
+                           ng-model="contactNumber" required maxlength="10"
+                           ng-pattern="checkoutMobileNationalPattern"
+                           ng-change="sanitizeCheckoutMobileDigits()" />
+                </div>
                 <span class="validation-error" ng-show="checkoutForm.contactNumber.$error.required && (checkoutForm.contactNumber.$dirty || checkoutForm.contactNumber.$touched)">This field is required.</span>
-                <span class="validation-error" ng-show="checkoutForm.contactNumber.$error.pattern && checkoutForm.contactNumber.$dirty">Must be exactly 11 digits (e.g. 09XXXXXXXXX).</span>
+                <span class="validation-error" ng-show="checkoutForm.contactNumber.$error.pattern && checkoutForm.contactNumber.$dirty">Enter a valid Philippine mobile (e.g. 9171234567).</span>
             </div>
 
-            <div class="form-group">
-                <label>Delivery Address <span class="text-danger">*</span></label>
+            <div class="form-group checkout-form-group-compact" ng-show="paymentMethod !== 'Cash through meetup'">
+                <label class="checkout-section-title">Delivery Address (Philippines) <span class="text-danger">*</span></label>
+                <p class="checkout-section-helper">Please enter a Philippine address.</p>
                 <span class="address-field-label">Address Line 1 <span class="text-danger">*</span></span>
-                <input type="text" name="deliveryLine1" placeholder="House/Unit No., Street, Barangay"
+                <input type="text" name="deliveryLine1" class="checkout-input-control" placeholder="House No., Street, Barangay"
                        ng-model="deliveryLine1" required ng-maxlength="100" maxlength="100" autocomplete="address-line1" />
                 <span class="validation-error" ng-show="checkoutForm.deliveryLine1.$error.required && (checkoutForm.deliveryLine1.$dirty || checkoutForm.deliveryLine1.$touched)">Address Line 1 is required.</span>
 
-                <span class="address-field-label" style="margin-top: 0.5vw;">Address Line 2</span>
-                <input type="text" name="deliveryLine2" placeholder="Building, Floor, Landmark (optional)"
+                <span class="address-field-label checkout-address-gap">Address Line 2 (Optional)</span>
+                <input type="text" name="deliveryLine2" class="checkout-input-control" placeholder="Building, Floor, Landmark"
                        ng-model="deliveryLine2" ng-maxlength="100" maxlength="100" autocomplete="address-line2" />
 
-                <div class="address-row" style="margin-top: 0.5vw;">
+                <div class="checkout-address-grid">
                     <div class="address-field">
-                        <span class="address-field-label">City <span class="text-danger">*</span></span>
-                        <input type="text" name="deliveryCity" placeholder="City / Municipality"
+                        <span class="address-field-label">City / Municipality <span class="text-danger">*</span></span>
+                        <input type="text" name="deliveryCity" class="checkout-input-control" placeholder="e.g. Quezon City"
                                ng-model="deliveryCity" required ng-maxlength="50" maxlength="50" autocomplete="address-level2" />
                         <span class="validation-error" ng-show="checkoutForm.deliveryCity.$error.required && (checkoutForm.deliveryCity.$dirty || checkoutForm.deliveryCity.$touched)">City is required.</span>
                     </div>
                     <div class="address-field">
                         <span class="address-field-label">Province <span class="text-danger">*</span></span>
-                        <input type="text" name="deliveryProvince" placeholder="Province"
+                        <input type="text" name="deliveryProvince" class="checkout-input-control" placeholder="e.g. Metro Manila"
                                ng-model="deliveryProvince" required ng-maxlength="50" maxlength="50" autocomplete="address-level1" />
                         <span class="validation-error" ng-show="checkoutForm.deliveryProvince.$error.required && (checkoutForm.deliveryProvince.$dirty || checkoutForm.deliveryProvince.$touched)">Province is required.</span>
                     </div>
                     <div class="address-field address-field-zip">
                         <span class="address-field-label">ZIP Code <span class="text-danger">*</span></span>
-                        <input type="text" name="deliveryZip" placeholder="ZIP Code"
-                               ng-model="deliveryZip" required ng-maxlength="10" maxlength="10" ng-pattern="/^\d{4,10}$/" autocomplete="postal-code" />
+                        <input type="text" name="deliveryZip" class="checkout-input-control" placeholder="e.g. 1100" inputmode="numeric"
+                               ng-model="deliveryZip" required ng-maxlength="10" maxlength="10" ng-pattern="/^\d{4,10}$/" autocomplete="postal-code"
+                               ng-change="sanitizeCheckoutZip('delivery')" />
                         <span class="validation-error" ng-show="checkoutForm.deliveryZip.$error.required && (checkoutForm.deliveryZip.$dirty || checkoutForm.deliveryZip.$touched)">ZIP is required.</span>
-                        <span class="validation-error" ng-show="checkoutForm.deliveryZip.$error.pattern && checkoutForm.deliveryZip.$dirty">Enter a valid ZIP code.</span>
+                        <span class="validation-error" ng-show="checkoutForm.deliveryZip.$error.pattern && checkoutForm.deliveryZip.$dirty">Enter a valid ZIP code (digits only).</span>
                     </div>
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group checkout-form-group-compact" ng-show="paymentMethod !== 'Cash through meetup'">
                 <label>Billing Address</label>
                 <label class="custom-container billing-same-checkbox" style="margin-top: 0.5vw; font-size: 1rem; font-weight: normal;">
-                    <input type="checkbox" ng-model="billingSameAsDelivery" ng-click="billingSameAsDelivery = $event.target.checked" id="billingSameCheck" />
+                    <input type="checkbox" ng-model="billingSameAsDelivery" id="billingSameCheck" />
                     <span class="custom-mark checkbox-mark"></span>
                     <span class="terms-text" style="font-size: 1rem;">Same as Delivery Address</span>
                 </label>
 
-                <div ng-show="!billingSameAsDelivery" style="margin-top: 0.75vw;">
+                <div ng-show="!billingSameAsDelivery" class="checkout-billing-fields">
                     <span class="address-field-label">Address Line 1 <span class="text-danger">*</span></span>
-                    <input type="text" name="billingLine1" placeholder="House/Unit No., Street, Barangay"
+                    <input type="text" name="billingLine1" class="checkout-input-control" placeholder="House No., Street, Barangay"
                            ng-model="billingLine1" ng-required="!billingSameAsDelivery" ng-maxlength="100" maxlength="100" autocomplete="billing address-line1" />
                     <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingLine1.$error.required && (checkoutForm.billingLine1.$dirty || checkoutForm.billingLine1.$touched)">Address Line 1 is required.</span>
 
-                    <span class="address-field-label" style="margin-top: 0.5vw;">Address Line 2</span>
-                    <input type="text" name="billingLine2" placeholder="Building, Floor, Landmark (optional)"
+                    <span class="address-field-label checkout-address-gap">Address Line 2 (Optional)</span>
+                    <input type="text" name="billingLine2" class="checkout-input-control" placeholder="Building, Floor, Landmark"
                            ng-model="billingLine2" ng-maxlength="100" maxlength="100" autocomplete="billing address-line2" />
 
-                    <div class="address-row" style="margin-top: 0.5vw;">
+                    <div class="checkout-address-grid">
                         <div class="address-field">
-                            <span class="address-field-label">City <span class="text-danger">*</span></span>
-                            <input type="text" name="billingCity" placeholder="City / Municipality"
+                            <span class="address-field-label">City / Municipality <span class="text-danger">*</span></span>
+                            <input type="text" name="billingCity" class="checkout-input-control" placeholder="e.g. Quezon City"
                                    ng-model="billingCity" ng-required="!billingSameAsDelivery" ng-maxlength="50" maxlength="50" autocomplete="billing address-level2" />
                             <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingCity.$error.required && (checkoutForm.billingCity.$dirty || checkoutForm.billingCity.$touched)">City is required.</span>
                         </div>
                         <div class="address-field">
                             <span class="address-field-label">Province <span class="text-danger">*</span></span>
-                            <input type="text" name="billingProvince" placeholder="Province"
+                            <input type="text" name="billingProvince" class="checkout-input-control" placeholder="e.g. Metro Manila"
                                    ng-model="billingProvince" ng-required="!billingSameAsDelivery" ng-maxlength="50" maxlength="50" autocomplete="billing address-level1" />
                             <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingProvince.$error.required && (checkoutForm.billingProvince.$dirty || checkoutForm.billingProvince.$touched)">Province is required.</span>
                         </div>
                         <div class="address-field address-field-zip">
                             <span class="address-field-label">ZIP Code <span class="text-danger">*</span></span>
-                            <input type="text" name="billingZip" placeholder="ZIP Code"
-                                   ng-model="billingZip" ng-required="!billingSameAsDelivery" ng-maxlength="10" maxlength="10" ng-pattern="/^\d{4,10}$/" autocomplete="billing postal-code" />
+                            <input type="text" name="billingZip" class="checkout-input-control" placeholder="e.g. 1100" inputmode="numeric"
+                                   ng-model="billingZip" ng-required="!billingSameAsDelivery" ng-maxlength="10" maxlength="10" ng-pattern="/^\d{4,10}$/" autocomplete="billing postal-code"
+                                   ng-change="sanitizeCheckoutZip('billing')" />
                             <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingZip.$error.required && (checkoutForm.billingZip.$dirty || checkoutForm.billingZip.$touched)">ZIP is required.</span>
-                            <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingZip.$error.pattern && checkoutForm.billingZip.$dirty">Enter a valid ZIP code.</span>
+                            <span class="validation-error" ng-show="!billingSameAsDelivery && checkoutForm.billingZip.$error.pattern && checkoutForm.billingZip.$dirty">Enter a valid ZIP code (digits only).</span>
                         </div>
                     </div>
                 </div>
@@ -152,36 +162,64 @@
 
                 <div class="radio-option-container">
                     <label class="custom-container radio-option">
-                        <input type="radio" name="payment" id="full" ng-model="paymentMethod" value="Full Payment" ng-change="agreeTerms = false" />
+                        <input type="radio" name="payment" id="full" ng-model="paymentMethod" value="Full Payment" ng-change="onCheckoutPaymentMethodChange()" />
                         <span class="custom-mark radio-mark"></span>
                         <div class="label-text">
                             Full Payment <br>
-                            <small>GCash, Bank Transfer, Cash through meetup</small>
+                            <small>GCash, Bank Transfer</small>
                         </div>
                     </label>
 
                     <div class="payment-terms" ng-show="paymentMethod === 'Full Payment'">
-                        <ol>
-                            <li>
-                                Full payment is required upon the completion of the checkout process for
-                                all item(s) purchased on this website.
-                            </li>
-                            <li>
-                                Customers are required to settle the full order amount within two (2) to three (3)
-                                business days following the receipt of the official order confirmation email.
-                            </li>
-                            <li>
-                                For Cash through meetup, a 30% down payment is required. Enter N/A for the delivery address. 
-                                The meetup location is set by the seller, and date/time must be selected. 
-                                Final details will be shown after order approval.
-                            </li>
-                        </ol>
+                        <p class="mb-1 fw-bold">1. Payment Terms</p>
+                        <ul class="mb-3">
+                            <li>Full payment is required to confirm your order.</li>
+                            <li>Orders must be paid within two (2) to three (3) business days after receiving the order confirmation email.</li>
+                        </ul>
+                        <p class="mb-1 fw-bold">2. Order Processing</p>
+                        <ul class="mb-0">
+                            <li>Orders will only be processed after full payment is received.</li>
+                            <li>Failure to complete payment within the given timeframe may result in order cancellation.</li>
+                        </ul>
                     </div>
                 </div>
 
                 <div class="radio-option-container">
                     <label class="custom-container radio-option">
-                        <input type="radio" name="payment" id="layaway" ng-model="paymentMethod" value="Layaway" ng-change="agreeTerms = false" />
+                        <input type="radio" name="payment" id="cashMeetup" ng-model="paymentMethod" value="Cash through meetup" ng-change="onCheckoutPaymentMethodChange()" />
+                        <span class="custom-mark radio-mark"></span>
+                        <div class="label-text">
+                            Cash through meetup <br>
+                            <small>GCash, Bank Transfer (30% down payment)</small>
+                        </div>
+                    </label>
+
+                    <div class="checkout-meetup-nested" ng-show="paymentMethod === 'Cash through meetup'">
+                        <p class="checkout-meetup-nested-title">Meetup location (seller)</p>
+                        <p class="checkout-meetup-nested-name mb-1" ng-if="checkoutMeetupSettings.locationName">{{checkoutMeetupSettings.locationName}}</p>
+                        <p class="checkout-meetup-nested-addr mb-0" ng-if="checkoutMeetupSettings.address">{{checkoutMeetupSettings.address}}</p>
+                        <p class="checkout-meetup-nested-empty mb-0" ng-if="!checkoutMeetupSettings.locationName && !checkoutMeetupSettings.address">Venue will follow admin settings. If empty, contact us after placing your order.</p>
+                    </div>
+
+                    <div class="payment-terms" ng-show="paymentMethod === 'Cash through meetup'">
+                        <p class="mb-1 fw-bold">1. Reservation &amp; Payment</p>
+                        <ul class="mb-3">
+                            <li>A 30% down payment is required to secure your order.</li>
+                            <li>The remaining balance will be paid during the meetup.</li>
+                        </ul>
+                        <p class="mb-1 fw-bold">2. Meetup Details</p>
+                        <ul class="mb-3">
+                            <li>The meetup location is set by the seller and is shown in the box above.</li>
+                            <li>The date and time of the meetup will be scheduled by the seller.</li>
+                        </ul>
+                        <p class="mb-1 fw-bold">3. Rescheduling &amp; Coordination</p>
+                        <p class="mb-0">For rescheduling requests or concerns, please contact us via our <a href="https://www.instagram.com/solteira.brands/" target="_blank" rel="noopener noreferrer" class="text-white fw-bold text-decoration-underline">Instagram</a>.</p>
+                    </div>
+                </div>
+
+                <div class="radio-option-container">
+                    <label class="custom-container radio-option">
+                        <input type="radio" name="payment" id="layaway" ng-model="paymentMethod" value="Layaway" ng-change="onCheckoutPaymentMethodChange()" />
                         <span class="custom-mark radio-mark"></span>
                         <div class="label-text">
                             Layaway <br>
@@ -191,32 +229,36 @@
 
                     <div class="payment-terms layaway-details" ng-show="paymentMethod === 'Layaway'">
                         <div class="terms-group">
-                            <strong>1. Reservation &amp; Payment Schedule</strong>
+                            <strong>1. Reservation &amp; Deadline Rules</strong>
                             <ul>
-                                <li>30% Down Payment is required immediately.</li>
-                                <li>The remaining balance must be paid in monthly installments.</li>
-                                <li>The item's price is fixed when you start the plan.</li>
+                                <li>Layaway is only available for selected items.</li>
+                                <li>30% down payment is required and is non-refundable.</li>
+                                <li>Remaining balance is payable at your own pace with 0% interest.</li>
+                                <li>Deadline is based on item total price: &#8369;10,000-14,999 = 15 days, &#8369;15,000-29,999 = 30 days, &#8369;30,000+ = 60 days.</li>
                             </ul>
                         </div>
                         <div class="terms-group">
-                            <strong>2. Policy on Non-Compliance &amp; Cancellation</strong>
+                            <strong>2. Rejections, Extension &amp; Cancellation</strong>
                             <ul>
-                                <li>Missing a payment or the final deadline automatically cancels your order.</li>
-                                <li>All money paid will be kept by Solteira &amp; Brands.</li>
-                                <li>The item will be put back up for sale.</li>
+                                <li>Strictly no extension, except a one-time +3 day extension when payment resubmission is allowed after rejection.</li>
+                                <li>Missing the deadline automatically cancels the order.</li>
+                                <li>Paid amounts remain non-refundable and the item may be relisted for sale.</li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="terms-checkbox" ng-if="paymentMethod">
+            <div class="terms-checkbox" ng-show="paymentMethod">
                 <label class="custom-container">
-                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" ng-click="agreeTerms = $event.target.checked" />
+                    <input type="checkbox" id="agreeFull" ng-model="agreeTerms" />
                     <span class="custom-mark checkbox-mark"></span>
                     <span class="terms-text">
                         <span ng-show="paymentMethod === 'Full Payment'">
                             I acknowledge and agree to the Full Payment Terms and Conditions above.
+                        </span>
+                        <span ng-show="paymentMethod === 'Cash through meetup'">
+                            I acknowledge and agree to the Cash through meetup Terms and Conditions above.
                         </span>
                         <span ng-show="paymentMethod === 'Layaway'">
                             I acknowledge and agree to the Layaway Terms and Conditions above.

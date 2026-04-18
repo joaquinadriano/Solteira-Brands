@@ -333,8 +333,16 @@ body {
 
 .order-status {
 /*    color: white;*/
-    font-size: 1rem;
+    font-size: 1.125rem;
 /*    margin-bottom: 15px;*/
+}
+
+/* My Orders list: primary status pill (consistent size with completed) */
+.order-status .status-weight.badge {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 0.95rem !important;
+    line-height: 1.25;
 }
 
 .delivery-info {
@@ -770,17 +778,21 @@ body {
 
 .buyer-order-status-line {
     margin-bottom: 1rem;
-    font-size: 1rem;
+    font-size: 1.15rem;
 }
 
 .buyer-order-status-label {
-    color: #5a7a4a;
+    color: #2d2d2d;
     margin-right: 0.5rem;
+    font-weight: 600;
+    font-size: 1.15rem;
 }
 
-.buyer-order-status-value {
-    color: #87AE73;
-    font-weight: bold;
+.buyer-order-status-value.badge {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 0.95rem !important;
+    line-height: 1.25;
 }
 
 .buyer-order-summary-card {
@@ -978,34 +990,34 @@ body {
 }
 
 
-/* Order status badge colors (order status only; payment rejection uses red in payment row) */
-.order-status-gray { 
-    font-size: 1rem;
-    background-color: #6c757d; 
-    color: #fff; 
+/* Order status badge colors (My Orders + order summary modal) */
+.order-status-gray {
+    font-size: 1.125rem;
+    background-color: #6c757d;
+    color: #fff;
 }
 
 .order-status-yellow {
-    font-size: 1rem;
+    font-size: 1.125rem;
     background-color: #ffc107;
     color: #212529;
 }
 
 .order-status-blue {
-    font-size: 1rem;
+    font-size: 1.125rem;
     background-color: #0d6efd;
     color: #fff;
 }
 
 .order-status-green {
-    font-size: 1rem;
+    font-size: 1.125rem;
     background-color: #198754;
     color: #fff;
 }
 
 .order-status-red {
-    font-size: 1rem;
-    background-color: darkred;
+    font-size: 1.125rem;
+    background-color: #b42318;
     color: #fff;
 }
 
